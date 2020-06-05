@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="info" monitorInterval="10">
+    <!-- 定义公用的变量，日志存储文件夹，日志文件名，日志的格式，java运行环境格式等 -->
+    <Properties>
+        <!-- 日志的路径，发布时需要修改为${CATALINA_HOME}/logs，日志会写入tomcat的日志目录下 -->
+        <Property name="LOG_HOME">C:/Rhdfs/logs</Property>
+        <Property name="LOG_BACKUP_HOME">${LOG_HOME}/backup</Property>
+        <Property name="LOG_FILE_NAME">rhdfs</Property>
+        <Property name="LOG_FILE_SIZE">20MB</Property>
+        <Property name="LOG_FILE_COUNT_EVERYDAY">10</Property>
+        <Property name="LOG_FILE_COMPRESSION_LEVEL">7</Property>
+        <Property name="LOG_CHARSET">UTF-8</Property>
+        <Property name="LOG_SAVE_PERIOD">30d</Property>
+        <Property name="PATTERN_LOG">%d{yyyy-MM-dd HH:mm:ss.SSS} %l%n[%-5p] %m%n</Property>
+        <Property name="RUNTIME_ENVIRONMENT_LOG">[RUNTIME-INFO] ${java:runtime}
+            %n[RUNTIME-INFO] ${java:os} %n[RUNTIME-INFO] ${java:vm}%n</Property>
+    </Properties>
+
+    <Appenders>
+        <!-- 控制台输出 -->
+        <Console name="CONSOLE" target="SYSTEM_OUT">
+            <PatternLayout>
+                <charset>${LOG_CHARSET}</charset>
+                <Pattern>${PATTERN_LOG}</Pattern>
+            </PatternLayout>
+        </Console>
+        <!-- 日志文件输出 -->
+        <RollingRandomAccessFile name="PLATFORM_LOG">
+            <fileName>${LOG_HOME}/${LOG_FILE_NAME}-main.log</fileName>
+            <filePattern>${LOG_BACKUP_HOME}/${LOG_FILE_NAME}-%d{yyyy-MM-dd}-%i.main-log.zip</filePattern>
+            <PatternLayout header="${RUNTIME_ENVIRONMENT_LOG}">
+                <charset>${LOG_CHARSET}</charset>
+                <Pattern>${PATTERN_LOG}</Pattern>
+            </PatternLayout>
+            <!-- <Filters> -->
+            <!-- 匹配日志 Marker为EVENT(区分大小写) ACCEPT/NEUTRAL/DENY -->
+            <!-- <MarkerFilter marker="ET" onMatch="ACCEPT" onMismatch="NEUTRAL"/> -->
+            <!-- </Filters> -->
+            <!-- 匹配 包含HTTP request的输出 -->
+            <!-- <RegexFilter regex=".*HTTP request.*" onMatch="ACCEPT" onMismatch="DENY"/> -->
+            <Policies>
+                <!-- 每次启动时生成新的日志文件 -->
+                <OnStartupTriggeringPolicy />
+                <!-- 每隔24小时重新生成一个日志文件，日志文件在0点重新生成 -->
+                <TimeBasedTriggeringPolicy interval="24"
+                                           modulate="true" />
+                <!-- 文件达到250M时重新生成一个日志文件 -->
+                <SizeBasedTriggeringPolicy
+                        size="${LOG_FILE_SIZE}" />
+            </Policies>
+            <!-- 要保留的日志文件的个数，及定期删除日志文件下所有的过期日志 -->
+            <!-- 每天最多10个保留个日志文件，归档的日志文件压缩率是7，删除30天以上的所有归档日志 -->
+            <DefaultRolloverStrategy
+                    max="${LOG_FILE_COUNT_EVERYDAY}"
+                    compressionLevel="${LOG_FILE_COMPRESSION_LEVEL}">
+                <Delete basePath="${LOG_BACKUP_HOME}" maxDepth="0"
+                        testMode="true">
+                    <IfFileName glob="*.mainLog.zip" />
+                    <IfLastModified age="${LOG_SAVE_PERIOD}" />
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingRandomAccessFile>
+
+        <!-- 错误/异常日志文件输出 -->
+        <RollingRandomAccessFile
+                name="PLATFORM_ERROR_LOG">
+            <fileName>${LOG_HOME}/${LOG_FILE_NAME}-err.log</fileName>
+            <filePattern>${LOG_BACKUP_HOME}/${LOG_FILE_NAME}-err-%d{yyyy-MM-dd}-%i.error-log.zip</filePattern>
+            <Filters>
+                <ThresholdFilter level="error" onMatch="ACCEPT"
+                                 onMismatch="DENY" />
+            </Filters>
+            <PatternLayout header="${RUNTIME_ENVIRONMENT_LOG}">
+                <charset>${LOG_CHARSET}</charset>
+                <Pattern>${PATTERN_LOG}</Pattern>
+            </PatternLayout>
+            <Policies>
+                <TimeBasedTriggeringPolicy interval="24"
+                                           modulate="true" />
+                <SizeBasedTriggeringPolicy
+                        size="${LOG_FILE_SIZE}" />
+            </Policies>
+            <DefaultRolloverStrategy
+                    max="${LOG_FILE_COUNT_EVERYDAY}"
+                    compressionLevel="${LOG_FILE_COMPRESSION_LEVEL}">
+                <Delete basePath="${LOG_BACKUP_HOME}" maxDepth="0"
+                        testMode="true">
+                    <IfFileName glob="*.error-log.zip" />
+                    <IfLastModified age="${LOG_SAVE_PERIOD}" />
+                </Delete>
+            </DefaultRolloverStrategy>
+        </RollingRandomAccessFile>
+    </Appenders>
+
+    <Loggers>
+
+        <!-- 控制台日志输出级别调试使用，若不调试，可以 将level设置为off，关闭日志输出到控制台 -->
+        <AsyncRoot level="info" includeLocation="true">
+            <AppenderRef ref="CONSOLE" />
+            <AppenderRef ref="PLATFORM_LOG" />
+        </AsyncRoot>
+    </Loggers>
+</Configuration>

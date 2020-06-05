@@ -1,0 +1,8 @@
+{
+  "properties": [
+    {
+      "name": "store.model",
+      "type": "java.lang.String",
+      "description": "store model:single,distributed."
+  }
+] }
