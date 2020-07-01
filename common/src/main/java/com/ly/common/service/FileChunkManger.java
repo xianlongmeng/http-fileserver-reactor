@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.AsynchronousFileChannel;
 import java.nio.channels.FileChannel;
+import java.nio.file.Files;
 import java.nio.file.StandardOpenOption;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -47,19 +48,29 @@ public class FileChunkManger {
         return setFileChunkState(filePath, size, index, true);
     }
 
-    public int setFileChunkState(String filePath, int size, int index, boolean state) {
+    public synchronized int setFileChunkState(String filePath, int size, int index, boolean state) {
         FileChunkState fileChunkState = getFileChunkState(filePath, size);
         if (fileChunkState == null) {
             return -1;
         }
+        int res;
         if (state) {
-            return fileChunkState.setStateAndCount(index);
+            res = fileChunkState.setStateAndCount(index);
         } else {
-            return fileChunkState.setStateAndCount(index, false);
+            res = fileChunkState.setStateAndCount(index, false);
         }
+        writeConfigFile(filePath,fileChunkState);
+        return res;
     }
 
     public FileChunkState removeFileChunkState(String filePath) {
+        File file = new File(buildConfigFileName(filePath));
+        try {
+            Files.delete(file.toPath());
+        }catch (IOException e){
+            logger.error("delete config file '{}' is error.",file.getAbsolutePath(),e);
+        }
+
         return fileChunkStateMap.remove(filePath);
     }
 

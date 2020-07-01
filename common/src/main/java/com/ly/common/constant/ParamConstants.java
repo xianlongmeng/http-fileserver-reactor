@@ -13,4 +13,9 @@ public class ParamConstants {
     public static final String PARAM_CONFIG_FILE_CHUNK_SUFFIX=".rhdcfg";
 
     public static final String PARAM_FILE_NAME="file_name";
+
+    public static final int MASTER_SERVER_DEFAULT_PORT=11527;
+
+    public static final String ST_MASTER="master";
+    public static final String ST_STORE="store";
 }

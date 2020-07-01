@@ -6,17 +6,27 @@
     <packaging>pom</packaging>
     <modules>
         <module>rhdfs-app</module>
-        <module>store-single</module>
+        <module>store.single</module>
         <module>store</module>
+        <module>store.distribution</module>
         <module>common</module>
         <module>etag-generator</module>
         <module>fileserver</module>
         <module>master</module>
-        <module>master.connect</module>
+        <module>server.connect</module>
         <module>master.restore</module>
         <module>extend</module>
         <module>master.backup</module>
         <module>authentication</module>
+        <module>manager</module>
+        <module>master.manager</module>
+        <module>store.manager</module>
+        <module>communicate</module>
+        <module>communicate.socket</module>
+        <module>master.file.manager</module>
+        <module>file.cache</module>
+        <module>message</module>
+        <module>message.handler</module>
     </modules>
 
     <parent>
@@ -95,6 +105,16 @@
             <groupId>com.google.code.findbugs</groupId>
             <artifactId>jsr305</artifactId>
             <version>3.0.2</version>
+        </dependency>
+        <dependency>
+            <groupId>net.sf.ehcache</groupId>
+            <artifactId>ehcache</artifactId>
+            <version>2.10.4</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alibaba</groupId>
+            <artifactId>fastjson</artifactId>
+            <version>1.2.68</version>
         </dependency>
     </dependencies>
     <build>
