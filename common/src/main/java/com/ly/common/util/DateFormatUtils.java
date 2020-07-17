@@ -21,6 +21,7 @@ public class DateFormatUtils {
 
     public static final Logger logger = LoggerFactory.getLogger(DateFormatUtils.class);
     public static final DateTimeFormatter DateDirFormatter = DateTimeFormatter.ofPattern("yyyy/MMdd");
+    public static final DateTimeFormatter SimpleDateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     public static final DateTimeFormatter SimpleDateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
     public static final DateTimeFormatter SimpleDateTimeMillSecondFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
     public static final DateTimeFormatter NoDelimiterDateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
@@ -76,6 +77,12 @@ public class DateFormatUtils {
         return buildDateTimeFormatter(localDateTime, DateDirFormatter);
     }
 
+    public static String buildSimpleDateFormatter(LocalDateTime localDateTime) {
+        return buildDateTimeFormatter(localDateTime, SimpleDateFormatter);
+    }
+    public static String buildSimpleDateFormatter(LocalDate localDate) {
+        return buildDateFormatter(localDate, SimpleDateFormatter);
+    }
     public static String buildSimpleDateTimeFormatter(LocalDateTime localDateTime) {
         return buildDateTimeFormatter(localDateTime, SimpleDateTimeFormatter);
     }
@@ -100,6 +107,10 @@ public class DateFormatUtils {
         return buildDateTimeFormatter(localDateTime, DateTimeFormatter.RFC_1123_DATE_TIME);
     }
 
+    public static LocalDate parseLocalDate4Simple(String datetimeStr) {
+        return parseLocalDate(datetimeStr, SimpleDateFormatter);
+    }
+
     public static LocalDateTime parseLocalDateTime4Simple(String datetimeStr) {
         return parseLocalDateTime(datetimeStr, SimpleDateTimeFormatter);
     }
@@ -115,7 +126,16 @@ public class DateFormatUtils {
     public static LocalDateTime parseLocalDateTime4GMT(String datetimeStr) {
         return parseLocalDateTime(datetimeStr, DateTimeFormatter.RFC_1123_DATE_TIME);
     }
-
+    public static String buildDateFormatter(LocalDate localDate, DateTimeFormatter dateTimeFormatter) {
+        if (localDate == null) {
+            return "";
+        }
+        if (dateTimeFormatter == null) {
+            return localDate.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+        } else {
+            return localDate.format(dateTimeFormatter);
+        }
+    }
     public static String buildDateTimeFormatter(LocalDateTime localDateTime, DateTimeFormatter dateTimeFormatter) {
         if (localDateTime == null) {
             return "";
@@ -187,7 +207,7 @@ public class DateFormatUtils {
         return parseLocalTime(timeStr, findDateTimeFormatter(pattern));
     }
 
-    public static long getTimeStrapByDateTime(LocalDateTime localDateTime) {
+    public static long getTimeStampByDateTime(LocalDateTime localDateTime) {
         ZoneId zoneId = ZoneId.systemDefault();
         Instant instant = localDateTime.atZone(zoneId).toInstant();
         return instant.toEpochMilli();

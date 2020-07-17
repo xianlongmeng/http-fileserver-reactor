@@ -9,11 +9,11 @@ public class FileInfo {
     private long size;
     private String etag;
     private boolean chunk;
-    // 分块大小，>=0表示不分块
+    // 分块大小，<=0表示不分块
     private long chunkSize;
     // 分块数量
     private int chunkCount;
-    // 分块信息
+    // 分块信息，可以是整个FileInfo，可以是一个分块的分片
     private List<ChunkInfo> fileChunkList;
 
     public long getCreateTime() {

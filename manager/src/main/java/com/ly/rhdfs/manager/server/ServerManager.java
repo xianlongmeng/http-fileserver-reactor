@@ -4,38 +4,119 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
+import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
 import org.springframework.util.ResourceUtils;
 import org.springframework.util.StringUtils;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.TypeReference;
 import com.ly.common.domain.server.MasterServerConfig;
+import com.ly.common.domain.server.ServerInfoConfiguration;
 import com.ly.common.domain.server.ServerState;
+import com.ly.common.util.DateFormatUtils;
+import com.ly.rhdfs.communicate.command.DFSCommandState;
+import com.ly.rhdfs.log.operate.LogOperateUtils;
+import com.ly.rhdfs.manager.config.ServerConfig;
 import com.ly.rhdfs.manager.connect.ConnectManager;
 import com.ly.rhdfs.manager.handler.CommandEventHandler;
 
-@Component
-public class ServerManager {
+public abstract class ServerManager {
 
-    private Logger logger = LoggerFactory.getLogger(this.getClass());
-    private final Map<Integer, MasterServerConfig> masterServerConfigs = new ConcurrentHashMap<>();
-    private final Map<Integer, ServerState> serverInfoMap = new ConcurrentHashMap<>();
-    private int localServerId;
-    private int port;
-    private ConnectManager connectManager;
+    protected final Map<Integer, ServerState> serverInfoMap = new ConcurrentHashMap<>();
+    protected final ServerState localServerState = new ServerState();
+    private final DFSCommandState localDFSCommandState = new DFSCommandState(localServerState);
+    private final LogOperateUtils logOperateUtils;
+    protected Logger logger = LoggerFactory.getLogger(this.getClass());
+    protected ConnectManager connectManager;
+    protected ServerConfig serverConfig;
+    protected ScheduledThreadPoolExecutor scheduledThreadPoolExecutor;
+    protected int masterServerId = -1;
+    protected MasterServerConfig masterServerConfig;
+    private long serverAddressUpdateLastTime;
+    //Master:disconnect 3 store last time;Store:disconnect master last time
+    private long masterDisconnectedLastTime;
 
-    private int masterServerId;
+    public ServerManager() {
+        logOperateUtils = new LogOperateUtils(serverConfig.getLogPath());
+    }
+
+    public ServerConfig getServerConfig() {
+        return serverConfig;
+    }
 
     @Autowired
-    private void setConnectManager(ConnectManager connectManager) {
+    protected void setServerConfig(ServerConfig serverConfig) {
+        this.serverConfig = serverConfig;
+    }
+
+    @Autowired
+    protected void setConnectManager(ConnectManager connectManager) {
         this.connectManager = connectManager;
+    }
+
+    public Map<Integer, ServerState> getServerInfoMap() {
+        return serverInfoMap;
+    }
+
+    public long getServerAddressUpdateLastTime() {
+        return serverAddressUpdateLastTime;
+    }
+
+    public void setServerAddressUpdateLastTime(long serverAddressUpdateLastTime) {
+        this.serverAddressUpdateLastTime = serverAddressUpdateLastTime;
+    }
+
+    /**
+     * 收到心跳后，放入新的ServerState，处理相关Config信息。
+     * @param serverState
+     */
+    public void putServerState(ServerState serverState) {
+        if (serverState == null || serverState.getType() == ServerState.SIT_UNKNOWN || masterServerConfig == null)
+            return;
+        if (!serverInfoMap.containsKey(serverState.getServerId())) {
+            serverInfoMap.put(serverState.getServerId(), serverState);
+            masterServerConfig.putServerInfoConfiguration(new ServerInfoConfiguration(serverState));
+        } else {
+            ServerInfoConfiguration serverInfoConfiguration = masterServerConfig
+                    .getServerInfoConfiguration(serverState.getServerId());
+            if (serverInfoConfiguration != null
+                    && ((serverState.getAddress() != null
+                            && !serverState.getAddress().equals(serverInfoConfiguration.getAddress()))
+                    || serverState.getPort() != serverInfoConfiguration.getPort())) {
+                serverState.setUpdateAddressLastTime(Instant.now().toEpochMilli());
+                serverInfoConfiguration.setServerState(serverState);
+            }
+            ServerState curServerState = serverInfoMap.get(serverState.getServerId());
+            curServerState.copyFrom(serverState);
+        }
+    }
+
+    //只负责删除ServerState内容，不负责数据转存
+    public void removeServerState(ServerState serverState){
+        if (serverState==null)
+            return;
+        serverInfoMap.remove(serverState.getServerId());
+        if (masterServerConfig!=null){
+            if (serverState.getType()==ServerState.SIT_STORE){
+                masterServerConfig.removeMasterServer(serverState.getServerId());
+            }else{
+                masterServerConfig.removeStoreServer(serverState.getServerId());
+            }
+        }
+    }
+    public ScheduledThreadPoolExecutor getScheduledThreadPoolExecutor() {
+        return scheduledThreadPoolExecutor;
+    }
+
+    public ServerState findServerState(int serverId) {
+        return serverInfoMap.get(serverId);
     }
 
     public void loadMasterServer(String configPath) {
@@ -45,13 +126,11 @@ public class ServerManager {
         try {
             File configFile = ResourceUtils.getFile(configPath);
             String configContent = Files.readString(configFile.toPath());
-            Map<Integer, MasterServerConfig> mscMap = JSON.parseObject(configContent,
-                    new TypeReference<Map<Integer, MasterServerConfig>>() {
-                    });
-            masterServerConfigs.putAll(mscMap);
-            for (MasterServerConfig masterServerConfig : mscMap.values()) {
-                if (masterServerConfig != null) {
-                    serverInfoMap.put(masterServerConfig.getServerId(), newServerInfo(masterServerConfig));
+            masterServerConfig = JSON.parseObject(configContent, new TypeReference<>() {
+            });
+            for (ServerInfoConfiguration serverInfoConfiguration : masterServerConfig.getMasterServerMap().values()) {
+                if (serverInfoConfiguration != null) {
+                    serverInfoMap.put(serverInfoConfiguration.getServerId(), newServerInfo(serverInfoConfiguration));
                 }
             }
         } catch (FileNotFoundException e) {
@@ -61,14 +140,15 @@ public class ServerManager {
         }
     }
 
-    private ServerState newServerInfo(MasterServerConfig masterServerConfig) {
-        if (masterServerConfig == null) {
+    private ServerState newServerInfo(ServerInfoConfiguration serverInfoConfiguration) {
+        if (serverInfoConfiguration == null) {
             return null;
         }
         ServerState serverState = new ServerState();
-        serverState.setServerId(masterServerConfig.getServerId());
-        serverState.setAddress(masterServerConfig.getAddress());
-        serverState.setPort(masterServerConfig.getPort());
+        serverState.setServerId(serverInfoConfiguration.getServerId());
+        serverState.setAddress(serverInfoConfiguration.getAddress());
+        serverState.setPort(serverInfoConfiguration.getPort());
+        serverState.setUpdateAddressLastTime(Instant.now().toEpochMilli());
         return serverState;
     }
 
@@ -78,7 +158,7 @@ public class ServerManager {
         }
         try {
             File configFile = ResourceUtils.getFile(configPath);
-            Files.writeString(configFile.toPath(), JSON.toJSONString(serverInfoMap));
+            Files.writeString(configFile.toPath(), JSON.toJSONString(masterServerConfig));
         } catch (FileNotFoundException e) {
             logger.error(String.format("%s file is not found!", configPath), e);
         } catch (IOException e) {
@@ -87,19 +167,19 @@ public class ServerManager {
     }
 
     public int getLocalServerId() {
-        return localServerId;
+        return localServerState.getServerId();
     }
 
     public void setLocalServerId(int localServerId) {
-        this.localServerId = localServerId;
+        localServerState.setServerId(localServerId);
     }
 
     public int getPort() {
-        return port;
+        return localServerState.getPort();
     }
 
     public void setPort(int port) {
-        this.port = port;
+        localServerState.setPort(port);
     }
 
     public ServerState findServerState4ServerId(int serverId) {
@@ -110,6 +190,7 @@ public class ServerManager {
         connectManager.closeServer(serverState);
         connectManager.startConnectServer(serverState, new CommandEventHandler());
     }
+
     public void connectServer(ServerState serverState) {
         connectManager.startConnectServer(serverState, new CommandEventHandler());
     }
@@ -117,8 +198,40 @@ public class ServerManager {
     public void closeConnect(ServerState serverState) {
         connectManager.closeServer(serverState);
     }
-    public void sendHeart(ServerState serverState){
-        //TODO:
+
+    public void sendHeart(ServerState serverState) {
+        if (serverState == null)
+            return;
+        connectManager.sendCommunicationObject(serverState, localServerState);
     }
 
+    public void initLastTime() {
+        localServerState.setWriteLastTime(DateFormatUtils.getTimeStampByDateTime(logOperateUtils.readLastTime()));
+    }
+
+    public MasterServerConfig getMasterServerConfig(){
+        return masterServerConfig;
+    }
+    public int getStoreServerCount() {
+        if (masterServerConfig == null)
+            return 3;
+        else
+            return masterServerConfig.getStoreServerInitCount();
+    }
+
+    public int getMasterServerId() {
+        return masterServerId;
+    }
+
+    public void setMasterServerId(int masterServerId) {
+        this.masterServerId = masterServerId;
+    }
+
+    public long getMasterDisconnectedLastTime() {
+        return masterDisconnectedLastTime;
+    }
+
+    public void setMasterDisconnectedLastTime(long masterDisconnectedLastTime) {
+        this.masterDisconnectedLastTime = masterDisconnectedLastTime;
+    }
 }

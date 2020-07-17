@@ -10,8 +10,8 @@ import org.springframework.stereotype.Component;
 
 import com.ly.common.domain.server.ServerState;
 import com.ly.rhdfs.communicate.DFSCommunicate;
+import com.ly.rhdfs.communicate.command.DFSCommand;
 import com.ly.rhdfs.communicate.handler.EventHandler;
-import com.ly.rhdfs.manager.config.ServerConfig;
 
 import reactor.netty.Connection;
 
@@ -20,7 +20,6 @@ public class ConnectManager {
 
     private final Map<ServerState, Connection> serverConnectionMap = new ConcurrentHashMap<>();
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    private ServerConfig serverConfig;
     private DFSCommunicate dfsCommunicate;
 
     @Autowired
@@ -46,16 +45,12 @@ public class ConnectManager {
         serverConnectionMap.put(serverState, connection);
         if (!serverState.isOnline()) {
             serverState.setOnline(true);
-        }
-        return true;
+            return true;
+        } else
+            return false;
     }
 
-    @Autowired
-    public void setServerConfig(ServerConfig serverConfig) {
-        this.serverConfig = serverConfig;
-    }
-
-    public void startMasterListen(int port, EventHandler eventHandler) {
+    public void startSocketListen(int port, EventHandler eventHandler) {
         dfsCommunicate.serverBind(port, eventHandler);
     }
 
@@ -63,8 +58,8 @@ public class ConnectManager {
         if (serverState == null || serverState.isOnline())
             return;
         Connection connection = dfsCommunicate.connectServer(serverState, eventHandler);
-        if (connection != null) {
-            putServerConnection(serverState, connection);
+        if (connection != null && !putServerConnection(serverState, connection)) {
+            connection.dispose();
         }
     }
 
@@ -73,5 +68,12 @@ public class ConnectManager {
             return;
         Connection connection = serverConnectionMap.get(serverState);
         connection.disposeNow();
+    }
+
+    public boolean sendCommunicationObject(ServerState serverState, Object commandObj) {
+        return dfsCommunicate.sendCommandObject(serverState, commandObj);
+    }
+    public boolean sendCommunication(ServerState serverState, DFSCommand dfsCommand) {
+        return dfsCommunicate.sendCommand(serverState, dfsCommand);
     }
 }

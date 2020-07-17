@@ -13,6 +13,8 @@ import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 
+import java.time.Instant;
+
 public class HeartBeatHandler extends ChannelInboundHandlerAdapter {
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -35,8 +37,10 @@ public class HeartBeatHandler extends ChannelInboundHandlerAdapter {
     }
 
     private synchronized void reconnect(ChannelHandlerContext ctx) {
-
-        ChannelFuture channelFuture = ctx.close();
+        ctx.close();
+        if (serverState!=null){
+            serverState.setOnline(false);
+        }
         if (!server) {
             // 重连
             logger.error("reconnect:{}", ctx.channel().remoteAddress());
@@ -74,6 +78,13 @@ public class HeartBeatHandler extends ChannelInboundHandlerAdapter {
     public void exceptionCaught(ChannelHandlerContext ctx, Throwable cause) throws Exception {
         super.exceptionCaught(ctx, cause);
         reconnect(ctx);
+    }
+
+    @Override
+    public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
+        serverState.setOnline(true);
+        serverState.setLastTime(Instant.now().toEpochMilli());
+        super.channelRead(ctx, msg);
     }
 
     public boolean isServer() {

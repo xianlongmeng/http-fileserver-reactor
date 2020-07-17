@@ -3,10 +3,11 @@ package com.ly.common.domain.file;
 import java.util.List;
 
 public class ChunkInfo {
+    public static final int FILE_CHUNK_STATE_OK=1;
+    public static final int FILE_CHUNK_STATE_NONE=0;
     private List<Integer> chunkServerIdList;
     private int index;
-    private long position;
-    private int length;
+    private int state=FILE_CHUNK_STATE_NONE;
     private String chunkEtag;
 
     // 每个分块对应的服务器列表
@@ -26,20 +27,12 @@ public class ChunkInfo {
         this.index = index;
     }
 
-    public long getPosition() {
-        return position;
+    public int getState() {
+        return state;
     }
 
-    public void setPosition(long position) {
-        this.position = position;
-    }
-
-    public int getLength() {
-        return length;
-    }
-
-    public void setLength(int length) {
-        this.length = length;
+    public void setState(int state) {
+        this.state = state;
     }
 
     public String getChunkEtag() {

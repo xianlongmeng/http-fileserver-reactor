@@ -1,4 +1,4 @@
-package com.ly.rhdfs.master.manager;
+package com.ly.rhdfs.store.manager;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.ApplicationArguments;
@@ -6,17 +6,17 @@ import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
 @Component
-public class MasterInitialAction implements ApplicationRunner {
+public class StoreInitialAction implements ApplicationRunner {
 
-    private MasterManager masterManager;
+    private StoreManager storeManager;
 
     @Autowired
-    public void setMasterManager(MasterManager masterManager) {
-        this.masterManager = masterManager;
+    public void setStoreManager(StoreManager storeManager) {
+        this.storeManager = storeManager;
     }
 
     @Override
     public void run(ApplicationArguments args) {
-        masterManager.initial();
+        storeManager.initial();
     }
 }

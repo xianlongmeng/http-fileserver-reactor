@@ -13,7 +13,9 @@ public class DFSCommand {
     public static final int CT_DIRECT_FILE_ITEM=0x10;
     public static final int CT_CLEAR=0x20;
     public static final int CT_REQUEST_EXPAND=0x40;
+    public static final int CT_SERVER_ADDRESS=0x80;
     public static final int CT_FILE_TRANSFER=0x100;
+    public static final int CT_FILE_OPERATE=0x200;
     protected int commandType;
     protected int length;
     protected int serverId;
