@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 
 @Configuration
-@PropertySource(value = "classpath:store.properties")
+@PropertySource(value = "classpath:store.distribution.properties")
 @ConditionalOnProperty(prefix = "store",name="model",havingValue = "distribution")
 public class DistributionStoreConfig {
     @Value("${store.file.root.path}")

@@ -1,4 +1,4 @@
-package com.ly.rhdfs.config;
+package com.ly.common.config;
 
 import com.ly.etag.impl.ETagComputer4MD5;
 import com.ly.etag.impl.ETagComputer4UUIDTimestamp;
@@ -18,7 +18,7 @@ public class ApplicationConfiguration {
     }
 
     @Bean
-    @ConditionalOnProperty(prefix = "etag",name = "type",havingValue = "MD5")
+    @ConditionalOnProperty(prefix = "etag",name = "type",havingValue = "UUIDTimestamp")
     public ETagComputer4UUIDTimestamp eTagComputer4UUIDTimestamp(){
         return new ETagComputer4UUIDTimestamp();
     }

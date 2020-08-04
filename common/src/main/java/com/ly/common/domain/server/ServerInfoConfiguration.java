@@ -1,9 +1,10 @@
 package com.ly.common.domain.server;
 
 public class ServerInfoConfiguration {
-    private int serverId;
+    private long serverId;
     private String address;
     private int port;
+    private long updateLastTime;
     // 是否为master，还是store
     private boolean master=true;
 
@@ -12,16 +13,18 @@ public class ServerInfoConfiguration {
         setPort(serverState.getPort());
         setServerId(serverState.getServerId());
         setMaster(serverState.getType()!=ServerState.SIT_STORE);
+        setUpdateLastTime(serverState.getUpdateAddressLastTime());
     }
     public void setServerState(ServerState serverState){
         setAddress(serverState.getAddress());
         setPort(serverState.getPort());
+        setUpdateLastTime(serverState.getUpdateAddressLastTime());
     }
-    public int getServerId() {
+    public long getServerId() {
         return serverId;
     }
 
-    public void setServerId(int serverId) {
+    public void setServerId(long serverId) {
         this.serverId = serverId;
     }
 
@@ -39,6 +42,14 @@ public class ServerInfoConfiguration {
 
     public void setPort(int port) {
         this.port = port;
+    }
+
+    public long getUpdateLastTime() {
+        return updateLastTime;
+    }
+
+    public void setUpdateLastTime(long updateLastTime) {
+        this.updateLastTime = updateLastTime;
     }
 
     public boolean isMaster() {

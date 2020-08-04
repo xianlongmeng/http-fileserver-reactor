@@ -291,7 +291,7 @@ public class DFSCommandParse {
         byteBuf.writeBytes(DC_HEAD);
         byteBuf.writeInt(dfsCommand.getLength());
         byteBuf.writeInt(dfsCommand.getCommandType());
-        byteBuf.writeInt(dfsCommand.getServerId());
+        byteBuf.writeLong(dfsCommand.getServerId());
         byteBuf.writeLong(dfsCommand.getTimestamp());
     }
 
@@ -451,7 +451,7 @@ public class DFSCommandParse {
         byteBuf.writeBytes(DC_HEAD);
         byteBuf.writeInt(length);
         byteBuf.writeInt(DFSCommand.CT_REQUEST_EXPAND);
-        byteBuf.writeInt(serverManager.getLocalServerId());
+        byteBuf.writeLong(serverManager.getLocalServerId());
         byteBuf.writeLong(Instant.now().toEpochMilli());
         byteBuf.writeBytes(bytes);
         return byteBuf;
@@ -484,7 +484,7 @@ public class DFSCommandParse {
         byteBuf.writeBytes(DC_HEAD);
         byteBuf.writeInt(length);
         byteBuf.writeInt(DFSCommand.CT_REQUEST_EXPAND);
-        byteBuf.writeInt(serverManager.getLocalServerId());
+        byteBuf.writeLong(serverManager.getLocalServerId());
         byteBuf.writeLong(Instant.now().toEpochMilli());
         byteBuf.writeShort(dfsCommandFileTransfer.getFileTransferInfo().getPathLength());
         byteBuf.writeShort(dfsCommandFileTransfer.getFileTransferInfo().getFileNameLength());

@@ -1,22 +1,19 @@
 package com.ly.common.domain.file;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class ChunkInfo {
     public static final int FILE_CHUNK_STATE_OK=1;
     public static final int FILE_CHUNK_STATE_NONE=0;
-    private List<Integer> chunkServerIdList;
+    private final List<Long> chunkServerIdList=new ArrayList<>();
     private int index;
     private int state=FILE_CHUNK_STATE_NONE;
     private String chunkEtag;
 
     // 每个分块对应的服务器列表
-    public List<Integer> getChunkServerIdList() {
+    public List<Long> getChunkServerIdList() {
         return chunkServerIdList;
-    }
-
-    public void setChunkServerIdList(List<Integer> chunkServerIdList) {
-        this.chunkServerIdList = chunkServerIdList;
     }
 
     public int getIndex() {

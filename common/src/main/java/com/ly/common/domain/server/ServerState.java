@@ -21,7 +21,7 @@ public class ServerState {
     public static final int SIS_STORE_CLEAR = 0x200000;
     public static final int SIS_STORE_FAULT = 0x400000;
     public static final int SIS_UNKNOWN = 0;
-    private int serverId;
+    private long serverId;
     private String address;
     private int port;
     private int type = SIT_UNKNOWN;
@@ -29,17 +29,14 @@ public class ServerState {
     // new、running、reconnect
     private int state = SIS_UNKNOWN;
     private boolean online = false;
+    // 执行文件写操作完成时设置
     private long writeLastTime;
-    private int runningCount;
-    private int writingCount;
-    private int masterCount;
-    private int storeCount;
     // address & port updated last time,可以取所有server中的最大值
     private long updateAddressLastTime;
     // master是否准备就绪，true：可以成为master，等待投票
     private boolean ready;
     // 是否投票给我
-    private int votedServerId;
+    private long votedServerId;
     // 最后收到心跳时间，对于备用Master为准备就绪可以成为Master的时间
     private long lastTime;
 
@@ -51,21 +48,17 @@ public class ServerState {
         state = serverState.state;
         online = serverState.online;
         writeLastTime = serverState.writeLastTime;
-        runningCount = serverState.runningCount;
-        writingCount = serverState.writingCount;
-        masterCount = serverState.masterCount;
-        storeCount = serverState.storeCount;
         updateAddressLastTime = serverState.updateAddressLastTime;
         ready= serverState.ready;
         votedServerId=serverState.votedServerId;
         lastTime=serverState.lastTime;
     }
 
-    public int getServerId() {
+    public long getServerId() {
         return serverId;
     }
 
-    public void setServerId(int serverId) {
+    public void setServerId(long serverId) {
         this.serverId = serverId;
     }
 
@@ -125,38 +118,6 @@ public class ServerState {
         this.writeLastTime = writeLastTime;
     }
 
-    public int getRunningCount() {
-        return runningCount;
-    }
-
-    public void setRunningCount(int runningCount) {
-        this.runningCount = runningCount;
-    }
-
-    public int getWritingCount() {
-        return writingCount;
-    }
-
-    public void setWritingCount(int writingCount) {
-        this.writingCount = writingCount;
-    }
-
-    public int getMasterCount() {
-        return masterCount;
-    }
-
-    public void setMasterCount(int masterCount) {
-        this.masterCount = masterCount;
-    }
-
-    public int getStoreCount() {
-        return storeCount;
-    }
-
-    public void setStoreCount(int storeCount) {
-        this.storeCount = storeCount;
-    }
-
     public long getUpdateAddressLastTime() {
         return updateAddressLastTime;
     }
@@ -181,11 +142,11 @@ public class ServerState {
         this.lastTime = lastTime;
     }
 
-    public int getVotedServerId() {
+    public long getVotedServerId() {
         return votedServerId;
     }
 
-    public void setVotedServerId(int votedServerId) {
+    public void setVotedServerId(long votedServerId) {
         this.votedServerId = votedServerId;
     }
 }

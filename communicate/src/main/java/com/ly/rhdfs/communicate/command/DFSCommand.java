@@ -18,9 +18,9 @@ public class DFSCommand {
     public static final int CT_FILE_OPERATE=0x200;
     protected int commandType;
     protected int length;
-    protected int serverId;
+    protected long serverId;
     protected long timestamp;
-    protected int fixLength=16;
+    protected int fixLength=20;
 
     public int getCommandType() {
         return commandType;
@@ -38,11 +38,11 @@ public class DFSCommand {
         this.length = length;
     }
 
-    public int getServerId() {
+    public long getServerId() {
         return serverId;
     }
 
-    public void setServerId(int serverId) {
+    public void setServerId(long serverId) {
         this.serverId = serverId;
     }
 

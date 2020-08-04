@@ -8,9 +8,9 @@ import com.alibaba.fastjson.annotation.JSONField;
 public class MasterServerConfig {
 
     @JSONField(defaultValue = "3")
-    private final Map<Integer, ServerInfoConfiguration> masterServerMap = new ConcurrentHashMap<>();
+    private final Map<Long, ServerInfoConfiguration> masterServerMap = new ConcurrentHashMap<>();
     // 变化更新，master负责发送变化的情况
-    private final Map<Integer, ServerInfoConfiguration> storeServerMap = new ConcurrentHashMap<>();
+    private final Map<Long, ServerInfoConfiguration> storeServerMap = new ConcurrentHashMap<>();
 
     private long updateLastTime;
 
@@ -18,11 +18,11 @@ public class MasterServerConfig {
         return storeServerMap.size();
     }
 
-    public Map<Integer, ServerInfoConfiguration> getMasterServerMap() {
+    public Map<Long, ServerInfoConfiguration> getMasterServerMap() {
         return masterServerMap;
     }
 
-    public Map<Integer, ServerInfoConfiguration> getStoreServerMap() {
+    public Map<Long, ServerInfoConfiguration> getStoreServerMap() {
         return storeServerMap;
     }
 
@@ -35,21 +35,21 @@ public class MasterServerConfig {
             storeServerMap.put(serverInfoConfiguration.getServerId(), serverInfoConfiguration);
     }
 
-    public ServerInfoConfiguration removeServerInfoConfiguration(int serverId) {
+    public ServerInfoConfiguration removeServerInfoConfiguration(long serverId) {
         if (masterServerMap.containsKey(serverId))
             return masterServerMap.remove(serverId);
         return storeServerMap.remove(serverId);
     }
 
-    public ServerInfoConfiguration removeMasterServer(int serverId) {
+    public ServerInfoConfiguration removeMasterServer(long serverId) {
         return masterServerMap.remove(serverId);
     }
 
-    public ServerInfoConfiguration removeStoreServer(int serverId) {
+    public ServerInfoConfiguration removeStoreServer(long serverId) {
         return storeServerMap.remove(serverId);
     }
 
-    public ServerInfoConfiguration getServerInfoConfiguration(int serverId) {
+    public ServerInfoConfiguration getServerInfoConfiguration(long serverId) {
         if (masterServerMap.containsKey(serverId))
             return masterServerMap.get(serverId);
         else

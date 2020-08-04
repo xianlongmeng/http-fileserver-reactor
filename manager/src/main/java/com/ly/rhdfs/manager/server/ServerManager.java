@@ -8,7 +8,10 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
+import com.ly.rhdfs.manager.connect.ConnectServerTask;
+import com.ly.rhdfs.manager.connect.ServerStateHeartBeatTask;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -28,8 +31,12 @@ import com.ly.rhdfs.manager.connect.ConnectManager;
 import com.ly.rhdfs.manager.handler.CommandEventHandler;
 
 public abstract class ServerManager {
+    protected int scheduledThreadCount = 5;
+    protected final int initThreadDelay = 10;
+    protected final int initThreadSecondDelay = 20;
+    protected final int initThreadThirdDelay = 30;
 
-    protected final Map<Integer, ServerState> serverInfoMap = new ConcurrentHashMap<>();
+    protected final Map<Long, ServerState> serverInfoMap = new ConcurrentHashMap<>();
     protected final ServerState localServerState = new ServerState();
     private final DFSCommandState localDFSCommandState = new DFSCommandState(localServerState);
     private final LogOperateUtils logOperateUtils;
@@ -37,9 +44,8 @@ public abstract class ServerManager {
     protected ConnectManager connectManager;
     protected ServerConfig serverConfig;
     protected ScheduledThreadPoolExecutor scheduledThreadPoolExecutor;
-    protected int masterServerId = -1;
+    protected long masterServerId = -1;
     protected MasterServerConfig masterServerConfig;
-    private long serverAddressUpdateLastTime;
     //Master:disconnect 3 store last time;Store:disconnect master last time
     private long masterDisconnectedLastTime;
 
@@ -61,18 +67,34 @@ public abstract class ServerManager {
         this.connectManager = connectManager;
     }
 
-    public Map<Integer, ServerState> getServerInfoMap() {
+    public ServerState getLocalServerState() {
+        return localServerState;
+    }
+
+    public Map<Long, ServerState> getServerInfoMap() {
         return serverInfoMap;
     }
 
     public long getServerAddressUpdateLastTime() {
-        return serverAddressUpdateLastTime;
+        return localServerState.getUpdateAddressLastTime();
     }
 
     public void setServerAddressUpdateLastTime(long serverAddressUpdateLastTime) {
-        this.serverAddressUpdateLastTime = serverAddressUpdateLastTime;
+        localServerState.setUpdateAddressLastTime(serverAddressUpdateLastTime);
     }
 
+    public void initial(){
+        // 初始化ServerManager
+        loadMasterServer(serverConfig.getConfigPath());
+        // 通过近期日志，加载write的last time
+        initLastTime();
+        // 加载缓存
+        scheduledThreadPoolExecutor = new ScheduledThreadPoolExecutor(scheduledThreadCount);
+        // 定时连接线程，连接Master
+        scheduledThreadPoolExecutor.schedule(new ConnectServerTask(this), initThreadDelay, TimeUnit.SECONDS);
+        // 定时发送心跳
+        scheduledThreadPoolExecutor.schedule(new ServerStateHeartBeatTask(this), initThreadDelay, TimeUnit.SECONDS);
+    }
     /**
      * 收到心跳后，放入新的ServerState，处理相关Config信息。
      * @param serverState
@@ -115,8 +137,13 @@ public abstract class ServerManager {
         return scheduledThreadPoolExecutor;
     }
 
-    public ServerState findServerState(int serverId) {
+    public ServerState findServerState(long serverId) {
         return serverInfoMap.get(serverId);
+    }
+
+    protected void addServerInfo(ServerInfoConfiguration serverInfoConfiguration){
+        if (serverInfoConfiguration!=null)
+            serverInfoMap.put(serverInfoConfiguration.getServerId(), newServerInfo(serverInfoConfiguration));
     }
 
     public void loadMasterServer(String configPath) {
@@ -129,9 +156,10 @@ public abstract class ServerManager {
             masterServerConfig = JSON.parseObject(configContent, new TypeReference<>() {
             });
             for (ServerInfoConfiguration serverInfoConfiguration : masterServerConfig.getMasterServerMap().values()) {
-                if (serverInfoConfiguration != null) {
-                    serverInfoMap.put(serverInfoConfiguration.getServerId(), newServerInfo(serverInfoConfiguration));
-                }
+                addServerInfo(serverInfoConfiguration);
+            }
+            for (ServerInfoConfiguration serverInfoConfiguration : masterServerConfig.getStoreServerMap().values()) {
+                addServerInfo(serverInfoConfiguration);
             }
         } catch (FileNotFoundException e) {
             logger.error(String.format("%s file is not found!", configPath), e);
@@ -140,7 +168,7 @@ public abstract class ServerManager {
         }
     }
 
-    private ServerState newServerInfo(ServerInfoConfiguration serverInfoConfiguration) {
+    public ServerState newServerInfo(ServerInfoConfiguration serverInfoConfiguration) {
         if (serverInfoConfiguration == null) {
             return null;
         }
@@ -152,6 +180,9 @@ public abstract class ServerManager {
         return serverState;
     }
 
+    public void saveMasterServerConfig(){
+        saveMasterServerConfig(serverConfig.getConfigPath());
+    }
     public synchronized void saveMasterServerConfig(String configPath) {
         if (StringUtils.isEmpty(configPath)) {
             return;
@@ -166,7 +197,7 @@ public abstract class ServerManager {
         }
     }
 
-    public int getLocalServerId() {
+    public long getLocalServerId() {
         return localServerState.getServerId();
     }
 
@@ -182,17 +213,17 @@ public abstract class ServerManager {
         localServerState.setPort(port);
     }
 
-    public ServerState findServerState4ServerId(int serverId) {
+    public ServerState findServerState4ServerId(long serverId) {
         return serverInfoMap.get(serverId);
     }
 
     public void reconnectServer(ServerState serverState) {
         connectManager.closeServer(serverState);
-        connectManager.startConnectServer(serverState, new CommandEventHandler());
+        connectManager.startConnectServer(serverState, new CommandEventHandler(this));
     }
 
     public void connectServer(ServerState serverState) {
-        connectManager.startConnectServer(serverState, new CommandEventHandler());
+        connectManager.startConnectServer(serverState, new CommandEventHandler(this));
     }
 
     public void closeConnect(ServerState serverState) {
@@ -219,11 +250,11 @@ public abstract class ServerManager {
             return masterServerConfig.getStoreServerInitCount();
     }
 
-    public int getMasterServerId() {
+    public long getMasterServerId() {
         return masterServerId;
     }
 
-    public void setMasterServerId(int masterServerId) {
+    public void setMasterServerId(long masterServerId) {
         this.masterServerId = masterServerId;
     }
 

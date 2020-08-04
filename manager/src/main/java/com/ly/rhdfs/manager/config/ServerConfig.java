@@ -30,6 +30,8 @@ public class ServerConfig {
     //失去太多StoreServer的Master多长时间失去Master资格
     @Value("${store.server.disconnected.master.vote:300000}")
     private long storeServerDisconnectedMasterVote;
+    @Value("${store.file.root.path}")
+    private String fileRootPath;
 
     public int getCurrentServerId() {
         return currentServerId;
@@ -101,5 +103,13 @@ public class ServerConfig {
 
     public void setStoreServerDisconnectedMasterVote(long storeServerDisconnectedMasterVote) {
         this.storeServerDisconnectedMasterVote = storeServerDisconnectedMasterVote;
+    }
+
+    public String getFileRootPath() {
+        return fileRootPath;
+    }
+
+    public void setFileRootPath(String fileRootPath) {
+        this.fileRootPath = fileRootPath;
     }
 }

@@ -28,6 +28,8 @@
         <module>message</module>
         <module>message.handler</module>
         <module>log.operate</module>
+        <module>fileserver-dfs</module>
+        <module>server.select</module>
     </modules>
 
     <parent>

@@ -3,7 +3,6 @@ package com.ly.rhdfs.communicate.socket;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
-import java.util.function.Consumer;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -32,20 +31,22 @@ public class DFSCommunicateSocket implements DFSCommunicate {
     private final Map<ServerState, Connection> serverConnectionMap = new ConcurrentHashMap<>();
     private DisposableServer localServer;
     private DFSCommandParse dfsCommandParse;
+
     @Autowired
-    private void setDfsCommandParse(DFSCommandParse dfsCommandParse){
-        this.dfsCommandParse=dfsCommandParse;
+    private void setDfsCommandParse(DFSCommandParse dfsCommandParse) {
+        this.dfsCommandParse = dfsCommandParse;
     }
 
-    private Connection findConnection(ServerState serverState){
-        if (serverState==null)
+    private Connection findConnection(ServerState serverState) {
+        if (serverState == null)
             return null;
         return serverConnectionMap.get(serverState);
     }
+
     @Override
     public boolean sendCommand(ServerState serverState, DFSCommand command) {
-        Connection connection=findConnection(serverState);
-        if (connection==null || connection.isDisposed() || !connection.channel().isActive())
+        Connection connection = findConnection(serverState);
+        if (connection == null || connection.isDisposed() || !connection.channel().isActive())
             return false;
         connection.channel().write(dfsCommandParse.packageCommand(command));
         return true;
@@ -53,8 +54,8 @@ public class DFSCommunicateSocket implements DFSCommunicate {
 
     @Override
     public boolean sendCommandObject(ServerState serverState, Object commandObj) {
-        Connection connection=findConnection(serverState);
-        if (connection==null || connection.isDisposed() || !connection.channel().isActive())
+        Connection connection = findConnection(serverState);
+        if (connection == null || connection.isDisposed() || !connection.channel().isActive())
             return false;
         connection.channel().write(dfsCommandParse.packageCommandObject(commandObj));
         return true;
@@ -87,7 +88,7 @@ public class DFSCommunicateSocket implements DFSCommunicate {
                     // decode
                     connection.addHandlerLast(new DFSCommandDecoder());
                     // command
-                    connection.addHandlerLast(new DFSCommandHandler(connection,eventHandler));
+                    connection.addHandlerLast(new DFSCommandHandler(connection, eventHandler));
                 }).bindNow();
         return localServer.channel();
     }

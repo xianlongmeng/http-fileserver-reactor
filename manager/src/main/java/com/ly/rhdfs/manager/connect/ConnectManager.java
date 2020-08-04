@@ -13,6 +13,7 @@ import com.ly.rhdfs.communicate.DFSCommunicate;
 import com.ly.rhdfs.communicate.command.DFSCommand;
 import com.ly.rhdfs.communicate.handler.EventHandler;
 
+import io.netty.channel.Channel;
 import reactor.netty.Connection;
 
 @Component
@@ -21,6 +22,7 @@ public class ConnectManager {
     private final Map<ServerState, Connection> serverConnectionMap = new ConcurrentHashMap<>();
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private DFSCommunicate dfsCommunicate;
+    private Channel socketListenChannel;
 
     @Autowired
     public void setDfsCommunicate(DFSCommunicate dfsCommunicate) {
@@ -51,7 +53,7 @@ public class ConnectManager {
     }
 
     public void startSocketListen(int port, EventHandler eventHandler) {
-        dfsCommunicate.serverBind(port, eventHandler);
+        socketListenChannel = dfsCommunicate.serverBind(port, eventHandler);
     }
 
     public void startConnectServer(ServerState serverState, EventHandler eventHandler) {
@@ -73,6 +75,7 @@ public class ConnectManager {
     public boolean sendCommunicationObject(ServerState serverState, Object commandObj) {
         return dfsCommunicate.sendCommandObject(serverState, commandObj);
     }
+
     public boolean sendCommunication(ServerState serverState, DFSCommand dfsCommand) {
         return dfsCommunicate.sendCommand(serverState, dfsCommand);
     }

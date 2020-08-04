@@ -22,7 +22,7 @@ public class ConnectServerTask implements Runnable {
         // 循环处理MasterServer连接
         boolean flag = false;
         if (serverManager.getMasterServerConfig() != null) {
-            for (Map.Entry<Integer, ServerInfoConfiguration> masterConfigEntry : serverManager.getMasterServerConfig()
+            for (Map.Entry<Long, ServerInfoConfiguration> masterConfigEntry : serverManager.getMasterServerConfig()
                     .getMasterServerMap().entrySet()) {
                 if (masterConfigEntry.getKey() == null || masterConfigEntry.getValue() == null)
                     continue;
