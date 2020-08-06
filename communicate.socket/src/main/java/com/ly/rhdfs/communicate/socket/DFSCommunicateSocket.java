@@ -1,12 +1,16 @@
 package com.ly.rhdfs.communicate.socket;
 
 import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.stereotype.Component;
 
+import com.ly.common.domain.file.FileTransferInfo;
 import com.ly.common.domain.server.ServerState;
 import com.ly.rhdfs.communicate.DFSCommunicate;
 import com.ly.rhdfs.communicate.command.DFSCommand;
@@ -17,7 +21,9 @@ import com.ly.rhdfs.communicate.socket.handler.HeartBeatHandler;
 import com.ly.rhdfs.communicate.socket.parse.DFSCommandParse;
 
 import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
 import io.netty.handler.timeout.IdleStateHandler;
+import reactor.core.publisher.Flux;
 import reactor.netty.Connection;
 import reactor.netty.DisposableServer;
 import reactor.netty.tcp.TcpClient;
@@ -28,24 +34,17 @@ public class DFSCommunicateSocket implements DFSCommunicate {
 
     private static final int readerIdle = 60;
     private static final int writerIdle = 100;
-    private final Map<ServerState, Connection> serverConnectionMap = new ConcurrentHashMap<>();
     private DisposableServer localServer;
     private DFSCommandParse dfsCommandParse;
+    private final Map<UUID,CompletableFuture<Integer>> uuidCompletableFutureMap=new ConcurrentHashMap<>();
 
     @Autowired
     private void setDfsCommandParse(DFSCommandParse dfsCommandParse) {
         this.dfsCommandParse = dfsCommandParse;
     }
 
-    private Connection findConnection(ServerState serverState) {
-        if (serverState == null)
-            return null;
-        return serverConnectionMap.get(serverState);
-    }
-
     @Override
-    public boolean sendCommand(ServerState serverState, DFSCommand command) {
-        Connection connection = findConnection(serverState);
+    public boolean sendCommand(Connection connection, DFSCommand command) {
         if (connection == null || connection.isDisposed() || !connection.channel().isActive())
             return false;
         connection.channel().write(dfsCommandParse.packageCommand(command));
@@ -53,12 +52,40 @@ public class DFSCommunicateSocket implements DFSCommunicate {
     }
 
     @Override
-    public boolean sendCommandObject(ServerState serverState, Object commandObj) {
-        Connection connection = findConnection(serverState);
+    public boolean sendCommandObject(Connection connection, Object commandObj) {
         if (connection == null || connection.isDisposed() || !connection.channel().isActive())
             return false;
         connection.channel().write(dfsCommandParse.packageCommandObject(commandObj));
         return true;
+    }
+
+    @Override
+    public boolean sendFileChunkObject(Connection connection, FileTransferInfo fileTransferInfo,
+            DataBuffer dataBuffer) {
+        if (connection == null || connection.isDisposed() || !connection.channel().isActive())
+            return false;
+        connection.channel().write(dfsCommandParse.packageCommandFileTransfer(fileTransferInfo, dataBuffer));
+        return true;
+    }
+
+    @Override
+    public ChannelFuture sendCommandAsync(Connection connection, DFSCommand command) {
+        if (connection == null || connection.isDisposed() || !connection.channel().isActive())
+            return null;
+        return connection.channel().write(dfsCommandParse.packageCommand(command));
+    }
+
+    @Override
+    public ChannelFuture sendCommandObjectAsync(Connection connection, Object commandObj) {
+        if (connection == null || connection.isDisposed() || !connection.channel().isActive())
+            return null;
+        return connection.channel().write(dfsCommandParse.packageCommandObject(commandObj));
+    }
+
+    @Override
+    public ChannelFuture sendFileChunkObjectAsync(Connection connection, FileTransferInfo fileTransferInfo,
+            Flux<DataBuffer> dataBuffers) {
+        return null;
     }
 
     @Override
@@ -74,6 +101,7 @@ public class DFSCommunicateSocket implements DFSCommunicate {
             // heart,connect init
             connection.addHandlerLast(new DFSCommandHandler(eventHandler));
             // command
+            // serverConnectionMap.put(serverState, connection);
         }).connectNow();
         return curConnection.get();
     }
@@ -91,5 +119,36 @@ public class DFSCommunicateSocket implements DFSCommunicate {
                     connection.addHandlerLast(new DFSCommandHandler(connection, eventHandler));
                 }).bindNow();
         return localServer.channel();
+    }
+
+    @Override
+    public CompletableFuture<Integer> sendCommandAsyncReply(Connection connection, DFSCommand command) {
+        return null;
+    }
+
+    @Override
+    public CompletableFuture<Integer> sendDataAsyncReply(Connection connection, Object msg) {
+        // 如何分包ChunkedStream
+        return null;
+    }
+
+    @Override
+    public CompletableFuture<Integer> sendFileChunkInfoAsyncReply(Connection connection, Object msg) {
+        return null;
+    }
+
+    @Override
+    public CompletableFuture<Integer> sendFileChunkDataAsyncReply(Connection connection, Object msg) {
+        return null;
+    }
+
+    @Override
+    public CompletableFuture<Integer> sendFileChunkFinishAsyncReply(Connection connection, Object msg) {
+        return null;
+    }
+
+    @Override
+    public CompletableFuture<Integer> sendFileFinishCommandAsyncReply(Connection connection, Object msg) {
+        return null;
     }
 }

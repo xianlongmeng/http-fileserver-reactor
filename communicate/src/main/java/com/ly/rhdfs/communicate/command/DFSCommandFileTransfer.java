@@ -9,7 +9,7 @@ public class DFSCommandFileTransfer extends DFSCommand{
 
     public DFSCommandFileTransfer(){
         commandType=DFSCommand.CT_FILE_TRANSFER;
-        fixLength=40;
+        fixLength=74;
     }
 
     public FileTransferInfo getFileTransferInfo() {

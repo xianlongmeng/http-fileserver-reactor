@@ -5,9 +5,16 @@ public class FileTransferInfo {
     private String path;
     private short fileNameLength;
     private String fileName;
-    private int chunk;
+    private short etagLength;
+    private String etag;
+    private int chunkIndex;
     private int chunkSize;
     private int chunkCount;
+    private int chunkPieceIndex;
+    private int chunkPieceSize;
+    private int chunkPieceCount;
+    private int startPos;
+    private int packageLength;
     private int size;
 
     public short getPathLength() {
@@ -42,12 +49,28 @@ public class FileTransferInfo {
         this.fileName = fileName;
     }
 
-    public int getChunk() {
-        return chunk;
+    public short getEtagLength() {
+        return etagLength;
     }
 
-    public void setChunk(int chunk) {
-        this.chunk = chunk;
+    public void setEtagLength(short etagLength) {
+        this.etagLength = etagLength;
+    }
+
+    public String getEtag() {
+        return etag;
+    }
+
+    public void setEtag(String etag) {
+        this.etag = etag;
+    }
+
+    public int getChunkIndex() {
+        return chunkIndex;
+    }
+
+    public void setChunkIndex(int chunkIndex) {
+        this.chunkIndex = chunkIndex;
     }
 
     public int getChunkSize() {
@@ -64,6 +87,46 @@ public class FileTransferInfo {
 
     public void setChunkCount(int chunkCount) {
         this.chunkCount = chunkCount;
+    }
+
+    public int getChunkPieceIndex() {
+        return chunkPieceIndex;
+    }
+
+    public void setChunkPieceIndex(int chunkPieceIndex) {
+        this.chunkPieceIndex = chunkPieceIndex;
+    }
+
+    public int getChunkPieceSize() {
+        return chunkPieceSize;
+    }
+
+    public void setChunkPieceSize(int chunkPieceSize) {
+        this.chunkPieceSize = chunkPieceSize;
+    }
+
+    public int getChunkPieceCount() {
+        return chunkPieceCount;
+    }
+
+    public void setChunkPieceCount(int chunkPieceCount) {
+        this.chunkPieceCount = chunkPieceCount;
+    }
+
+    public int getStartPos() {
+        return startPos;
+    }
+
+    public void setStartPos(int startPos) {
+        this.startPos = startPos;
+    }
+
+    public int getPackageLength() {
+        return packageLength;
+    }
+
+    public void setPackageLength(int packageLength) {
+        this.packageLength = packageLength;
     }
 
     public int getSize() {

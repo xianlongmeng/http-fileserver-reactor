@@ -29,6 +29,12 @@ public class ConnectManager {
         this.dfsCommunicate = dfsCommunicate;
     }
 
+    public Connection findConnection(ServerState serverState) {
+        if (serverState == null)
+            return null;
+        return serverConnectionMap.get(serverState);
+    }
+
     public boolean putServerConnection(ServerState serverState, Connection connection) {
         return putServerConnection(serverState, connection, null);
     }
@@ -73,10 +79,10 @@ public class ConnectManager {
     }
 
     public boolean sendCommunicationObject(ServerState serverState, Object commandObj) {
-        return dfsCommunicate.sendCommandObject(serverState, commandObj);
+        return dfsCommunicate.sendCommandObject(findConnection(serverState), commandObj);
     }
 
     public boolean sendCommunication(ServerState serverState, DFSCommand dfsCommand) {
-        return dfsCommunicate.sendCommand(serverState, dfsCommand);
+        return dfsCommunicate.sendCommand(findConnection(serverState), dfsCommand);
     }
 }

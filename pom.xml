@@ -119,6 +119,12 @@
             <artifactId>fastjson</artifactId>
             <version>1.2.68</version>
         </dependency>
+        <dependency>
+            <groupId>com.fasterxml.uuid</groupId>
+            <artifactId>java-uuid-generator</artifactId>
+            <version>4.0.1</version>
+        </dependency>
+
     </dependencies>
     <build>
         <finalName>${project.groupId}.${project.artifactId}-${project.version}-${java.version}</finalName>
