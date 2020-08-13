@@ -1,20 +1,23 @@
 package com.ly.common.domain;
 
 public class PartChunk {
-    private boolean chunked;
-    private int chunk=0;
-    private int chunkSize=0;
-    private int chunkCount=0;
 
-    public PartChunk(boolean chunked){
-        this.chunked=chunked;
+    private boolean chunked;
+    private int chunk = 0;
+    private int chunkSize = 0;
+    private int chunkCount = 0;
+
+    public PartChunk(boolean chunked) {
+        this.chunked = chunked;
     }
-    public PartChunk(boolean chunked,int chunk,int chunkSize,int chunkCount){
-        this.chunked=chunked;
-        this.chunk=chunk;
-        this.chunkSize=chunkSize;
-        this.chunkCount=chunkCount;
+
+    public PartChunk(boolean chunked, int chunk, int chunkSize, int chunkCount) {
+        this.chunked = chunked;
+        this.chunk = chunk;
+        this.chunkSize = chunkSize;
+        this.chunkCount = chunkCount;
     }
+
     public boolean isChunked() {
         return chunked;
     }

@@ -1,6 +1,7 @@
 package com.ly.common.domain.server;
 
 public class StoreServerRunState {
+
     // 正在运行的任务数量，读和写的和
     private int runningCount;
     // 正在运行的写任务数量

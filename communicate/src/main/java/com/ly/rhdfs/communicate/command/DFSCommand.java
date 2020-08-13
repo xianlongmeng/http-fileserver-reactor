@@ -18,6 +18,7 @@ public class DFSCommand {
     public static final int CT_REQUEST_EXPAND = 0x40;
     public static final int CT_SERVER_ADDRESS = 0x80;
     public static final int CT_FILE_TRANSFER = 0x100;
+    public static final int CT_FILE_TRANSFER_STATE = 0x101;
     public static final int CT_FILE_OPERATE = 0x200;
     public static final byte REPLY_STATE_FALSE = 0x00;
     public static final byte REPLY_STATE_TRUE = 0x01;

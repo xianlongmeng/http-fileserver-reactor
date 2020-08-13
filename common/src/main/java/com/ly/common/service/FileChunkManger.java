@@ -1,12 +1,5 @@
 package com.ly.common.service;
 
-import com.ly.common.domain.FileChunkState;
-import com.ly.common.constant.ParamConstants;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -18,8 +11,17 @@ import java.nio.file.StandardOpenOption;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+
+import com.ly.common.constant.ParamConstants;
+import com.ly.common.domain.FileChunkState;
+
 @Component
 public class FileChunkManger {
+
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private final Map<String, FileChunkState> fileChunkStateMap = new ConcurrentHashMap<>();
@@ -59,7 +61,7 @@ public class FileChunkManger {
         } else {
             res = fileChunkState.setStateAndCount(index, false);
         }
-        writeConfigFile(filePath,fileChunkState);
+        writeConfigFile(filePath, fileChunkState);
         return res;
     }
 
@@ -67,8 +69,8 @@ public class FileChunkManger {
         File file = new File(buildConfigFileName(filePath));
         try {
             Files.delete(file.toPath());
-        }catch (IOException e){
-            logger.error("delete config file '{}' is error.",file.getAbsolutePath(),e);
+        } catch (IOException e) {
+            logger.error("delete config file '{}' is error.", file.getAbsolutePath(), e);
         }
 
         return fileChunkStateMap.remove(filePath);
@@ -90,7 +92,8 @@ public class FileChunkManger {
         if (!file.getParentFile().exists()) {
             file.getParentFile().mkdirs();
         }
-        try (AsynchronousFileChannel cfgFile = AsynchronousFileChannel.open(file.toPath(), StandardOpenOption.CREATE, StandardOpenOption.WRITE)) {
+        try (AsynchronousFileChannel cfgFile = AsynchronousFileChannel.open(file.toPath(), StandardOpenOption.CREATE,
+                StandardOpenOption.WRITE)) {
             ByteBuffer byteBuffer = ByteBuffer.wrap(fileChunkState.getStates());
             cfgFile.write(byteBuffer, 0);
         } catch (IOException e) {

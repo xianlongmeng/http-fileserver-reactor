@@ -1,21 +1,16 @@
 package com.ly.common.util;
 
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
-import java.time.Instant;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.time.LocalTime;
-import java.time.ZoneId;
-import java.time.ZonedDateTime;
+import java.time.*;
 import java.time.format.DateTimeFormatter;
 import java.util.Date;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class DateFormatUtils {
 
@@ -23,7 +18,8 @@ public class DateFormatUtils {
     public static final DateTimeFormatter DateDirFormatter = DateTimeFormatter.ofPattern("yyyy/MMdd");
     public static final DateTimeFormatter SimpleDateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
     public static final DateTimeFormatter SimpleDateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-    public static final DateTimeFormatter SimpleDateTimeMillSecondFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
+    public static final DateTimeFormatter SimpleDateTimeMillSecondFormatter = DateTimeFormatter
+            .ofPattern("yyyy-MM-dd HH:mm:ss.SSS");
     public static final DateTimeFormatter NoDelimiterDateTimeFormatter = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
     public static final DateTimeFormatter NoDelimiterDateTimeMillsFormatter = DateTimeFormatter
             .ofPattern("yyyyMMddHHmmssSSS");
@@ -36,8 +32,10 @@ public class DateFormatUtils {
     /**
      * 将日期解析为字符串
      *
-     * @param date    日期
-     * @param pattern 转换格式
+     * @param date
+     *        日期
+     * @param pattern
+     *        转换格式
      * @return 日期字符串
      */
     public static String format(Date date, String pattern) {
@@ -51,8 +49,10 @@ public class DateFormatUtils {
     /**
      * 将字符串解析为日期
      *
-     * @param dateTime 日期字符串
-     * @param pattern  格式
+     * @param dateTime
+     *        日期字符串
+     * @param pattern
+     *        格式
      * @return 转换后的日期
      * @throws Exception
      */
@@ -80,9 +80,11 @@ public class DateFormatUtils {
     public static String buildSimpleDateFormatter(LocalDateTime localDateTime) {
         return buildDateTimeFormatter(localDateTime, SimpleDateFormatter);
     }
+
     public static String buildSimpleDateFormatter(LocalDate localDate) {
         return buildDateFormatter(localDate, SimpleDateFormatter);
     }
+
     public static String buildSimpleDateTimeFormatter(LocalDateTime localDateTime) {
         return buildDateTimeFormatter(localDateTime, SimpleDateTimeFormatter);
     }
@@ -126,6 +128,7 @@ public class DateFormatUtils {
     public static LocalDateTime parseLocalDateTime4GMT(String datetimeStr) {
         return parseLocalDateTime(datetimeStr, DateTimeFormatter.RFC_1123_DATE_TIME);
     }
+
     public static String buildDateFormatter(LocalDate localDate, DateTimeFormatter dateTimeFormatter) {
         if (localDate == null) {
             return "";
@@ -136,6 +139,7 @@ public class DateFormatUtils {
             return localDate.format(dateTimeFormatter);
         }
     }
+
     public static String buildDateTimeFormatter(LocalDateTime localDateTime, DateTimeFormatter dateTimeFormatter) {
         if (localDateTime == null) {
             return "";

@@ -1,25 +1,28 @@
 package com.ly.common.domain.server;
 
 public class ServerInfoConfiguration {
+
     private long serverId;
     private String address;
     private int port;
     private long updateLastTime;
     // 是否为master，还是store
-    private boolean master=true;
+    private boolean master = true;
 
-    public ServerInfoConfiguration(ServerState serverState){
+    public ServerInfoConfiguration(ServerState serverState) {
         setAddress(serverState.getAddress());
         setPort(serverState.getPort());
         setServerId(serverState.getServerId());
-        setMaster(serverState.getType()!=ServerState.SIT_STORE);
+        setMaster(serverState.getType() != ServerState.SIT_STORE);
         setUpdateLastTime(serverState.getUpdateAddressLastTime());
     }
-    public void setServerState(ServerState serverState){
+
+    public void setServerState(ServerState serverState) {
         setAddress(serverState.getAddress());
         setPort(serverState.getPort());
         setUpdateLastTime(serverState.getUpdateAddressLastTime());
     }
+
     public long getServerId() {
         return serverId;
     }

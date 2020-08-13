@@ -1,6 +1,7 @@
 package com.ly.rhdfs.communicate;
 
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.core.io.buffer.DataBuffer;
 
@@ -20,29 +21,19 @@ public interface DFSCommunicate {
 
     boolean sendCommandObject(Connection connection, Object commandObj);
 
-    boolean sendFileChunkObject(Connection connection, FileTransferInfo fileTransferInfo,
-                                DataBuffer dataBuffer);
-
     ChannelFuture sendCommandAsync(Connection connection, DFSCommand command);
 
     ChannelFuture sendCommandObjectAsync(Connection connection, Object commandObj);
-
-    ChannelFuture sendFileChunkObjectAsync(Connection connection, FileTransferInfo fileTransferInfo,
-                                Flux<DataBuffer> dataBuffers);
 
     Connection connectServer(ServerState serverState, EventHandler eventHandler);
 
     Channel serverBind(int port, EventHandler eventHandler);
 
-    CompletableFuture<Integer> sendCommandAsyncReply(Connection connection, DFSCommand command);
+    CompletableFuture<Integer> sendCommandAsyncReply(Connection connection, DFSCommand command, long timeout, TimeUnit timeUnit);
 
-    CompletableFuture<Integer> sendDataAsyncReply(Connection connection, Object/* command */ msg);
+    CompletableFuture<Integer> sendDataAsyncReply(Connection connection, Object/* command */ msg,long timeout,TimeUnit timeUnit);
 
-    CompletableFuture<Integer> sendFileChunkInfoAsyncReply(Connection connection, Object/* command */ msg);
+    CompletableFuture<Integer> sendFileChunkFinishAsyncReply(Connection connection, Object/* command */ msg,long timeout,TimeUnit timeUnit);
 
-    CompletableFuture<Integer> sendFileChunkDataAsyncReply(Connection connection, Object/* buffer */ msg);
-
-    CompletableFuture<Integer> sendFileChunkFinishAsyncReply(Connection connection, Object/* command */ msg);
-
-    CompletableFuture<Integer> sendFileFinishCommandAsyncReply(Connection connection, Object/* command */ msg);
+    CompletableFuture<Integer> sendFileFinishCommandAsyncReply(Connection connection, Object/* command */ msg,long timeout,TimeUnit timeUnit);
 }

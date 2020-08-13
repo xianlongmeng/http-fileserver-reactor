@@ -4,6 +4,7 @@ import java.nio.ByteBuffer;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class FileChunkState {
+
     private final AtomicInteger count = new AtomicInteger();
     private final int size;
     private byte[] states;

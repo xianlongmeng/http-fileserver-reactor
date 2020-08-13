@@ -1,18 +1,17 @@
 package com.ly.rhdfs.communicate.command;
 
-import io.netty.buffer.ByteBuf;
-
 public class DFSCommandExpand extends DFSCommand{
-    private ByteBuf byteBuf;
+    private byte[] bytes;
 
     public DFSCommandExpand(){
         commandType=DFSCommand.CT_REQUEST_EXPAND;
     }
-    public ByteBuf getByteBuf() {
-        return byteBuf;
+
+    public byte[] getBytes() {
+        return bytes;
     }
 
-    public void setByteBuf(ByteBuf byteBuf) {
-        this.byteBuf = byteBuf;
+    public void setBytes(byte[] bytes) {
+        this.bytes = bytes;
     }
 }

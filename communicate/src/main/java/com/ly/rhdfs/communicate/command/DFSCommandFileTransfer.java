@@ -5,11 +5,10 @@ import io.netty.buffer.ByteBuf;
 
 public class DFSCommandFileTransfer extends DFSCommand{
     private FileTransferInfo fileTransferInfo;
-    private ByteBuf byteBuf;
 
     public DFSCommandFileTransfer(){
         commandType=DFSCommand.CT_FILE_TRANSFER;
-        fixLength=74;
+        fixLength=78;
     }
 
     public FileTransferInfo getFileTransferInfo() {
@@ -18,13 +17,5 @@ public class DFSCommandFileTransfer extends DFSCommand{
 
     public void setFileTransferInfo(FileTransferInfo fileTransferInfo) {
         this.fileTransferInfo = fileTransferInfo;
-    }
-
-    public ByteBuf getByteBuf() {
-        return byteBuf;
-    }
-
-    public void setByteBuf(ByteBuf byteBuf) {
-        this.byteBuf = byteBuf;
     }
 }

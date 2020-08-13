@@ -12,18 +12,19 @@ public class PartRange {
     private long endPos;
     private List<ResourceRegion> resourceRegionList;
 
-    public PartRange(long startPos, long endPos){
-        this("",startPos,endPos);
+    public PartRange(long startPos, long endPos) {
+        this("", startPos, endPos);
     }
-    public PartRange(String name,long startPos, long endPos) {
-        this.name=name;
+
+    public PartRange(String name, long startPos, long endPos) {
+        this.name = name;
         this.startPos = startPos;
         this.endPos = endPos;
     }
 
     public String getName() {
-        if (StringUtils.isEmpty(name)){
-            return String.format("%d-%d",startPos,endPos);
+        if (StringUtils.isEmpty(name)) {
+            return String.format("%d-%d", startPos, endPos);
         }
         return name;
     }

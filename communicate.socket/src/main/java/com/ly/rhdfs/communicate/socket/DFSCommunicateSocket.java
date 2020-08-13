@@ -4,12 +4,15 @@ import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.stereotype.Component;
 
+import com.fasterxml.uuid.Generators;
+import com.ly.common.domain.ResultInfo;
 import com.ly.common.domain.file.FileTransferInfo;
 import com.ly.common.domain.server.ServerState;
 import com.ly.rhdfs.communicate.DFSCommunicate;
@@ -34,13 +37,23 @@ public class DFSCommunicateSocket implements DFSCommunicate {
 
     private static final int readerIdle = 60;
     private static final int writerIdle = 100;
+    private final Map<UUID, CompletableFuture<Integer>> uuidCompletableFutureMap = new ConcurrentHashMap<>();
     private DisposableServer localServer;
     private DFSCommandParse dfsCommandParse;
-    private final Map<UUID,CompletableFuture<Integer>> uuidCompletableFutureMap=new ConcurrentHashMap<>();
 
     @Autowired
     private void setDfsCommandParse(DFSCommandParse dfsCommandParse) {
         this.dfsCommandParse = dfsCommandParse;
+    }
+
+    public CompletableFuture<Integer> findFuture(UUID uuid) {
+        if (uuid == null)
+            return null;
+        return uuidCompletableFutureMap.get(uuid);
+    }
+
+    public CompletableFuture<Integer> findFuture(long mostSigBits, long leastSigBits) {
+        return uuidCompletableFutureMap.get(new UUID(mostSigBits, leastSigBits));
     }
 
     @Override
@@ -53,19 +66,7 @@ public class DFSCommunicateSocket implements DFSCommunicate {
 
     @Override
     public boolean sendCommandObject(Connection connection, Object commandObj) {
-        if (connection == null || connection.isDisposed() || !connection.channel().isActive())
-            return false;
-        connection.channel().write(dfsCommandParse.packageCommandObject(commandObj));
-        return true;
-    }
-
-    @Override
-    public boolean sendFileChunkObject(Connection connection, FileTransferInfo fileTransferInfo,
-            DataBuffer dataBuffer) {
-        if (connection == null || connection.isDisposed() || !connection.channel().isActive())
-            return false;
-        connection.channel().write(dfsCommandParse.packageCommandFileTransfer(fileTransferInfo, dataBuffer));
-        return true;
+        return sendCommand(connection,dfsCommandParse.convertCommandObject(commandObj));
     }
 
     @Override
@@ -77,15 +78,7 @@ public class DFSCommunicateSocket implements DFSCommunicate {
 
     @Override
     public ChannelFuture sendCommandObjectAsync(Connection connection, Object commandObj) {
-        if (connection == null || connection.isDisposed() || !connection.channel().isActive())
-            return null;
-        return connection.channel().write(dfsCommandParse.packageCommandObject(commandObj));
-    }
-
-    @Override
-    public ChannelFuture sendFileChunkObjectAsync(Connection connection, FileTransferInfo fileTransferInfo,
-            Flux<DataBuffer> dataBuffers) {
-        return null;
+        return sendCommandAsync(connection,dfsCommandParse.convertCommandObject(commandObj));
     }
 
     @Override
@@ -122,33 +115,47 @@ public class DFSCommunicateSocket implements DFSCommunicate {
     }
 
     @Override
-    public CompletableFuture<Integer> sendCommandAsyncReply(Connection connection, DFSCommand command) {
-        return null;
+    public CompletableFuture<Integer> sendCommandAsyncReply(Connection connection, DFSCommand command,long timeout,TimeUnit timeUnit) {
+        CompletableFuture<Integer> completableFuture;
+        if (timeout>0 && timeUnit!=null) {
+            completableFuture = new CompletableFuture<Integer>().orTimeout(timeout, timeUnit)
+                    .exceptionally(throwable -> {
+                        uuidCompletableFutureMap.remove(command.getUuid());
+                        return ResultInfo.S_FAILED_TIMEOUT;
+                    });
+        }else{
+            completableFuture = new CompletableFuture<>();
+        }
+        if (command == null) {
+            completableFuture.complete(ResultInfo.S_ERROR);
+            return completableFuture;
+        }
+        if (command.getUuid() == null)
+            command.setUuid(Generators.timeBasedGenerator().generate());
+        uuidCompletableFutureMap.put(command.getUuid(), completableFuture);
+        ChannelFuture channelFuture = sendCommandAsync(connection, command);
+        channelFuture.addListener(futureListen -> {
+            if (!futureListen.isSuccess()) {
+                completableFuture.complete(ResultInfo.S_FAILED);
+                uuidCompletableFutureMap.remove(command.getUuid());
+            }
+        });
+        return completableFuture;
     }
 
     @Override
-    public CompletableFuture<Integer> sendDataAsyncReply(Connection connection, Object msg) {
+    public CompletableFuture<Integer> sendDataAsyncReply(Connection connection, Object msg,long timeout,TimeUnit timeUnit) {
         // 如何分包ChunkedStream
+        return sendCommandAsyncReply(connection,dfsCommandParse.convertCommandObject(msg),timeout,timeUnit);
+    }
+
+    @Override
+    public CompletableFuture<Integer> sendFileChunkFinishAsyncReply(Connection connection, Object msg,long timeout,TimeUnit timeUnit) {
         return null;
     }
 
     @Override
-    public CompletableFuture<Integer> sendFileChunkInfoAsyncReply(Connection connection, Object msg) {
-        return null;
-    }
-
-    @Override
-    public CompletableFuture<Integer> sendFileChunkDataAsyncReply(Connection connection, Object msg) {
-        return null;
-    }
-
-    @Override
-    public CompletableFuture<Integer> sendFileChunkFinishAsyncReply(Connection connection, Object msg) {
-        return null;
-    }
-
-    @Override
-    public CompletableFuture<Integer> sendFileFinishCommandAsyncReply(Connection connection, Object msg) {
+    public CompletableFuture<Integer> sendFileFinishCommandAsyncReply(Connection connection, Object msg,long timeout,TimeUnit timeUnit) {
         return null;
     }
 }

@@ -49,9 +49,9 @@ public class ServerState {
         online = serverState.online;
         writeLastTime = serverState.writeLastTime;
         updateAddressLastTime = serverState.updateAddressLastTime;
-        ready= serverState.ready;
-        votedServerId=serverState.votedServerId;
-        lastTime=serverState.lastTime;
+        ready = serverState.ready;
+        votedServerId = serverState.votedServerId;
+        lastTime = serverState.lastTime;
     }
 
     public long getServerId() {

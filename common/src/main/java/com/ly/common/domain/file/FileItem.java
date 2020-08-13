@@ -1,6 +1,7 @@
 package com.ly.common.domain.file;
 
 public class FileItem {
+
     private String path;
     private String name;
     private boolean directory;

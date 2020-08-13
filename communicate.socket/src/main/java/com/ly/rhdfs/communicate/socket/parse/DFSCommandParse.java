@@ -3,7 +3,9 @@ package com.ly.rhdfs.communicate.socket.parse;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.List;
+import java.util.UUID;
 
+import com.ly.common.domain.file.*;
 import io.netty.buffer.*;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.NettyDataBufferFactory;
@@ -11,10 +13,6 @@ import org.springframework.stereotype.Component;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.TypeReference;
-import com.ly.common.domain.file.ChunkInfo;
-import com.ly.common.domain.file.DirectInfo;
-import com.ly.common.domain.file.FileInfo;
-import com.ly.common.domain.file.FileTransferInfo;
 import com.ly.common.domain.log.OperationLog;
 import com.ly.common.domain.server.ServerInfoConfiguration;
 import com.ly.common.domain.server.ServerState;
@@ -57,8 +55,9 @@ public class DFSCommandParse {
         dfsCommand.setServerId(byteBuf.readInt());
         dfsCommand.setTimestamp(byteBuf.readLong());
         dfsCommand.setReply(byteBuf.readByte());
-        dfsCommand.setMostSigBits(byteBuf.readLong());
-        dfsCommand.setLeastSigBits(byteBuf.readLong());
+        long mostSigBits=byteBuf.readLong();
+        long leastSigBits=byteBuf.readLong();
+        dfsCommand.setUuid(new UUID(mostSigBits,leastSigBits));
         dfsCommand.setLength(length);
 
         switch (commandType) {
@@ -78,6 +77,8 @@ public class DFSCommandParse {
                 return parseToken(byteBuf, dfsCommand);
             case DFSCommand.CT_DIRECT_FILE_ITEM:
                 return parseDirectFileItems(byteBuf, dfsCommand);
+            case DFSCommand.CT_FILE_TRANSFER_STATE:
+                return parseFileTransferState(byteBuf, dfsCommand);
             default:
                 return parseExpand(byteBuf, dfsCommand);
         }
@@ -101,6 +102,8 @@ public class DFSCommandParse {
                 return new DFSCommandToken();
             case DFSCommand.CT_DIRECT_FILE_ITEM:
                 return new DFSCommandDirectFileItems();
+            case DFSCommand.CT_FILE_TRANSFER_STATE:
+                return new DFSCommandFileTransferState();
             default:
                 return new DFSCommandExpand();
         }
@@ -174,8 +177,40 @@ public class DFSCommandParse {
         fileTransferInfo.setEtag(new String(bytes));
         fileTransferInfo.setSize(dfsCommandFileTransfer.getLength() - dfsCommandFileTransfer.getFixLength()
                 - fileTransferInfo.getPathLength() - fileTransferInfo.getFileNameLength());
-        dfsCommandFileTransfer.setByteBuf(byteBuf.retainedSlice(byteBuf.readerIndex(), fileTransferInfo.getSize()));
+        fileTransferInfo.setByteBuf(byteBuf.retainedSlice(byteBuf.readerIndex(), fileTransferInfo.getSize()));
         return dfsCommandFileTransfer;
+    }
+
+    public DFSCommandFileTransferState parseFileTransferState(ByteBuf byteBuf, DFSCommand dfsCommand) {
+        if (!(dfsCommand instanceof DFSCommandFileTransfer)) {
+            return null;
+        }
+        DFSCommandFileTransferState dfsCommandFileTransferState = (DFSCommandFileTransferState) dfsCommand;
+        FileTransferState fileTransferState = new FileTransferState();
+        dfsCommandFileTransferState.setFileTransferState(fileTransferState);
+        fileTransferState.setPathLength(byteBuf.readShort());
+        fileTransferState.setFileNameLength(byteBuf.readShort());
+        fileTransferState.setEtagLength(byteBuf.readShort());
+        fileTransferState.setChunkIndex(byteBuf.readInt());
+        fileTransferState.setChunkSize(byteBuf.readInt());
+        fileTransferState.setChunkCount(byteBuf.readInt());
+        fileTransferState.setChunkPieceIndex(byteBuf.readInt());
+        fileTransferState.setChunkPieceSize(byteBuf.readInt());
+        fileTransferState.setChunkPieceCount(byteBuf.readInt());
+        fileTransferState.setStartPos(byteBuf.readInt());
+        fileTransferState.setPackageLength(byteBuf.readInt());
+        fileTransferState.setState(byteBuf.readInt());
+        byte[] bytes = new byte[fileTransferState.getPathLength()];
+        byteBuf.readBytes(bytes);
+        fileTransferState.setPath(new String((bytes)));
+        bytes = new byte[fileTransferState.getFileNameLength()];
+        byteBuf.readBytes(bytes);
+        fileTransferState.setFileName(new String((bytes)));
+        bytes = new byte[fileTransferState.getEtagLength()];
+        byteBuf.readBytes(bytes);
+        fileTransferState.setEtag(new String(bytes));
+
+        return dfsCommandFileTransferState;
     }
 
     public DFSCommandState parseState(ByteBuf byteBuf, DFSCommand dfsCommand) {
@@ -237,8 +272,8 @@ public class DFSCommandParse {
             return null;
         }
         DFSCommandExpand dfsCommandExpand = (DFSCommandExpand) dfsCommand;
-        dfsCommandExpand.setByteBuf(byteBuf.retainedSlice(byteBuf.readerIndex(),
-                dfsCommandExpand.getLength() - dfsCommandExpand.getFixLength()));
+        dfsCommandExpand.setBytes(byteBuf.slice(byteBuf.readerIndex(),
+                dfsCommandExpand.getLength() - dfsCommandExpand.getFixLength()).array());
         return dfsCommandExpand;
     }
 
@@ -259,35 +294,41 @@ public class DFSCommandParse {
             return packageCommandToken((DFSCommandToken) dfsCommand);
         } else if (dfsCommand instanceof DFSCommandFileTransfer) {
             return packageCommandFileTransfer((DFSCommandFileTransfer) dfsCommand);
+        } else if (dfsCommand instanceof DFSCommandFileTransferState) {
+            return packageCommandFileTransferState((DFSCommandFileTransferState) dfsCommand);
         } else {
             return null;
         }
     }
 
-    public ByteBuf packageCommandObject(Object commandObj) {
+    public DFSCommand convertCommandObject(Object commandObj) {
         if (commandObj instanceof FileInfo) {
-            return packageCommandFileInfo((FileInfo) commandObj);
+            return convertCommandFileInfo((FileInfo) commandObj);
         } else if (commandObj instanceof ChunkInfo) {
-            return packageCommandChunkInfo((ChunkInfo) commandObj);
+            return convertCommandChunkInfo((ChunkInfo) commandObj);
         } else if (commandObj instanceof DirectInfo) {
-            return packageCommandDirectInfo((DirectInfo) commandObj);
+            return convertCommandDirectInfo((DirectInfo) commandObj);
         } else if (commandObj instanceof OperationLog) {
-            return packageCommandFileOperate((OperationLog) commandObj);
+            return convertCommandFileOperate((OperationLog) commandObj);
         } else if (commandObj instanceof ServerState) {
-            return packageCommandState((ServerState) commandObj);
+            return convertCommandState((ServerState) commandObj);
         } else if (commandObj instanceof List) {
             List<?> objList = (List<?>) commandObj;
             if (!objList.isEmpty()) {
                 Object obj1 = objList.get(1);
                 if (obj1 instanceof ServerInfoConfiguration) {
-                    return packageCommandServerAddress((List<ServerInfoConfiguration>) commandObj);
+                    return convertCommandServerAddress((List<ServerInfoConfiguration>) commandObj);
                 }
             }
             return null;
         } else if (commandObj instanceof TokenInfo) {
-            return packageCommandToken((TokenInfo) commandObj);
+            return convertCommandToken((TokenInfo) commandObj);
+        } else if (commandObj instanceof FileTransferInfo) {
+            return convertCommandFileTransfer((FileTransferInfo) commandObj);
+        } else if (commandObj instanceof FileTransferState) {
+            return convertCommandFileTransferState((FileTransferState) commandObj);
         } else if (commandObj instanceof byte[]) {
-            return packageCommandExpand((byte[]) commandObj);
+            return convertCommandExpand((byte[]) commandObj);
         } else {
             return null;
         }
@@ -306,14 +347,14 @@ public class DFSCommandParse {
         byteBuf.writeLong(dfsCommand.getLeastSigBits());
     }
 
-    public ByteBuf packageCommandFileInfo(FileInfo fileInfo) {
+    public DFSCommand convertCommandFileInfo(FileInfo fileInfo) {
         if (fileInfo == null)
             return null;
         DFSCommandFileInfo dfsCommandFileInfo = new DFSCommandFileInfo();
         dfsCommandFileInfo.setServerId(serverManager.getLocalServerId());
         dfsCommandFileInfo.setFileInfo(fileInfo);
         dfsCommandFileInfo.setTimestamp(Instant.now().toEpochMilli());
-        return packageCommandFileInfo(dfsCommandFileInfo);
+        return dfsCommandFileInfo;
     }
 
     public ByteBuf packageCommandFileInfo(DFSCommandFileInfo dfsCommandFileInfo) {
@@ -327,14 +368,14 @@ public class DFSCommandParse {
         return byteBuf;
     }
 
-    public ByteBuf packageCommandChunkInfo(ChunkInfo chunkInfo) {
+    public DFSCommand convertCommandChunkInfo(ChunkInfo chunkInfo) {
         if (chunkInfo == null)
             return null;
         DFSCommandChunkInfo dfsCommandChunkInfo = new DFSCommandChunkInfo();
         dfsCommandChunkInfo.setServerId(serverManager.getLocalServerId());
         dfsCommandChunkInfo.setChunkInfo(chunkInfo);
         dfsCommandChunkInfo.setTimestamp(Instant.now().toEpochMilli());
-        return packageCommandChunkInfo(dfsCommandChunkInfo);
+        return dfsCommandChunkInfo;
     }
 
     public ByteBuf packageCommandChunkInfo(DFSCommandChunkInfo dfsCommandChunkInfo) {
@@ -348,14 +389,14 @@ public class DFSCommandParse {
         return byteBuf;
     }
 
-    public ByteBuf packageCommandFileOperate(OperationLog operationLog) {
+    public DFSCommand convertCommandFileOperate(OperationLog operationLog) {
         if (operationLog == null)
             return null;
         DFSCommandFileOperate dfsCommandFileOperate = new DFSCommandFileOperate();
         dfsCommandFileOperate.setServerId(serverManager.getLocalServerId());
         dfsCommandFileOperate.setOperationLog(operationLog);
         dfsCommandFileOperate.setTimestamp(Instant.now().toEpochMilli());
-        return packageCommandFileOperate(dfsCommandFileOperate);
+        return dfsCommandFileOperate;
     }
 
     public ByteBuf packageCommandFileOperate(DFSCommandFileOperate dfsCommandFileOperate) {
@@ -369,14 +410,14 @@ public class DFSCommandParse {
         return byteBuf;
     }
 
-    public ByteBuf packageCommandDirectInfo(DirectInfo directInfo) {
+    public DFSCommand convertCommandDirectInfo(DirectInfo directInfo) {
         if (directInfo == null)
             return null;
         DFSCommandDirectFileItems dfsCommandDirectFileItems = new DFSCommandDirectFileItems();
         dfsCommandDirectFileItems.setServerId(serverManager.getLocalServerId());
         dfsCommandDirectFileItems.setDirectInfo(directInfo);
         dfsCommandDirectFileItems.setTimestamp(Instant.now().toEpochMilli());
-        return packageCommandDirectInfo(dfsCommandDirectFileItems);
+        return dfsCommandDirectFileItems;
     }
 
     public ByteBuf packageCommandDirectInfo(DFSCommandDirectFileItems dfsCommandDirectFileItems) {
@@ -390,14 +431,14 @@ public class DFSCommandParse {
         return byteBuf;
     }
 
-    public ByteBuf packageCommandState(ServerState serverState) {
+    public DFSCommand convertCommandState(ServerState serverState) {
         if (serverState == null)
             return null;
         DFSCommandState dfsCommandState = new DFSCommandState();
         dfsCommandState.setServerId(serverManager.getLocalServerId());
         dfsCommandState.setServerState(serverState);
         dfsCommandState.setTimestamp(Instant.now().toEpochMilli());
-        return packageCommandState(dfsCommandState);
+        return dfsCommandState;
     }
 
     public ByteBuf packageCommandState(DFSCommandState dfsCommandState) {
@@ -411,14 +452,14 @@ public class DFSCommandParse {
         return byteBuf;
     }
 
-    public ByteBuf packageCommandServerAddress(List<ServerInfoConfiguration> serverInfoConfigurations) {
+    public DFSCommand convertCommandServerAddress(List<ServerInfoConfiguration> serverInfoConfigurations) {
         if (serverInfoConfigurations == null || serverInfoConfigurations.isEmpty())
             return null;
         DFSCommandServerAddress dfsCommandServerAddress = new DFSCommandServerAddress();
         dfsCommandServerAddress.setServerId(serverManager.getLocalServerId());
         dfsCommandServerAddress.setServerInfoConfigurations(serverInfoConfigurations);
         dfsCommandServerAddress.setTimestamp(Instant.now().toEpochMilli());
-        return packageCommandServerAddress(dfsCommandServerAddress);
+        return dfsCommandServerAddress;
     }
 
     public ByteBuf packageCommandServerAddress(DFSCommandServerAddress dfsCommandServerAddress) {
@@ -433,14 +474,14 @@ public class DFSCommandParse {
         return byteBuf;
     }
 
-    public ByteBuf packageCommandToken(TokenInfo tokenInfo) {
+    public DFSCommand convertCommandToken(TokenInfo tokenInfo) {
         if (tokenInfo == null)
             return null;
         DFSCommandToken dfsCommandToken = new DFSCommandToken();
         dfsCommandToken.setServerId(serverManager.getLocalServerId());
         dfsCommandToken.setTokenInfo(tokenInfo);
         dfsCommandToken.setTimestamp(Instant.now().toEpochMilli());
-        return packageCommandToken(dfsCommandToken);
+        return dfsCommandToken;
     }
 
     public ByteBuf packageCommandToken(DFSCommandToken dfsCommandToken) {
@@ -454,40 +495,40 @@ public class DFSCommandParse {
         return byteBuf;
     }
 
-    public ByteBuf packageCommandExpand(byte[] bytes) {
+    public DFSCommand convertCommandExpand(byte[] bytes) {
         if (bytes == null)
             return null;
-        int length = 16 + bytes.length;
-        ByteBuf byteBuf = PooledByteBufAllocator.DEFAULT.buffer(length + 8);
-        byteBuf.writeBytes(DC_HEAD);
-        byteBuf.writeInt(length);
-        byteBuf.writeInt(DFSCommand.CT_REQUEST_EXPAND);
-        byteBuf.writeLong(serverManager.getLocalServerId());
-        byteBuf.writeLong(Instant.now().toEpochMilli());
-        byteBuf.writeBytes(bytes);
+        DFSCommandExpand dfsCommandExpand = new DFSCommandExpand();
+        dfsCommandExpand.setServerId(serverManager.getLocalServerId());
+        dfsCommandExpand.setBytes(bytes);
+        dfsCommandExpand.setTimestamp(Instant.now().toEpochMilli());
+        return dfsCommandExpand;
+    }
+
+    public ByteBuf packageCommandExpand(DFSCommandExpand dfsCommandExpand) {
+        if (dfsCommandExpand == null || dfsCommandExpand.getBytes() == null)
+            return null;
+        dfsCommandExpand.setLength(dfsCommandExpand.getFixLength() + dfsCommandExpand.getBytes().length);
+        ByteBuf byteBuf = PooledByteBufAllocator.DEFAULT.buffer(dfsCommandExpand.getLength() + 8);
+        packageCommandHeader(byteBuf, dfsCommandExpand);
+        byteBuf.writeBytes(dfsCommandExpand.getBytes());
         return byteBuf;
     }
 
-    public ByteBuf packageCommandFileTransfer(FileTransferInfo fileTransferInfo, DataBuffer dataBuffer) {
-        if (fileTransferInfo == null || dataBuffer == null)
+    public ByteBuf convertDataBuffer2ByteBuf(DataBuffer dataBuffer){
+        if(dataBuffer==null)
             return null;
-        DFSCommandFileTransfer dfsCommandFileTransfer = new DFSCommandFileTransfer();
-        dfsCommandFileTransfer.setServerId(serverManager.getLocalServerId());
-        dfsCommandFileTransfer.setFileTransferInfo(fileTransferInfo);
-        dfsCommandFileTransfer.setByteBuf(NettyDataBufferFactory.toByteBuf(dataBuffer));
-        dfsCommandFileTransfer.setTimestamp(Instant.now().toEpochMilli());
-        return packageCommandFileTransfer(dfsCommandFileTransfer);
+        return NettyDataBufferFactory.toByteBuf(dataBuffer);
     }
 
-    public ByteBuf packageCommandFileTransfer(FileTransferInfo fileTransferInfo, ByteBuf byteBuf) {
-        if (fileTransferInfo == null || byteBuf == null)
+    public DFSCommand convertCommandFileTransfer(FileTransferInfo fileTransferInfo) {
+        if (fileTransferInfo == null)
             return null;
         DFSCommandFileTransfer dfsCommandFileTransfer = new DFSCommandFileTransfer();
         dfsCommandFileTransfer.setServerId(serverManager.getLocalServerId());
         dfsCommandFileTransfer.setFileTransferInfo(fileTransferInfo);
-        dfsCommandFileTransfer.setByteBuf(byteBuf);
         dfsCommandFileTransfer.setTimestamp(Instant.now().toEpochMilli());
-        return packageCommandFileTransfer(dfsCommandFileTransfer);
+        return dfsCommandFileTransfer;
     }
 
     public ByteBuf packageCommandFileTransfer(DFSCommandFileTransfer dfsCommandFileTransfer) {
@@ -524,12 +565,58 @@ public class DFSCommandParse {
         byteBuf.writeBytes(pathBytes);
         byteBuf.writeBytes(fileNameBytes);
         byteBuf.writeBytes(etagBytes);
-        byteBuf.writeBytes(dfsCommandFileTransfer.getByteBuf());
+        byteBuf.writeBytes(dfsCommandFileTransfer.getFileTransferInfo().getByteBuf());
         CompositeByteBuf resByteBuf=PooledByteBufAllocator.DEFAULT.compositeBuffer();
         resByteBuf.addComponent(true,byteBuf);
-        resByteBuf.addComponent(true,dfsCommandFileTransfer.getByteBuf());
-        return byteBuf;
+        resByteBuf.addComponent(true,dfsCommandFileTransfer.getFileTransferInfo().getByteBuf());
+        return resByteBuf;
+    }
+    public DFSCommand convertCommandFileTransferState(FileTransferState fileTransferState) {
+        if (fileTransferState == null)
+            return null;
+        DFSCommandFileTransferState dfsCommandFileTransferState = new DFSCommandFileTransferState();
+        dfsCommandFileTransferState.setServerId(serverManager.getLocalServerId());
+        dfsCommandFileTransferState.setFileTransferState(fileTransferState);
+        dfsCommandFileTransferState.setTimestamp(Instant.now().toEpochMilli());
+        return dfsCommandFileTransferState;
     }
 
+    public ByteBuf packageCommandFileTransferState(DFSCommandFileTransferState dfsCommandFileTransferState) {
+        if (dfsCommandFileTransferState == null || dfsCommandFileTransferState.getFileTransferState() == null)
+            return null;
+        byte[] pathBytes = dfsCommandFileTransferState.getFileTransferState().getPath().getBytes();
+        byte[] fileNameBytes = dfsCommandFileTransferState.getFileTransferState().getFileName().getBytes();
+        byte[] etagBytes = dfsCommandFileTransferState.getFileTransferState().getEtag().getBytes();
+        dfsCommandFileTransferState.getFileTransferState().setPathLength((short) pathBytes.length);
+        dfsCommandFileTransferState.getFileTransferState().setFileNameLength((short) fileNameBytes.length);
+        int length = dfsCommandFileTransferState.getFixLength()
+                + dfsCommandFileTransferState.getFileTransferState().getFileNameLength()
+                + dfsCommandFileTransferState.getFileTransferState().getPathLength()
+                + dfsCommandFileTransferState.getFileTransferState().getEtagLength();
+        dfsCommandFileTransferState.setLength(length);
+        ByteBuf byteBuf = PooledByteBufAllocator.DEFAULT.buffer(length + 8);
+        byteBuf.writeBytes(DC_HEAD);
+        byteBuf.writeInt(length);
+        byteBuf.writeInt(DFSCommand.CT_REQUEST_EXPAND);
+        byteBuf.writeLong(serverManager.getLocalServerId());
+        byteBuf.writeLong(Instant.now().toEpochMilli());
+        byteBuf.writeShort(dfsCommandFileTransferState.getFileTransferState().getPathLength());
+        byteBuf.writeShort(dfsCommandFileTransferState.getFileTransferState().getFileNameLength());
+        byteBuf.writeShort(dfsCommandFileTransferState.getFileTransferState().getEtagLength());
+        byteBuf.writeInt(dfsCommandFileTransferState.getFileTransferState().getChunkIndex());
+        byteBuf.writeInt(dfsCommandFileTransferState.getFileTransferState().getChunkSize());
+        byteBuf.writeInt(dfsCommandFileTransferState.getFileTransferState().getChunkCount());
+        byteBuf.writeInt(dfsCommandFileTransferState.getFileTransferState().getChunkPieceIndex());
+        byteBuf.writeInt(dfsCommandFileTransferState.getFileTransferState().getChunkPieceSize());
+        byteBuf.writeInt(dfsCommandFileTransferState.getFileTransferState().getChunkPieceCount());
+        byteBuf.writeInt(dfsCommandFileTransferState.getFileTransferState().getStartPos());
+        byteBuf.writeInt(dfsCommandFileTransferState.getFileTransferState().getPackageLength());
+        byteBuf.writeBytes(pathBytes);
+        byteBuf.writeBytes(fileNameBytes);
+        byteBuf.writeBytes(etagBytes);
+        byteBuf.writeInt(dfsCommandFileTransferState.getFileTransferState().getState());
+        return byteBuf;
+    }
     // fileTransfer 需要使用组合bytebuf拼接基本信息和databuffer的文件信息
+    // file finish,chunk finish,chunk server update
 }

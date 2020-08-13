@@ -1,6 +1,7 @@
 package com.ly.common.domain;
 
-public class ResultTwoValueInfo<T, V> extends ResultValueInfo<T>{
+public class ResultTwoValueInfo<T, V> extends ResultValueInfo<T> {
+
     public static final int S_OK = 0;
     public static final int S_ERROR = -1;
     public static final int S_FAILED = 1;
@@ -15,7 +16,7 @@ public class ResultTwoValueInfo<T, V> extends ResultValueInfo<T>{
     }
 
     public ResultTwoValueInfo(int result, String errorCode, String errorDesc) {
-        super(result,errorCode,errorDesc);
+        super(result, errorCode, errorDesc);
     }
 
     public ResultTwoValueInfo(int result, T source) {
@@ -24,16 +25,16 @@ public class ResultTwoValueInfo<T, V> extends ResultValueInfo<T>{
     }
 
     public ResultTwoValueInfo(int result, T source, V destination) {
-        super(result,source);
+        super(result, source);
         this.destination = destination;
     }
 
     public ResultTwoValueInfo(int result, String errorCode, String errorDesc, T source) {
-        super(result,errorCode,errorDesc,source);
+        super(result, errorCode, errorDesc, source);
     }
 
     public ResultTwoValueInfo(int result, String errorCode, String errorDesc, T source, V destination) {
-        super(result,errorCode,errorDesc,source);
+        super(result, errorCode, errorDesc, source);
         this.destination = destination;
     }
 

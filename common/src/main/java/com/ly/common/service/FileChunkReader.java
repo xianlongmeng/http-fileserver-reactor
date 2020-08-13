@@ -1,20 +1,21 @@
 package com.ly.common.service;
 
+import java.nio.channels.AsynchronousFileChannel;
+import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
-import reactor.core.publisher.Flux;
 
-import java.nio.channels.AsynchronousFileChannel;
-import java.nio.file.Path;
-import java.nio.file.StandardOpenOption;
+import reactor.core.publisher.Flux;
 
 public class FileChunkReader {
 
-    private static DataBufferFactory dataBufferFactory = new DefaultDataBufferFactory();
-    private static int bufferInitLen = 1024;
+    private static final DataBufferFactory dataBufferFactory = new DefaultDataBufferFactory();
+    private static final int bufferInitLen = 1024;
 
     public static Flux<DataBuffer> readFile2Buffer(String fileName) {
         return readFile2Buffer(Path.of(fileName));
@@ -49,18 +50,14 @@ public class FileChunkReader {
     }
 
     public static Flux<DataBuffer> readFile2Buffer(Path filePath, long position, long count) {
-        return DataBufferUtils
-                .takeUntilByteCount(
-                        DataBufferUtils.readAsynchronousFileChannel(() -> AsynchronousFileChannel
-                                .open(filePath, StandardOpenOption.READ), position, dataBufferFactory, bufferInitLen),
-                        count);
+        return DataBufferUtils.takeUntilByteCount(DataBufferUtils.readAsynchronousFileChannel(
+                () -> AsynchronousFileChannel.open(filePath, StandardOpenOption.READ), position, dataBufferFactory,
+                bufferInitLen), count);
     }
 
     public static Flux<DataBuffer> readFile2Buffer(Resource resource, long position, long count) {
-        return DataBufferUtils
-                .takeUntilByteCount(
-                        DataBufferUtils.readAsynchronousFileChannel(() -> AsynchronousFileChannel
-                                .open(resource.getFile().toPath(), StandardOpenOption.READ), position, dataBufferFactory, bufferInitLen),
-                        count);
+        return DataBufferUtils.takeUntilByteCount(DataBufferUtils.readAsynchronousFileChannel(
+                () -> AsynchronousFileChannel.open(resource.getFile().toPath(), StandardOpenOption.READ), position,
+                dataBufferFactory, bufferInitLen), count);
     }
 }

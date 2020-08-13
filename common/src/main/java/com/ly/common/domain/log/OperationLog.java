@@ -1,8 +1,8 @@
 package com.ly.common.domain.log;
 
-import com.ly.common.util.DateFormatUtils;
-
 import java.time.LocalDateTime;
+
+import com.ly.common.util.DateFormatUtils;
 
 public class OperationLog {
 
@@ -62,6 +62,7 @@ public class OperationLog {
 
     @Override
     public String toString() {
-        return DateFormatUtils.buildSimpleDateTimeMillSecondFormatter(dateTime==null?LocalDateTime.now():dateTime)+","+opType+","+path+","+fileName+","+index+"\n";
+        return DateFormatUtils.buildSimpleDateTimeMillSecondFormatter(dateTime == null ? LocalDateTime.now() : dateTime)
+                + "," + opType + "," + path + "," + fileName + "," + index + "\n";
     }
 }
