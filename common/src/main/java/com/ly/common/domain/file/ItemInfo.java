@@ -3,8 +3,12 @@ package com.ly.common.domain.file;
 public class ItemInfo {
 
     private String name;
-    private String path;
+    private boolean directory;
 
+    public ItemInfo(String name,boolean directory){
+        this.name=name;
+        this.directory=directory;
+    }
     public String getName() {
         return name;
     }
@@ -13,11 +17,11 @@ public class ItemInfo {
         this.name = name;
     }
 
-    public String getPath() {
-        return path;
+    public boolean isDirectory() {
+        return directory;
     }
 
-    public void setPath(String path) {
-        this.path = path;
+    public void setDirectory(boolean directory) {
+        this.directory = directory;
     }
 }

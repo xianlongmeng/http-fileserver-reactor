@@ -15,7 +15,7 @@ import org.springframework.util.StringUtils;
 
 import com.ly.common.domain.log.OperationLog;
 import com.ly.common.util.DateFormatUtils;
-import com.ly.common.util.MyFileUtils;
+import com.ly.common.util.DfsFileUtils;
 
 public class LogOperateUtils {
 
@@ -135,7 +135,7 @@ public class LogOperateUtils {
     }
 
     private String findLastTimeFileName() {
-        List<String> fileNameList = MyFileUtils.findFile(logPath, "").stream().sorted().collect(Collectors.toList());
+        List<String> fileNameList = DfsFileUtils.findFile(logPath, "").stream().sorted().collect(Collectors.toList());
         if (fileNameList.isEmpty())
             return null;
         else

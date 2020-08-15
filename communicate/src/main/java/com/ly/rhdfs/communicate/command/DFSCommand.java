@@ -13,6 +13,7 @@ public class DFSCommand {
     public static final int CT_TOKEN = 2;
     public static final int CT_FILE_CHUNK = 4;
     public static final int CT_FILE_INFO = 8;
+    public static final int CT_FILE_DELETE = 9;
     public static final int CT_DIRECT_FILE_ITEM = 0x10;
     public static final int CT_CLEAR = 0x20;
     public static final int CT_REQUEST_EXPAND = 0x40;

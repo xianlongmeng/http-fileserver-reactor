@@ -1,4 +1,4 @@
-package com.ly.rhdfs.manager.config;
+package com.ly.rhdfs.config;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
@@ -32,6 +32,12 @@ public class ServerConfig {
     private long storeServerDisconnectedMasterVote;
     @Value("${store.file.root.path}")
     private String fileRootPath;
+    @Value("${token.read.timeout}")
+    private long tokenReadTimeout;
+    @Value("${token.write.timeout}")
+    private long tokenWriteTimeout;
+    @Value("${token.default.timeout}")
+    private long tokenDefaultTimeout;
 
     public int getCurrentServerId() {
         return currentServerId;
@@ -111,5 +117,29 @@ public class ServerConfig {
 
     public void setFileRootPath(String fileRootPath) {
         this.fileRootPath = fileRootPath;
+    }
+
+    public long getTokenReadTimeout() {
+        return tokenReadTimeout;
+    }
+
+    public void setTokenReadTimeout(long tokenReadTimeout) {
+        this.tokenReadTimeout = tokenReadTimeout;
+    }
+
+    public long getTokenWriteTimeout() {
+        return tokenWriteTimeout;
+    }
+
+    public void setTokenWriteTimeout(long tokenWriteTimeout) {
+        this.tokenWriteTimeout = tokenWriteTimeout;
+    }
+
+    public long getTokenDefaultTimeout() {
+        return tokenDefaultTimeout;
+    }
+
+    public void setTokenDefaultTimeout(long tokenDefaultTimeout) {
+        this.tokenDefaultTimeout = tokenDefaultTimeout;
     }
 }

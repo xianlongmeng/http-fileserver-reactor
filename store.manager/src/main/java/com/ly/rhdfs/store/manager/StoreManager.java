@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 
 import com.ly.common.constant.ParamConstants;
-import com.ly.common.util.MyFileUtils;
+import com.ly.common.util.DfsFileUtils;
 import com.ly.rhdfs.manager.handler.CommandEventHandler;
 import com.ly.rhdfs.store.manager.task.ComputerStateTask;
 import org.springframework.stereotype.Component;
@@ -58,6 +58,6 @@ public class StoreManager extends ServerManager {
         localServerState.setVotedServerId(sid);
     }
     public void computerFreeSpaceSize(){
-        localServerState.setSpaceSize(MyFileUtils.diskFreeSpace(serverConfig.getFileRootPath()));
+        localServerState.setSpaceSize(DfsFileUtils.diskFreeSpace(serverConfig.getFileRootPath()));
     }
 }

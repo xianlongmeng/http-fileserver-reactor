@@ -3,6 +3,7 @@ package com.ly.rhdfs.manager.connect;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+import io.netty.channel.ChannelFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -84,5 +85,13 @@ public class ConnectManager {
 
     public boolean sendCommunication(ServerState serverState, DFSCommand dfsCommand) {
         return dfsCommunicate.sendCommand(findConnection(serverState), dfsCommand);
+    }
+
+    public ChannelFuture sendCommunicationObjectAsync(ServerState serverState, Object commandObj) {
+        return dfsCommunicate.sendCommandObjectAsync(findConnection(serverState), commandObj);
+    }
+
+    public ChannelFuture sendCommunicationAsync(ServerState serverState, DFSCommand dfsCommand) {
+        return dfsCommunicate.sendCommandAsync(findConnection(serverState), dfsCommand);
     }
 }

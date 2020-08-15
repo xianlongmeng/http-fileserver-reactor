@@ -10,6 +10,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import com.ly.rhdfs.config.ServerConfig;
 import com.ly.rhdfs.manager.connect.ConnectServerTask;
 import com.ly.rhdfs.manager.connect.ServerStateHeartBeatTask;
 import org.slf4j.Logger;
@@ -26,7 +27,6 @@ import com.ly.common.domain.server.ServerState;
 import com.ly.common.util.DateFormatUtils;
 import com.ly.rhdfs.communicate.command.DFSCommandState;
 import com.ly.rhdfs.log.operate.LogOperateUtils;
-import com.ly.rhdfs.manager.config.ServerConfig;
 import com.ly.rhdfs.manager.connect.ConnectManager;
 import com.ly.rhdfs.manager.handler.CommandEventHandler;
 

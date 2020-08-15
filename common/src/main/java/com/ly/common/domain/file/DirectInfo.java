@@ -2,7 +2,7 @@ package com.ly.common.domain.file;
 
 import java.util.List;
 
-public class DirectInfo extends ItemInfo {
+public class DirectInfo {
 
     private List<ItemInfo> itemInfos;
 

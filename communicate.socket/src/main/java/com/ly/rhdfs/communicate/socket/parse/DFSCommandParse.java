@@ -63,6 +63,8 @@ public class DFSCommandParse {
         switch (commandType) {
             case DFSCommand.CT_FILE_INFO:
                 return parseFileInfo(byteBuf, dfsCommand);
+            case DFSCommand.CT_FILE_DELETE:
+                return parseFileDelete(byteBuf, dfsCommand);
             case DFSCommand.CT_FILE_CHUNK:
                 return parseChunkInfo(byteBuf, dfsCommand);
             case DFSCommand.CT_FILE_OPERATE:
@@ -121,7 +123,18 @@ public class DFSCommandParse {
         dfsCommandFileInfo.setFileInfo(fileInfo);
         return dfsCommandFileInfo;
     }
-
+    public DFSCommandFileDelete parseFileDelete(ByteBuf byteBuf, DFSCommand dfsCommand) {
+        if (!(dfsCommand instanceof DFSCommandFileDelete)) {
+            return null;
+        }
+        DFSCommandFileDelete dfsCommandFileDelete = (DFSCommandFileDelete) dfsCommand;
+        byte[] bytes = new byte[dfsCommandFileDelete.getLength() - dfsCommandFileDelete.getFixLength()];
+        byteBuf.readBytes(bytes);
+        String fileInfoStr = new String(bytes);
+        FileDelete fileDelete = JSON.parseObject(fileInfoStr, FileDelete.class);
+        dfsCommandFileDelete.setFileDelete(fileDelete);
+        return dfsCommandFileDelete;
+    }
     public DFSCommandChunkInfo parseChunkInfo(ByteBuf byteBuf, DFSCommand dfsCommand) {
         if (!(dfsCommand instanceof DFSCommandChunkInfo)) {
             return null;
@@ -280,6 +293,8 @@ public class DFSCommandParse {
     public ByteBuf packageCommand(DFSCommand dfsCommand) {
         if (dfsCommand instanceof DFSCommandFileInfo) {
             return packageCommandFileInfo((DFSCommandFileInfo) dfsCommand);
+        } else if (dfsCommand instanceof DFSCommandFileDelete) {
+            return packageCommandFileDelete((DFSCommandFileDelete) dfsCommand);
         } else if (dfsCommand instanceof DFSCommandChunkInfo) {
             return packageCommandChunkInfo((DFSCommandChunkInfo) dfsCommand);
         } else if (dfsCommand instanceof DFSCommandDirectFileItems) {
@@ -304,6 +319,8 @@ public class DFSCommandParse {
     public DFSCommand convertCommandObject(Object commandObj) {
         if (commandObj instanceof FileInfo) {
             return convertCommandFileInfo((FileInfo) commandObj);
+        } else if (commandObj instanceof FileDelete) {
+            return convertCommandFileDelete((FileDelete) commandObj);
         } else if (commandObj instanceof ChunkInfo) {
             return convertCommandChunkInfo((ChunkInfo) commandObj);
         } else if (commandObj instanceof DirectInfo) {
@@ -368,6 +385,26 @@ public class DFSCommandParse {
         return byteBuf;
     }
 
+    public DFSCommand convertCommandFileDelete(FileDelete fileDelte) {
+        if (fileDelte == null)
+            return null;
+        DFSCommandFileDelete dfsCommandFileDelete = new DFSCommandFileDelete();
+        dfsCommandFileDelete.setServerId(serverManager.getLocalServerId());
+        dfsCommandFileDelete.setFileDelete(fileDelte);
+        dfsCommandFileDelete.setTimestamp(Instant.now().toEpochMilli());
+        return dfsCommandFileDelete;
+    }
+
+    public ByteBuf packageCommandFileDelete(DFSCommandFileDelete dfsCommandFileDelete) {
+        if (dfsCommandFileDelete == null || dfsCommandFileDelete.getFileDelete() == null)
+            return null;
+        byte[] bytes = JSON.toJSONString(dfsCommandFileDelete.getFileDelete()).getBytes();
+        dfsCommandFileDelete.setLength(dfsCommandFileDelete.getFixLength() + bytes.length);
+        ByteBuf byteBuf = PooledByteBufAllocator.DEFAULT.buffer(dfsCommandFileDelete.getLength() + 8);
+        packageCommandHeader(byteBuf, dfsCommandFileDelete);
+        byteBuf.writeBytes(bytes);
+        return byteBuf;
+    }
     public DFSCommand convertCommandChunkInfo(ChunkInfo chunkInfo) {
         if (chunkInfo == null)
             return null;

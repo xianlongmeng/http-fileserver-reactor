@@ -29,6 +29,9 @@ public class FileDfsTransferRoute {
                 .path("/dfs/download-chunk-request",
                         builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST),
                                 downloadDfsHandler::downloadFileChunkMasterRequest))
+                .path("/dfs/download-finish",
+                        builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST),
+                                downloadDfsHandler::downloadFileFinish))
                 .build();
     }
 

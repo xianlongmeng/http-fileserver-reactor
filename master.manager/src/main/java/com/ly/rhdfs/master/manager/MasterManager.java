@@ -11,9 +11,11 @@ import java.util.concurrent.TimeUnit;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.TypeReference;
+import com.ly.common.domain.file.FileDelete;
 import com.ly.common.domain.server.ServerRunState;
 import com.ly.rhdfs.master.manager.runstate.FileServerRunManager;
-import com.ly.rhdfs.master.manager.task.AvailableOrderlyServerRunStateTask;
+import com.ly.rhdfs.master.manager.task.*;
+import io.netty.channel.ChannelFuture;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -22,9 +24,6 @@ import com.ly.common.domain.server.ServerInfoConfiguration;
 import com.ly.common.domain.server.ServerState;
 import com.ly.rhdfs.manager.handler.CommandEventHandler;
 import com.ly.rhdfs.manager.server.ServerManager;
-import com.ly.rhdfs.master.manager.task.ComputerVoteTask;
-import com.ly.rhdfs.master.manager.task.MasterQualificationVerify;
-import com.ly.rhdfs.master.manager.task.UpdateServerAddressTask;
 import org.springframework.util.ResourceUtils;
 import org.springframework.util.StringUtils;
 
@@ -58,7 +57,11 @@ public class MasterManager extends ServerManager {
         // 定时发送MasterServer和StoreServer的地址和端口信息
         scheduledThreadPoolExecutor.schedule(new UpdateServerAddressTask(this), initThreadThirdDelay, TimeUnit.SECONDS);
         // 定时处理下载超时任务
-        // todo:
+        scheduledThreadPoolExecutor.schedule(new DownloadClearTask(this), initThreadThirdDelay, TimeUnit.SECONDS);
+        // 定时处理上传超时任务
+        scheduledThreadPoolExecutor.schedule(new UploadClearTask(this), initThreadThirdDelay, TimeUnit.SECONDS);
+        // 定时处理删除文件命令
+        scheduledThreadPoolExecutor.schedule(new DeleteFileTask(this), initThreadThirdDelay, TimeUnit.SECONDS);
         // 定时处理有效服务负载排序状态
         scheduledThreadPoolExecutor.schedule(new AvailableOrderlyServerRunStateTask(this), initThreadThirdDelay, TimeUnit.SECONDS);
     }
@@ -153,5 +156,14 @@ public class MasterManager extends ServerManager {
         if (serverState == null)
             return;
         connectManager.sendCommunicationObject(serverState, serverInfoConfigurations);
+    }
+
+    public ChannelFuture sendFileDeleteAsync(long serverId, FileDelete fileDelete){
+        return sendFileDeleteAsync(serverInfoMap.get(serverId),fileDelete);
+    }
+    public ChannelFuture sendFileDeleteAsync(ServerState serverState, FileDelete fileDelete){
+        if (serverState==null || fileDelete==null)
+            return null;
+        return connectManager.sendCommunicationObjectAsync(serverState,fileDelete);
     }
 }

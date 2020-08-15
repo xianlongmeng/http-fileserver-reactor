@@ -8,7 +8,7 @@
         <artifactId>http-fileserver-reactor</artifactId>
         <version>1.0-SNAPSHOT</version>
     </parent>
-    <groupId>com.ly</groupId>
+    <groupId>com.ly.rhdfs</groupId>
     <artifactId>rhdfs-app</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>rhdfs-app</name>
@@ -27,12 +27,6 @@
         <dependency>
             <groupId>com.ly.rhdfs</groupId>
             <artifactId>store.single</artifactId>
-            <version>1.0-SNAPSHOT</version>
-            <scope>compile</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.ly</groupId>
-            <artifactId>etag-generator</artifactId>
             <version>1.0-SNAPSHOT</version>
             <scope>compile</scope>
         </dependency>

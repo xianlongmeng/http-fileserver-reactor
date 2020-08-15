@@ -29,4 +29,10 @@ public interface TokenFactory {
     TokenInfo createToken(String path, String fileName, int type, Map<String, String> paramMap);
 
     long computerTokenExpiration(TokenInfo tokenInfo);
+
+    void setReadTimeout(long readTimeout);
+
+    void setWriteTimeout(long writeTimeout);
+
+    void setDefaultTimeout(long defaultTimeout);
 }

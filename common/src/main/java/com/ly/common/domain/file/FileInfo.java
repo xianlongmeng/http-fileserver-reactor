@@ -4,6 +4,8 @@ import java.util.List;
 
 public class FileInfo {
 
+    private String path;
+    private String fileName;
     private long createTime;
     private long lastModifyTime;
     private long size;
@@ -13,6 +15,23 @@ public class FileInfo {
     private long chunkSize;
     // 分块数量
     private int chunkCount;
+
+    public String getPath() {
+        return path;
+    }
+
+    public void setPath(String path) {
+        this.path = path;
+    }
+
+    public String getFileName() {
+        return fileName;
+    }
+
+    public void setFileName(String fileName) {
+        this.fileName = fileName;
+    }
+
     // 分块信息，可以是整个FileInfo，可以是一个分块的分片
     private List<ChunkInfo> fileChunkList;
 
