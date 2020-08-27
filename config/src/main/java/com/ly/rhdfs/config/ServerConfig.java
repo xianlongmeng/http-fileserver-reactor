@@ -24,10 +24,10 @@ public class ServerConfig {
     private String logPath;
     @Value("${file.copies:3}")
     private int fileCopies;
-    //失去太多StoreServer的Master多长时间失去Master资格
+    // 失去太多StoreServer的Master多长时间失去Master资格
     @Value("${store.server.dtm.cancel.master:3600000}")
     private long storeServerDTMCancelMaster;
-    //失去太多StoreServer的Master多长时间失去Master资格
+    // 失去太多StoreServer的Master多长时间失去Master资格
     @Value("${store.server.disconnected.master.vote:300000}")
     private long storeServerDisconnectedMasterVote;
     @Value("${store.file.root.path}")
@@ -38,6 +38,15 @@ public class ServerConfig {
     private long tokenWriteTimeout;
     @Value("${token.default.timeout}")
     private long tokenDefaultTimeout;
+
+    @Value("${param.name.path}")
+    private String pathParamName = ParamConstants.PARAM_PATH_NAME;
+    @Value("${param.name.file}")
+    private String fileNameParamName = ParamConstants.PARAM_FILE_NAME;
+    @Value("${param.name.file.size}")
+    private String fileSizeParamName = ParamConstants.PARAM_FILE_SIZE_NAME;
+    @Value("${param.name.token}")
+    private String tokenParamName = ParamConstants.PARAM_TOKEN_NAME;
 
     public int getCurrentServerId() {
         return currentServerId;
@@ -141,5 +150,37 @@ public class ServerConfig {
 
     public void setTokenDefaultTimeout(long tokenDefaultTimeout) {
         this.tokenDefaultTimeout = tokenDefaultTimeout;
+    }
+
+    public String getPathParamName() {
+        return pathParamName;
+    }
+
+    public void setPathParamName(String pathParamName) {
+        this.pathParamName = pathParamName;
+    }
+
+    public String getFileNameParamName() {
+        return fileNameParamName;
+    }
+
+    public void setFileNameParamName(String fileNameParamName) {
+        this.fileNameParamName = fileNameParamName;
+    }
+
+    public String getFileSizeParamName() {
+        return fileSizeParamName;
+    }
+
+    public void setFileSizeParamName(String fileSizeParamName) {
+        this.fileSizeParamName = fileSizeParamName;
+    }
+
+    public String getTokenParamName() {
+        return tokenParamName;
+    }
+
+    public void setTokenParamName(String tokenParamName) {
+        this.tokenParamName = tokenParamName;
     }
 }

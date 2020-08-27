@@ -1,6 +1,8 @@
 package com.ly.rhdfs.config;
 
 import com.ly.etag.ETagComputer;
+import com.ly.rhdfs.authentication.AuthenticationVerify;
+import com.ly.rhdfs.authentication.impl.DefaultAuthenticationImpl;
 import com.ly.rhdfs.token.TokenFactory;
 import com.ly.rhdfs.token.random.TokenRandomFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -40,5 +42,9 @@ public class ApplicationConfiguration {
         tokenFactory.setReadTimeout(serverConfig.getReadTimeout());
         tokenFactory.setWriteTimeout(serverConfig.getTokenWriteTimeout());
         return tokenFactory;
+    }
+    @Bean
+    public AuthenticationVerify authenticationVerify(){
+        return new DefaultAuthenticationImpl();
     }
 }

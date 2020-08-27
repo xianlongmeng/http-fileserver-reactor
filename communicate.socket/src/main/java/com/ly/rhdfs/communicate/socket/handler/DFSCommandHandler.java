@@ -45,7 +45,7 @@ public class DFSCommandHandler extends ChannelDuplexHandler {
                 if (channelHandler instanceof HeartBeatHandler) {
                     HeartBeatHandler heartBeatHandler = (HeartBeatHandler) channelHandler;
                     if (heartBeatHandler.getServerState() == null) {
-                        ServerState serverState = serverManager.findServerState4ServerId(dfsCommand.getServerId());
+                        ServerState serverState = serverManager.findServerState(dfsCommand.getServerId());
                         if (serverState != null) {
                             heartBeatHandler.setServerState(serverState);
                             if (!connectManager.putServerConnection(serverState, connection)) {

@@ -6,6 +6,7 @@ import java.util.concurrent.TimeUnit;
 import com.ly.common.constant.ParamConstants;
 import com.ly.common.util.DfsFileUtils;
 import com.ly.rhdfs.manager.handler.CommandEventHandler;
+import com.ly.rhdfs.manager.handler.ServerStateCommandEventHandler;
 import com.ly.rhdfs.store.manager.task.ComputerStateTask;
 import org.springframework.stereotype.Component;
 
@@ -19,7 +20,14 @@ public class StoreManager extends ServerManager {
         scheduledThreadCount = 4;
     }
 
+    @Override
+    protected void initCommandEventHandler() {
+        super.initCommandEventHandler();
+        commandEventHandler.setServerStateCommandEventHandler(new ServerStateCommandEventHandler(this));
+    }
+
     public void initial() {
+        commandEventHandler=new CommandEventHandler(this);
         super.initial();
         if (!ParamConstants.ST_STORE.equals(serverConfig.getServerType()))
             return;

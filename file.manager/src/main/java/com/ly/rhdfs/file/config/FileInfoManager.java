@@ -21,8 +21,11 @@ public class FileInfoManager {
     }
 
     @CachePut(value = "file.info", key = "#path")
-    public FileInfo submitFileInfo(String path, FileInfo fileInfo) {
-        if (fileInfo == null || StringUtils.isEmpty(path))
+    public FileInfo submitFileInfo(FileInfo fileInfo) {
+        if (fileInfo == null)
+            return null;
+        String path=DfsFileUtils.joinFileConfigName(fileInfo.getPath(),fileInfo.getFileName());
+        if ( StringUtils.isEmpty(path))
             return null;
         DfsFileUtils.JSONWriteFile(path, fileInfo);
         clearDirectCache(StringUtils.cleanPath(fileInfo.getPath()));
@@ -30,8 +33,11 @@ public class FileInfoManager {
     }
 
     @CachePut(value = "file.info", key = "#path")
-    public FileInfo submitFileInfo(String path, FileInfo fileInfo, String tmpPath) {
-        if (fileInfo == null || StringUtils.isEmpty(path))
+    public FileInfo submitFileInfo(FileInfo fileInfo, String tmpPath) {
+        if (fileInfo == null)
+            return null;
+        String path=DfsFileUtils.joinFileConfigName(fileInfo.getPath(),fileInfo.getFileName());
+        if ( StringUtils.isEmpty(path))
             return null;
         File file = new File(tmpPath);
         if (!file.exists() || !DfsFileUtils.renameFile(tmpPath, path)) {

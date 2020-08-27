@@ -6,13 +6,12 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.time.Instant;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 
-import com.ly.rhdfs.config.ServerConfig;
-import com.ly.rhdfs.manager.connect.ConnectServerTask;
-import com.ly.rhdfs.manager.connect.ServerStateHeartBeatTask;
+import com.ly.rhdfs.communicate.command.DFSCommand;
+import com.ly.rhdfs.file.config.FileInfoManager;
+import com.ly.rhdfs.manager.handler.ServerAddressCommandEventHandler;
+import com.ly.rhdfs.manager.handler.ServerStateCommandEventHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,33 +23,45 @@ import com.alibaba.fastjson.TypeReference;
 import com.ly.common.domain.server.MasterServerConfig;
 import com.ly.common.domain.server.ServerInfoConfiguration;
 import com.ly.common.domain.server.ServerState;
-import com.ly.common.util.DateFormatUtils;
 import com.ly.rhdfs.communicate.command.DFSCommandState;
+import com.ly.rhdfs.config.ServerConfig;
+import com.ly.rhdfs.log.operate.LogFileOperate;
 import com.ly.rhdfs.log.operate.LogOperateUtils;
 import com.ly.rhdfs.manager.connect.ConnectManager;
+import com.ly.rhdfs.manager.connect.ConnectServerTask;
+import com.ly.rhdfs.manager.connect.ServerStateHeartBeatTask;
 import com.ly.rhdfs.manager.handler.CommandEventHandler;
 
 public abstract class ServerManager {
-    protected int scheduledThreadCount = 5;
     protected final int initThreadDelay = 10;
     protected final int initThreadSecondDelay = 20;
     protected final int initThreadThirdDelay = 30;
-
     protected final Map<Long, ServerState> serverInfoMap = new ConcurrentHashMap<>();
     protected final ServerState localServerState = new ServerState();
     private final DFSCommandState localDFSCommandState = new DFSCommandState(localServerState);
-    private final LogOperateUtils logOperateUtils;
+    protected int scheduledThreadCount = 5;
     protected Logger logger = LoggerFactory.getLogger(this.getClass());
     protected ConnectManager connectManager;
     protected ServerConfig serverConfig;
     protected ScheduledThreadPoolExecutor scheduledThreadPoolExecutor;
+    protected final ThreadPoolExecutor threadPoolExecutor= new ThreadPoolExecutor(8,16,60,TimeUnit.SECONDS,new LinkedBlockingQueue<>());
     protected long masterServerId = -1;
     protected MasterServerConfig masterServerConfig;
     //Master:disconnect 3 store last time;Store:disconnect master last time
     private long masterDisconnectedLastTime;
-
+    private LogFileOperate logFileOperate;
+    protected CommandEventHandler commandEventHandler;
+    private FileInfoManager fileInfoManager;
+    public FileInfoManager getFileInfoManager(){
+        return fileInfoManager;
+    }
+    @Autowired
+    private void setFileInfoManager(FileInfoManager fileInfoManager) {
+        this.fileInfoManager = fileInfoManager;
+    }
     public ServerManager() {
-        logOperateUtils = new LogOperateUtils(serverConfig.getLogPath());
+        LogOperateUtils.LOG_PATH=serverConfig.getLogPath();
+        logFileOperate=new LogFileOperate(LogOperateUtils.LOG_PATH);
     }
 
     public ServerConfig getServerConfig() {
@@ -83,7 +94,12 @@ public abstract class ServerManager {
         localServerState.setUpdateAddressLastTime(serverAddressUpdateLastTime);
     }
 
+    protected void initCommandEventHandler(){
+        commandEventHandler=new CommandEventHandler(this);
+        commandEventHandler.setServerAddressCommandEventHandler(new ServerAddressCommandEventHandler(this));
+    }
     public void initial(){
+        initCommandEventHandler();
         // 初始化ServerManager
         loadMasterServer(serverConfig.getConfigPath());
         // 通过近期日志，加载write的last time
@@ -95,6 +111,15 @@ public abstract class ServerManager {
         // 定时发送心跳
         scheduledThreadPoolExecutor.schedule(new ServerStateHeartBeatTask(this), initThreadDelay, TimeUnit.SECONDS);
     }
+
+    public LogFileOperate getLogFileOperate() {
+        return logFileOperate;
+    }
+
+    public void setLogFileOperate(LogFileOperate logFileOperate) {
+        this.logFileOperate = logFileOperate;
+    }
+
     /**
      * 收到心跳后，放入新的ServerState，处理相关Config信息。
      * @param serverState
@@ -213,17 +238,13 @@ public abstract class ServerManager {
         localServerState.setPort(port);
     }
 
-    public ServerState findServerState4ServerId(long serverId) {
-        return serverInfoMap.get(serverId);
-    }
-
     public void reconnectServer(ServerState serverState) {
         connectManager.closeServer(serverState);
-        connectManager.startConnectServer(serverState, new CommandEventHandler(this));
+        connectManager.startConnectServer(serverState, commandEventHandler);
     }
 
     public void connectServer(ServerState serverState) {
-        connectManager.startConnectServer(serverState, new CommandEventHandler(this));
+        connectManager.startConnectServer(serverState, commandEventHandler);
     }
 
     public void closeConnect(ServerState serverState) {
@@ -233,11 +254,16 @@ public abstract class ServerManager {
     public void sendHeart(ServerState serverState) {
         if (serverState == null)
             return;
-        connectManager.sendCommunicationObject(serverState, localServerState);
+        connectManager.sendCommunicationObject(serverState, localServerState, DFSCommand.CT_STATE);
     }
 
+    public boolean sendFileInfoSync(ServerState serverState,byte[] fileInfo){
+        if (serverState==null)
+            return false;
+        return connectManager.sendFileInfoCommandSync(serverState,fileInfo);
+    }
     public void initLastTime() {
-        localServerState.setWriteLastTime(DateFormatUtils.getTimeStampByDateTime(logOperateUtils.readLastTime()));
+        localServerState.setWriteLastTime(LogOperateUtils.readLastTime());
     }
 
     public MasterServerConfig getMasterServerConfig(){

@@ -20,6 +20,7 @@ import com.ly.common.domain.token.TokenInfo;
 import com.ly.common.util.SpringContextUtil;
 import com.ly.rhdfs.communicate.command.*;
 import com.ly.rhdfs.manager.server.ServerManager;
+import org.springframework.util.StringUtils;
 
 @Component
 public class DFSCommandParse {
@@ -65,6 +66,8 @@ public class DFSCommandParse {
                 return parseFileInfo(byteBuf, dfsCommand);
             case DFSCommand.CT_FILE_DELETE:
                 return parseFileDelete(byteBuf, dfsCommand);
+            case DFSCommand.CT_FILE_CHUNK_BACKUP:
+                return parseBackupFileChunk(byteBuf, dfsCommand);
             case DFSCommand.CT_FILE_CHUNK:
                 return parseChunkInfo(byteBuf, dfsCommand);
             case DFSCommand.CT_FILE_OPERATE:
@@ -77,6 +80,8 @@ public class DFSCommandParse {
                 return parseServerAddress(byteBuf, dfsCommand);
             case DFSCommand.CT_TOKEN:
                 return parseToken(byteBuf, dfsCommand);
+            case DFSCommand.CT_TOKEN_CLEAR:
+                return parseTokenClear(byteBuf, dfsCommand);
             case DFSCommand.CT_DIRECT_FILE_ITEM:
                 return parseDirectFileItems(byteBuf, dfsCommand);
             case DFSCommand.CT_FILE_TRANSFER_STATE:
@@ -90,6 +95,10 @@ public class DFSCommandParse {
         switch (commandType) {
             case DFSCommand.CT_FILE_INFO:
                 return new DFSCommandFileInfo();
+            case DFSCommand.CT_FILE_DELETE:
+                return new DFSCommandFileDelete();
+            case DFSCommand.CT_FILE_CHUNK_BACKUP:
+                return new DFSCommandBackupFileChunk();
             case DFSCommand.CT_FILE_CHUNK:
                 return new DFSCommandChunkInfo();
             case DFSCommand.CT_FILE_OPERATE:
@@ -102,6 +111,8 @@ public class DFSCommandParse {
                 return new DFSCommandServerAddress();
             case DFSCommand.CT_TOKEN:
                 return new DFSCommandToken();
+            case DFSCommand.CT_TOKEN_CLEAR:
+                return new DFSCommandTokenClear();
             case DFSCommand.CT_DIRECT_FILE_ITEM:
                 return new DFSCommandDirectFileItems();
             case DFSCommand.CT_FILE_TRANSFER_STATE:
@@ -123,6 +134,20 @@ public class DFSCommandParse {
         dfsCommandFileInfo.setFileInfo(fileInfo);
         return dfsCommandFileInfo;
     }
+
+    public DFSCommandBackupFileChunk parseBackupFileChunk(ByteBuf byteBuf, DFSCommand dfsCommand) {
+        if (!(dfsCommand instanceof DFSCommandFileInfo)) {
+            return null;
+        }
+        DFSCommandBackupFileChunk dfsCommandBackupFileChunk = (DFSCommandBackupFileChunk) dfsCommand;
+        byte[] bytes = new byte[dfsCommandBackupFileChunk.getLength() - dfsCommandBackupFileChunk.getFixLength()];
+        byteBuf.readBytes(bytes);
+        String fileInfoStr = new String(bytes);
+        FileInfo fileInfo = JSON.parseObject(fileInfoStr, FileInfo.class);
+        dfsCommandBackupFileChunk.setFileInfo(fileInfo);
+        return dfsCommandBackupFileChunk;
+    }
+
     public DFSCommandFileDelete parseFileDelete(ByteBuf byteBuf, DFSCommand dfsCommand) {
         if (!(dfsCommand instanceof DFSCommandFileDelete)) {
             return null;
@@ -131,8 +156,8 @@ public class DFSCommandParse {
         byte[] bytes = new byte[dfsCommandFileDelete.getLength() - dfsCommandFileDelete.getFixLength()];
         byteBuf.readBytes(bytes);
         String fileInfoStr = new String(bytes);
-        FileDelete fileDelete = JSON.parseObject(fileInfoStr, FileDelete.class);
-        dfsCommandFileDelete.setFileDelete(fileDelete);
+        TokenInfo fileDeleteTokenInfo = JSON.parseObject(fileInfoStr, TokenInfo.class);
+        dfsCommandFileDelete.setFileDeleteTokenInfo(fileDeleteTokenInfo);
         return dfsCommandFileDelete;
     }
     public DFSCommandChunkInfo parseChunkInfo(ByteBuf byteBuf, DFSCommand dfsCommand) {
@@ -267,6 +292,19 @@ public class DFSCommandParse {
         return dfsCommandToken;
     }
 
+    public DFSCommandTokenClear parseTokenClear(ByteBuf byteBuf, DFSCommand dfsCommand) {
+        if (!(dfsCommand instanceof DFSCommandTokenClear)) {
+            return null;
+        }
+        DFSCommandTokenClear dfsCommandTokenClear = (DFSCommandTokenClear) dfsCommand;
+        byte[] bytes = new byte[dfsCommandTokenClear.getLength() - dfsCommandTokenClear.getFixLength()];
+        byteBuf.readBytes(bytes);
+        String tokenStr = new String(bytes);
+        TokenInfo tokenInfo = JSON.parseObject(tokenStr, TokenInfo.class);
+        dfsCommandTokenClear.setTokenInfo(tokenInfo);
+        return dfsCommandTokenClear;
+    }
+
     public DFSCommandDirectFileItems parseDirectFileItems(ByteBuf byteBuf, DFSCommand dfsCommand) {
         if (!(dfsCommand instanceof DFSCommandDirectFileItems)) {
             return null;
@@ -316,11 +354,39 @@ public class DFSCommandParse {
         }
     }
 
-    public DFSCommand convertCommandObject(Object commandObj) {
+    public DFSCommand convertCommandObject(Object commandObj,int commandType) {
+        if (commandType == DFSCommand.CT_FILE_INFO) {
+            return convertCommandFileInfo((FileInfo) commandObj);
+        } else if (commandType == DFSCommand.CT_FILE_CHUNK) {
+            return convertCommandChunkInfo((ChunkInfo) commandObj);
+        } else if (commandType == DFSCommand.CT_FILE_DELETE) {
+            return convertCommandFileDelete((TokenInfo) commandObj);
+        } else if (commandType == DFSCommand.CT_FILE_CHUNK_BACKUP) {
+            return convertCommandBackupFileChunk((FileInfo) commandObj);
+        } else if (commandType == DFSCommand.CT_DIRECT_FILE_ITEM) {
+            return convertCommandDirectInfo((DirectInfo) commandObj);
+        } else if (commandType == DFSCommand.CT_FILE_OPERATE) {
+            return convertCommandFileOperate((OperationLog) commandObj);
+        } else if (commandType == DFSCommand.CT_STATE) {
+            return convertCommandState((ServerState) commandObj);
+        } else if (commandType == DFSCommand.CT_SERVER_ADDRESS) {
+            return convertCommandServerAddress((List<ServerInfoConfiguration>) commandObj);
+        } else if (commandType == DFSCommand.CT_TOKEN) {
+            return convertCommandToken((TokenInfo) commandObj);
+        } else if (commandType == DFSCommand.CT_FILE_TRANSFER) {
+            return convertCommandFileTransfer((FileTransferInfo) commandObj);
+        } else if (commandType == DFSCommand.CT_FILE_TRANSFER_STATE) {
+            return convertCommandFileTransferState((FileTransferState) commandObj);
+        } else if (commandType == DFSCommand.CT_REQUEST_EXPAND) {
+            return convertCommandExpand((byte[]) commandObj);
+        } else {
+            return null;
+        }
+    }
+
+    private DFSCommand convertCommandObject(Object commandObj) {
         if (commandObj instanceof FileInfo) {
             return convertCommandFileInfo((FileInfo) commandObj);
-        } else if (commandObj instanceof FileDelete) {
-            return convertCommandFileDelete((FileDelete) commandObj);
         } else if (commandObj instanceof ChunkInfo) {
             return convertCommandChunkInfo((ChunkInfo) commandObj);
         } else if (commandObj instanceof DirectInfo) {
@@ -385,26 +451,62 @@ public class DFSCommandParse {
         return byteBuf;
     }
 
-    public DFSCommand convertCommandFileDelete(FileDelete fileDelte) {
-        if (fileDelte == null)
+    public ByteBuf packageCommandFileInfo(byte[] fileInfo) {
+        if (fileInfo==null || fileInfo.length==0)
+            return null;
+        DFSCommandFileInfo dfsCommandFileInfo = new DFSCommandFileInfo();
+        dfsCommandFileInfo.setServerId(serverManager.getLocalServerId());
+        dfsCommandFileInfo.setTimestamp(Instant.now().toEpochMilli());
+
+        dfsCommandFileInfo.setLength(dfsCommandFileInfo.getFixLength() + fileInfo.length);
+        ByteBuf byteBuf = PooledByteBufAllocator.DEFAULT.buffer(dfsCommandFileInfo.getLength() + 8);
+        packageCommandHeader(byteBuf, dfsCommandFileInfo);
+        byteBuf.writeBytes(fileInfo);
+        return byteBuf;
+    }
+
+    public DFSCommand convertCommandFileDelete(TokenInfo fileDeleteTokenInfo) {
+        if (fileDeleteTokenInfo == null)
             return null;
         DFSCommandFileDelete dfsCommandFileDelete = new DFSCommandFileDelete();
         dfsCommandFileDelete.setServerId(serverManager.getLocalServerId());
-        dfsCommandFileDelete.setFileDelete(fileDelte);
+        dfsCommandFileDelete.setFileDeleteTokenInfo(fileDeleteTokenInfo);
         dfsCommandFileDelete.setTimestamp(Instant.now().toEpochMilli());
         return dfsCommandFileDelete;
     }
-
     public ByteBuf packageCommandFileDelete(DFSCommandFileDelete dfsCommandFileDelete) {
-        if (dfsCommandFileDelete == null || dfsCommandFileDelete.getFileDelete() == null)
+        if (dfsCommandFileDelete == null || dfsCommandFileDelete.getFileDeleteTokenInfo() == null)
             return null;
-        byte[] bytes = JSON.toJSONString(dfsCommandFileDelete.getFileDelete()).getBytes();
+        byte[] bytes = JSON.toJSONString(dfsCommandFileDelete.getFileDeleteTokenInfo()).getBytes();
         dfsCommandFileDelete.setLength(dfsCommandFileDelete.getFixLength() + bytes.length);
         ByteBuf byteBuf = PooledByteBufAllocator.DEFAULT.buffer(dfsCommandFileDelete.getLength() + 8);
         packageCommandHeader(byteBuf, dfsCommandFileDelete);
         byteBuf.writeBytes(bytes);
         return byteBuf;
     }
+    public DFSCommand convertCommandBackupFileChunk(FileInfo backupFileChunk) {
+        if (backupFileChunk == null)
+            return null;
+        DFSCommandBackupFileChunk dfsCommandBackupFileChunk= new DFSCommandBackupFileChunk();
+        dfsCommandBackupFileChunk.setServerId(serverManager.getLocalServerId());
+        dfsCommandBackupFileChunk.setFileInfo(backupFileChunk);
+        dfsCommandBackupFileChunk.setTimestamp(Instant.now().toEpochMilli());
+        return dfsCommandBackupFileChunk;
+    }
+    public ByteBuf packageCommandBackupFileChunk(DFSCommandBackupFileChunk dfsCommandBackupFileChunk) {
+        if (dfsCommandBackupFileChunk == null || dfsCommandBackupFileChunk.getFileInfo() == null)
+            return null;
+        byte[] bytes = JSON.toJSONString(dfsCommandBackupFileChunk.getFileInfo()).getBytes();
+        dfsCommandBackupFileChunk.setLength(dfsCommandBackupFileChunk.getFixLength() + bytes.length);
+        ByteBuf byteBuf = PooledByteBufAllocator.DEFAULT.buffer(dfsCommandBackupFileChunk.getLength() + 8);
+        packageCommandHeader(byteBuf, dfsCommandBackupFileChunk);
+        byteBuf.writeBytes(bytes);
+        return byteBuf;
+    }
+
+
+
+
     public DFSCommand convertCommandChunkInfo(ChunkInfo chunkInfo) {
         if (chunkInfo == null)
             return null;
@@ -528,6 +630,27 @@ public class DFSCommandParse {
         dfsCommandToken.setLength(dfsCommandToken.getFixLength() + bytes.length);
         ByteBuf byteBuf = PooledByteBufAllocator.DEFAULT.buffer(dfsCommandToken.getLength() + 8);
         packageCommandHeader(byteBuf, dfsCommandToken);
+        byteBuf.writeBytes(bytes);
+        return byteBuf;
+    }
+
+    public DFSCommand convertCommandTokenClear(TokenInfo tokenInfo) {
+        if (tokenInfo == null)
+            return null;
+        DFSCommandTokenClear dfsCommandTokenClear = new DFSCommandTokenClear();
+        dfsCommandTokenClear.setServerId(serverManager.getLocalServerId());
+        dfsCommandTokenClear.setTokenInfo(tokenInfo);
+        dfsCommandTokenClear.setTimestamp(Instant.now().toEpochMilli());
+        return dfsCommandTokenClear;
+    }
+
+    public ByteBuf packageCommandTokenClear(DFSCommandTokenClear dfsCommandTokenClear) {
+        if (dfsCommandTokenClear == null || dfsCommandTokenClear.getTokenInfo() == null)
+            return null;
+        byte[] bytes = JSON.toJSONString(dfsCommandTokenClear.getTokenInfo()).getBytes();
+        dfsCommandTokenClear.setLength(dfsCommandTokenClear.getFixLength() + bytes.length);
+        ByteBuf byteBuf = PooledByteBufAllocator.DEFAULT.buffer(dfsCommandTokenClear.getLength() + 8);
+        packageCommandHeader(byteBuf, dfsCommandTokenClear);
         byteBuf.writeBytes(bytes);
         return byteBuf;
     }

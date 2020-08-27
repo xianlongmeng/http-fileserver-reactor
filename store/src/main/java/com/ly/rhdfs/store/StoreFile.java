@@ -29,11 +29,11 @@ public interface StoreFile {
 
     long takeFileSize(String fileId, String path);
 
-    default Flux<ResultValueInfo<FilePart>> storeFile(FilePart filePart, String path) {
+    default Mono<ResultValueInfo<FilePart>> storeFile(FilePart filePart, String path) {
         return storeFile(filePart, path, new PartChunk(false));
     }
 
-    Flux<ResultValueInfo<FilePart>> storeFile(FilePart filePart, String path, PartChunk partChunk);
+    Mono<ResultValueInfo<FilePart>> storeFile(FilePart filePart, String path, PartChunk partChunk);
 
     Mono<FileRanges> loadFile(String fileId, String path, List<HttpRange> ranges);
 }

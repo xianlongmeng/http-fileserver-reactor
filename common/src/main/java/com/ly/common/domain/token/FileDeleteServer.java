@@ -1,23 +1,26 @@
-package com.ly.common.domain.file;
+package com.ly.common.domain.token;
+
+import com.ly.common.domain.token.TokenInfo;
 
 import java.time.Instant;
 
 public class FileDeleteServer {
-    private FileDelete fileDelete;
+    private TokenInfo fileDeleteTokenInfo;
     private long serverId;
     private long timestamp;
 
-    public FileDeleteServer(FileDelete fileDelete,long serverId){
-        this.fileDelete=fileDelete;
+    public FileDeleteServer(TokenInfo fileDeleteTokenInfo,long serverId){
+        this.fileDeleteTokenInfo=fileDeleteTokenInfo;
         this.serverId=serverId;
         timestamp= Instant.now().toEpochMilli();
     }
-    public FileDelete getFileDelete() {
-        return fileDelete;
+
+    public TokenInfo getFileDeleteTokenInfo() {
+        return fileDeleteTokenInfo;
     }
 
-    public void setFileDelete(FileDelete fileDelete) {
-        this.fileDelete = fileDelete;
+    public void setFileDeleteTokenInfo(TokenInfo fileDeleteTokenInfo) {
+        this.fileDeleteTokenInfo = fileDeleteTokenInfo;
     }
 
     public long getServerId() {

@@ -28,7 +28,7 @@
         <module>message</module>
         <module>message.handler</module>
         <module>log.operate</module>
-        <module>file-server-dfs</module>
+        <module>file-server-dfs.master</module>
         <module>token</module>
         <module>token.random</module>
         <module>config</module>

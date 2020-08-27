@@ -1,26 +1,25 @@
 package com.ly.rhdfs.communicate.socket.handler;
 
-import com.ly.common.util.SpringContextUtil;
-import com.ly.rhdfs.manager.server.ServerManager;
+import java.time.Instant;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.ly.common.domain.server.ServerState;
+import com.ly.common.util.SpringContextUtil;
+import com.ly.rhdfs.manager.server.ServerManager;
 
-import io.netty.channel.ChannelFuture;
 import io.netty.channel.ChannelHandlerContext;
 import io.netty.channel.ChannelInboundHandlerAdapter;
 import io.netty.handler.timeout.IdleState;
 import io.netty.handler.timeout.IdleStateEvent;
 
-import java.time.Instant;
-
 public class HeartBeatHandler extends ChannelInboundHandlerAdapter {
 
+    private final ServerManager serverManager;
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private boolean server;
     private ServerState serverState;
-    private final ServerManager serverManager;
 
     public HeartBeatHandler() {
         this(true, null);
@@ -33,13 +32,19 @@ public class HeartBeatHandler extends ChannelInboundHandlerAdapter {
     public HeartBeatHandler(boolean server, ServerState serverState) {
         this.server = server;
         this.serverState = serverState;
-        serverManager= SpringContextUtil.getBean(ServerManager.class);
+        serverManager = SpringContextUtil.getBean(ServerManager.class);
     }
 
     private synchronized void reconnect(ChannelHandlerContext ctx) {
         ctx.close();
-        if (serverState!=null){
+        if (serverState != null) {
             serverState.setOnline(false);
+            if (serverManager.getLocalServerState().getType() != ServerState.SIT_MASTER
+                    && serverState.getType() == ServerState.SIT_MASTER
+                    && serverManager.getMasterServerId() == serverState.getServerId()) {
+                serverManager.getLocalServerState()
+                        .setState(serverManager.getLocalServerState().getState() | ServerState.SIS_MASTER_LOST_CONTACT);
+            }
         }
         if (!server) {
             // 重连

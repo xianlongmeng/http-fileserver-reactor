@@ -34,13 +34,17 @@ import java.util.concurrent.atomic.AtomicBoolean;
 @Component
 public class DownloadHandler {
 
-    private Logger logger = LoggerFactory.getLogger(this.getClass());
-    private StoreFile storeFile=new SingleFileStore();;
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private StoreFile storeFile;
     private ETagComputer eTagComputer;
 
     @Autowired
     public void setETagComputer(ETagComputer eTagComputer) {
         this.eTagComputer = eTagComputer;
+    }
+
+    @Autowired void setStoreFile(StoreFile storeFile){
+        this.storeFile=storeFile;
     }
 
     public Mono<ServerResponse> downloadFile(ServerRequest request) {

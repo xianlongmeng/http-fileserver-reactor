@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.server.RequestPredicates;
 import org.springframework.web.reactive.function.server.RouterFunction;
 import org.springframework.web.reactive.function.server.RouterFunctions;
@@ -24,13 +25,16 @@ public class FileDfsTransferRoute {
     public RouterFunction<ServerResponse> routeDownloadFile(DownloadDfsHandler downloadDfsHandler) {
         return RouterFunctions.route()
                 .path("/dfs/download-request",
-                        builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST),
+                        builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST)
+                                        .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
                                 downloadDfsHandler::downloadFileMasterRequest))
                 .path("/dfs/download-chunk-request",
-                        builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST),
+                        builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST)
+                                        .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
                                 downloadDfsHandler::downloadFileChunkMasterRequest))
                 .path("/dfs/download-finish",
-                        builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST),
+                        builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST)
+                                        .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
                                 downloadDfsHandler::downloadFileFinish))
                 .build();
     }
@@ -39,13 +43,17 @@ public class FileDfsTransferRoute {
     public RouterFunction<ServerResponse> routeUploadFile(UploadDfsHandler uploadDfsHandler) {
         return RouterFunctions.route()
                 .path("/dfs/upload-request",
-                        builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST),
+                        builder -> builder.route(
+                                RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST)
+                                        .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
                                 uploadDfsHandler::uploadFileMasterRequest))
                 .path("/dfs/upload-chunk-request",
-                        builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST),
+                        builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST)
+                                        .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
                                 uploadDfsHandler::uploadFileServerChunkMasterRequest))
                 .path("/dfs/upload-finish",
-                        builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST),
+                        builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST)
+                                        .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
                                 uploadDfsHandler::uploadFileServerFinish))
                 .build();
     }

@@ -6,13 +6,8 @@ public class ServerState {
     public static final int SIT_MASTER = 1;
     public static final int SIT_MASTER_BACKUP = 2;
     public static final int SIT_STORE = 0x100;
-    public static final int SIS_MASTER_START = 1;
-    public static final int SIS_MASTER_INIT = 2;
-    public static final int SIS_MASTER_UPDATE_CONFIG = 4;
-    public static final int SIS_MASTER_VOTE = 8;
-    public static final int SIS_MASTER_PRIME = 0x10;
-    public static final int SIS_MASTER_SECOND = 0x20;
-    public static final int SIS_MASTER_FAULT = 0x40;
+    public static final int SIS_MASTER_NOT_ENOUGH_STORE = 0x80;
+    public static final int SIS_MASTER_LOST_CONTACT = 0x40;
     public static final int SIS_STORE_START = 0x10000;
     public static final int SIS_STORE_INIT = 0x20000;
     public static final int SIS_STORE_VOTE = 0x40000;
@@ -34,11 +29,11 @@ public class ServerState {
     // address & port updated last time,可以取所有server中的最大值
     private long updateAddressLastTime;
     // master是否准备就绪，true：可以成为master，等待投票
-    private boolean ready;
+    private boolean ready=false;
     // 是否投票给我
     private long votedServerId;
     // 最后收到心跳时间，对于备用Master为准备就绪可以成为Master的时间
-    private long lastTime;
+    private long lastTime=-1;
 
     public void copyFrom(ServerState serverState) {
         address = serverState.address;

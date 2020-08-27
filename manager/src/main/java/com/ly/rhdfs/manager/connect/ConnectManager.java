@@ -1,21 +1,19 @@
 package com.ly.rhdfs.manager.connect;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-
+import com.ly.common.domain.server.ServerState;
+import com.ly.rhdfs.communicate.DFSCommunicate;
+import com.ly.rhdfs.communicate.command.DFSCommand;
+import com.ly.rhdfs.communicate.handler.EventHandler;
+import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-
-import com.ly.common.domain.server.ServerState;
-import com.ly.rhdfs.communicate.DFSCommunicate;
-import com.ly.rhdfs.communicate.command.DFSCommand;
-import com.ly.rhdfs.communicate.handler.EventHandler;
-
-import io.netty.channel.Channel;
 import reactor.netty.Connection;
+
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 @Component
 public class ConnectManager {
@@ -41,7 +39,7 @@ public class ConnectManager {
     }
 
     public synchronized boolean putServerConnection(ServerState serverState, Connection connection,
-            Connection oldConnection) {
+                                                    Connection oldConnection) {
         if (serverState == null || connection == null)
             return false;
         Connection curConnection = serverConnectionMap.get(serverState);
@@ -79,16 +77,28 @@ public class ConnectManager {
         connection.disposeNow();
     }
 
-    public boolean sendCommunicationObject(ServerState serverState, Object commandObj) {
-        return dfsCommunicate.sendCommandObject(findConnection(serverState), commandObj);
+    public boolean sendCommunicationObject(ServerState serverState, Object commandObj, int commandType) {
+        return dfsCommunicate.sendCommandObject(findConnection(serverState), commandObj, commandType);
     }
 
     public boolean sendCommunication(ServerState serverState, DFSCommand dfsCommand) {
         return dfsCommunicate.sendCommand(findConnection(serverState), dfsCommand);
     }
 
-    public ChannelFuture sendCommunicationObjectAsync(ServerState serverState, Object commandObj) {
-        return dfsCommunicate.sendCommandObjectAsync(findConnection(serverState), commandObj);
+    public boolean sendCommunicationObjectSync(ServerState serverState, Object commandObj, int commandType) {
+        return dfsCommunicate.sendCommandObjectSync(findConnection(serverState), commandObj, commandType);
+    }
+
+    public boolean sendCommunicationSync(ServerState serverState, DFSCommand dfsCommand) {
+        return dfsCommunicate.sendCommandSync(findConnection(serverState), dfsCommand);
+    }
+
+    public boolean sendFileInfoCommandSync(ServerState serverState, byte[] fileInfo) {
+        return dfsCommunicate.sendFileInfoCommandObjectSync(findConnection(serverState), fileInfo);
+    }
+
+    public ChannelFuture sendCommunicationObjectAsync(ServerState serverState, Object commandObj, int commandType) {
+        return dfsCommunicate.sendCommandObjectAsync(findConnection(serverState), commandObj, commandType);
     }
 
     public ChannelFuture sendCommunicationAsync(ServerState serverState, DFSCommand dfsCommand) {

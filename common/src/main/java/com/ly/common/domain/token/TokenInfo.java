@@ -11,12 +11,22 @@ public class TokenInfo {
     public static final int TOKEN_READ = 0;
     public static final int TOKEN_WRITE = 1;
     public static final int TOKEN_UPDATE = 2;
+    public static final int TOKEN_NONE = 2;
     protected int tokenType;
     private long lastTime;
     private long expirationMills;
     private String token;
     private String path;
     private String fileName;
+
+    public TokenInfo() {
+    }
+
+    public TokenInfo(String path, String fileName) {
+        tokenType = TOKEN_NONE;
+        this.path = path;
+        this.fileName = fileName;
+    }
 
     public int getTokenType() {
         return tokenType;
@@ -70,12 +80,17 @@ public class TokenInfo {
     public boolean equals(Object obj) {
         if (obj instanceof TokenInfo) {
             TokenInfo tokenInfo = (TokenInfo) obj;
+
             if (tokenType != tokenInfo.getTokenType())
                 return false;
             if (tokenType == TOKEN_READ) {
                 return ObjectUtils.nullSafeEquals(token, tokenInfo.getToken());
-            } else {
+            } else if (StringUtils.isEmpty(tokenInfo.getToken()) || StringUtils.isEmpty(token)) {
                 return ObjectUtils.nullSafeEquals(path, tokenInfo.getPath())
+                        && StringUtils.pathEquals(fileName, tokenInfo.getFileName());
+            } else {
+                return ObjectUtils.nullSafeEquals(token, tokenInfo.getToken())
+                        && ObjectUtils.nullSafeEquals(path, tokenInfo.getPath())
                         && StringUtils.pathEquals(fileName, tokenInfo.getFileName());
             }
         } else

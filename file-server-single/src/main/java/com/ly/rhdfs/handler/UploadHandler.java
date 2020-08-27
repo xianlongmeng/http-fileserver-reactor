@@ -32,8 +32,8 @@ import reactor.core.publisher.Mono;
 @Component
 public class UploadHandler {
 
-    private Logger logger = LoggerFactory.getLogger(this.getClass());
-    private StoreFile storeFile=new SingleFileStore();;
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private StoreFile storeFile;
     private StoreConfiguration storeConfiguration;
 
     @Autowired
@@ -41,6 +41,14 @@ public class UploadHandler {
         this.storeConfiguration = storeConfiguration;
     }
 
+    @Autowired void setStoreFile(StoreFile storeFile){
+        this.storeFile=storeFile;
+    }
+    /**
+     * 上传文件不分片
+     * @param request
+     * @return
+     */
     public Mono<ServerResponse> uploadFileSelf(ServerRequest request) {
 
         String path = request.queryParam(storeConfiguration.getPathParamName()).orElse("path");
@@ -84,6 +92,11 @@ public class UploadHandler {
         });
     }
 
+    /**
+     * 上传文件，分片，检查
+     * @param request
+     * @return
+     */
     public Mono<ServerResponse> uploadFile(ServerRequest request) {
         // 1/If-Match(412) && If-Unmodified-Since(412)
 
@@ -103,13 +116,13 @@ public class UploadHandler {
                 FilePart filePart = (FilePart) part;
                 if (!storeConfiguration.isRewrite() && storeFile.existed(filePart.filename(), path)) {
                     logger.warn("file is existed and can not rewrite.fileName:{}", filePart.filename());
-                    return Flux.just(
+                    return Mono.just(
                             new ResultValueInfo<>(ResultInfo.S_ERROR, "file.exist.100", "file is exist", filePart));
                 } else {
                     return storeFile.storeFile(filePart, path, partChunk);
                 }
             } else {
-                return Flux.just(new ResultValueInfo<>(ResultInfo.S_ERROR, "part.100", "not file part!", part));
+                return Mono.just(new ResultValueInfo<>(ResultInfo.S_ERROR, "part.100", "not file part!", part));
             }
         }).map(resultValueInfo -> new UploadResultInfo(ResultInfo.S_ERROR, "part.100", "not file part!",
                 resultValueInfo.getSource().name(),

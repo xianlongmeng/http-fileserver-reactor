@@ -124,7 +124,7 @@ public class DistributionFileStore implements StoreFile {
     }
 
     @Override
-    public Flux<ResultValueInfo<FilePart>> storeFile(FilePart filePart, String path, PartChunk partChunk) {
+    public Mono<ResultValueInfo<FilePart>> storeFile(FilePart filePart, String path, PartChunk partChunk) {
         String name = filePart.name();
         String fileName = filePart.filename();
         logger.debug("begin store file,name:{}-fileName:{}", name, fileName);
@@ -133,12 +133,12 @@ public class DistributionFileStore implements StoreFile {
         if (!file.getParentFile().exists()) {
             file.getParentFile().mkdirs();
         }
-        return Flux.create(sink -> {
+        return Mono.create(sink -> {
             try {
                 if (!partChunk.isChunked()) {
                     filePart.transferTo(takeFilePath(fileName, path)).subscribe(
-                            v -> sink.next(new ResultValueInfo<>(ResultInfo.S_OK, filePart)),
-                            e -> sink.next(new ResultValueInfo<>(ResultInfo.S_ERROR, "write.file.201", e.getMessage(),
+                            v -> sink.success(new ResultValueInfo<>(ResultInfo.S_OK, filePart)),
+                            e -> sink.success(new ResultValueInfo<>(ResultInfo.S_ERROR, "write.file.201", e.getMessage(),
                                     filePart)));
 
                 } else {
@@ -147,17 +147,17 @@ public class DistributionFileStore implements StoreFile {
                             StandardOpenOption.CREATE, StandardOpenOption.WRITE);
                     sink.onDispose(() -> ToolUtils.closeChannel(asynchronousFileChannel));
                     if (filePart.headers().getContentLength() > partChunk.getChunkSize()) {
-                        sink.next(new ResultValueInfo<>(ResultInfo.S_ERROR, "part.size.221", "part size too many",
+                        sink.success(new ResultValueInfo<>(ResultInfo.S_ERROR, "part.size.221", "part size too many",
                                 filePart));
                     } else if (partChunk.getChunk() < 0 || partChunk.getChunk() >= partChunk.getChunkCount()) {
-                        sink.next(new ResultValueInfo<>(ResultInfo.S_ERROR, "part.index.220", "part index out range",
+                        sink.success(new ResultValueInfo<>(ResultInfo.S_ERROR, "part.index.220", "part index out range",
                                 filePart));
                     } else {
                         DataBufferUtils
                                 .write(filePart.content(), asynchronousFileChannel,
                                         partChunk.getChunk() * partChunk.getChunkSize())
                                 .subscribe(DataBufferUtils::release,
-                                        e -> sink.next(new ResultValueInfo<>(ResultInfo.S_ERROR, "write.file.201",
+                                        e -> sink.success(new ResultValueInfo<>(ResultInfo.S_ERROR, "write.file.201",
                                                 e.getMessage(), filePart)),
                                         () -> {
                                     //修改为分块数据的上传信息
@@ -168,9 +168,9 @@ public class DistributionFileStore implements StoreFile {
                                                 File fileTmp = new File(fileTmpPath.toUri());
                                                 if (fileTmp.renameTo(file)) {
                                                     fileChunkManger.removeFileChunkState(fileFullName);
-                                                    sink.next(new ResultValueInfo<>(ResultInfo.S_OK, filePart));
+                                                    sink.success(new ResultValueInfo<>(ResultInfo.S_OK, filePart));
                                                 } else {
-                                                    sink.next(new ResultValueInfo<>(ResultInfo.S_ERROR,
+                                                    sink.success(new ResultValueInfo<>(ResultInfo.S_ERROR,
                                                             "rename.file.211",
                                                             String.format(
                                                                     "upload file complete,but %s rename to %s is error",
@@ -182,7 +182,7 @@ public class DistributionFileStore implements StoreFile {
                     }
                 }
             } catch (IOException ex) {
-                sink.next(new ResultValueInfo<>(ResultInfo.S_ERROR, "open.file.211", ex.getMessage(), filePart));
+                sink.success(new ResultValueInfo<>(ResultInfo.S_ERROR, "open.file.211", ex.getMessage(), filePart));
             }
         });
     }

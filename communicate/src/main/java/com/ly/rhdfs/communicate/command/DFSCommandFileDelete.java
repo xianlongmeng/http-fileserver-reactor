@@ -1,20 +1,19 @@
 package com.ly.rhdfs.communicate.command;
 
-import com.ly.common.domain.file.FileDelete;
-import com.ly.common.domain.file.FileInfo;
+import com.ly.common.domain.token.TokenInfo;
 
-public class DFSCommandFileDelete extends DFSCommand{
-    private FileDelete fileDelete;
+public class DFSCommandFileDelete extends DFSCommand {
+    private TokenInfo fileDeleteTokenInfo;
 
-    public DFSCommandFileDelete(){
-        commandType=DFSCommand.CT_FILE_DELETE;
+    public DFSCommandFileDelete() {
+        commandType = DFSCommand.CT_FILE_DELETE;
     }
 
-    public FileDelete getFileDelete() {
-        return fileDelete;
+    public TokenInfo getFileDeleteTokenInfo() {
+        return fileDeleteTokenInfo;
     }
 
-    public void setFileDelete(FileDelete fileDelete) {
-        this.fileDelete = fileDelete;
+    public void setFileDeleteTokenInfo(TokenInfo fileDeleteTokenInfo) {
+        this.fileDeleteTokenInfo = fileDeleteTokenInfo;
     }
 }
