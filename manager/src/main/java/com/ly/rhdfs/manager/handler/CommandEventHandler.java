@@ -18,6 +18,7 @@ public class CommandEventHandler implements EventHandler {
     private EventHandler fileTransferCommandEventHandler;
     private EventHandler fileTransferStateCommandEventHandler;
     private EventHandler tokenCommandEventHandler;
+    private EventHandler clearTokenCommandEventHandler;
 
     private final ServerManager serverManager;
 
@@ -87,6 +88,14 @@ public class CommandEventHandler implements EventHandler {
 
     public void setTokenCommandEventHandler(EventHandler tokenCommandEventHandler) {
         this.tokenCommandEventHandler = tokenCommandEventHandler;
+    }
+
+    public EventHandler getClearTokenCommandEventHandler() {
+        return clearTokenCommandEventHandler;
+    }
+
+    public void setClearTokenCommandEventHandler(EventHandler clearTokenCommandEventHandler) {
+        this.clearTokenCommandEventHandler = clearTokenCommandEventHandler;
     }
 
     public ServerManager getServerManager() {

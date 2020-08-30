@@ -1,13 +1,12 @@
-package com.ly.rhdfs.handler;
+package com.ly.rhdfs.file.server.dfs.store.handler;
 
 import com.ly.common.constant.ParamConstants;
 import com.ly.common.domain.PartRange;
 import com.ly.common.service.FileChunkReader;
+import com.ly.common.util.ConvertUtil;
 import com.ly.common.util.DateFormatUtils;
 import com.ly.etag.ETagComputer;
-import com.ly.rhdfs.config.StoreConfiguration;
 import com.ly.rhdfs.store.StoreFile;
-import com.ly.rhdfs.store.single.SingleFileStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -24,6 +23,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
+
+import com.ly.rhdfs.config.ServerConfig;
+import com.ly.rhdfs.store.manager.StoreManager;
+
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
@@ -32,11 +35,25 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 @Component
-public class DownloadHandler {
+public class DownloadDfsStoreHandler {
 
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    private Logger logger = LoggerFactory.getLogger(this.getClass());
+
+    private StoreManager storeManager;
+    private ServerConfig serverConfig;
     private StoreFile storeFile;
     private ETagComputer eTagComputer;
+
+
+    @Autowired
+    private void setStoreManager(StoreManager storeManager) {
+        this.storeManager = storeManager;
+    }
+
+    @Autowired
+    private void setServerConfig(ServerConfig serverConfig) {
+        this.serverConfig = serverConfig;
+    }
 
     @Autowired
     public void setETagComputer(ETagComputer eTagComputer) {
@@ -48,7 +65,7 @@ public class DownloadHandler {
         this.storeFile=storeFile;
     }
 
-    public Mono<ServerResponse> downloadFile(ServerRequest request) {
+    public Mono<ServerResponse> downloadStoreFile(ServerRequest request) {
         // 1/If-Match(416) && If-Unmodified-Since(412)
         // 2/If-Modified-Since(304)
         // 3/If-None-Match(304)
@@ -56,11 +73,13 @@ public class DownloadHandler {
         // If-Range
         // Range
         String filePath = request.queryParam(ParamConstants.PARAM_PATH_NAME).orElse("");
-        String fileName = request.queryParam(ParamConstants.PARAM_FILE_NAME).orElse("");
-        if (StringUtils.isEmpty(fileName)) {
+        String fn = request.queryParam(ParamConstants.PARAM_FILE_NAME).orElse("");
+        int chunk= ConvertUtil.parseInt(request.queryParam(ParamConstants.PARAM_CHUNK).orElse("0"),0);
+        if (StringUtils.isEmpty(filePath) || StringUtils.isEmpty(fn)) {
             //文件资源不存在
             return ServerResponse.notFound().build();
         }
+        String fileName=String.format("%s.%d.%s",fn,chunk,serverConfig.getFileChunkSuffix());
         String ifRange = request.headers().firstHeader(HttpHeaders.IF_RANGE);
         List<HttpRange> rangeList=request.headers().range();
         AtomicBoolean ifRangeResult = new AtomicBoolean(true);
@@ -156,7 +175,7 @@ public class DownloadHandler {
         if (etagFlag) {
             int finalIfRangeType = ifRangeType;
             //验证etag模式
-            return eTagComputer.etagFile(storeFile.takeFilePath(fileName, filePath)).flatMap(etag -> {
+            return eTagComputer.etagFile(storeFile.takeFilePath(fn, filePath),chunk).flatMap(etag -> {
                 if (finalIfRangeType == 2) {
                     //ifRange为etag的弱比较模式
                     ifRangeResult.set(etag.contains(ifRange));
@@ -181,5 +200,4 @@ public class DownloadHandler {
         }
 
     }
-
 }

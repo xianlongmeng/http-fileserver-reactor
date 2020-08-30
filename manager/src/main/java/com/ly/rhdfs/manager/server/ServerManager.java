@@ -8,10 +8,12 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.*;
 
+import com.ly.common.domain.ResultInfo;
+import com.ly.common.domain.token.TokenInfo;
+import com.ly.common.util.DfsFileUtils;
 import com.ly.rhdfs.communicate.command.DFSCommand;
 import com.ly.rhdfs.file.config.FileInfoManager;
-import com.ly.rhdfs.manager.handler.ServerAddressCommandEventHandler;
-import com.ly.rhdfs.manager.handler.ServerStateCommandEventHandler;
+import com.ly.rhdfs.manager.handler.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,7 +32,6 @@ import com.ly.rhdfs.log.operate.LogOperateUtils;
 import com.ly.rhdfs.manager.connect.ConnectManager;
 import com.ly.rhdfs.manager.connect.ConnectServerTask;
 import com.ly.rhdfs.manager.connect.ServerStateHeartBeatTask;
-import com.ly.rhdfs.manager.handler.CommandEventHandler;
 
 public abstract class ServerManager {
     protected final int initThreadDelay = 10;
@@ -97,6 +98,9 @@ public abstract class ServerManager {
     protected void initCommandEventHandler(){
         commandEventHandler=new CommandEventHandler(this);
         commandEventHandler.setServerAddressCommandEventHandler(new ServerAddressCommandEventHandler(this));
+        commandEventHandler.setFileDeleteCommandEventHandler(new FileDeleteCommandEventHandler(this));
+        commandEventHandler.setClearTokenCommandEventHandler(new ClearTokenCommandEventHandler(this));
+        commandEventHandler.setFileInfoCommandEventHandler(new FileInfoCommandEventHandler(this));
     }
     public void initial(){
         initCommandEventHandler();
@@ -291,4 +295,18 @@ public abstract class ServerManager {
     public void setMasterDisconnectedLastTime(long masterDisconnectedLastTime) {
         this.masterDisconnectedLastTime = masterDisconnectedLastTime;
     }
+    public int fileDelete(TokenInfo tokenInfo){
+        clearToken(tokenInfo);
+        if (DfsFileUtils.fileDelete(tokenInfo.getPath(),
+                tokenInfo.getFileName())) {
+            logger.info("file is deleted.path[{}],file name[{}]", tokenInfo.getPath(),
+                    tokenInfo.getFileName());
+            return ResultInfo.S_OK;
+        } else {
+            logger.info("file delete failed.path[{}],file name[{}]", tokenInfo.getPath(),
+                    tokenInfo.getFileName());
+            return ResultInfo.S_FAILED;
+        }
+    }
+    public abstract void clearToken(TokenInfo tokenInfo);
 }

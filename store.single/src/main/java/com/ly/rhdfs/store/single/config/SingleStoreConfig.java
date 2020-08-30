@@ -1,6 +1,10 @@
 package com.ly.rhdfs.store.single.config;
 
+import com.ly.etag.ETagAccess;
+import com.ly.etag.impl.access.ETagAccessDFS;
+import com.ly.etag.impl.access.ETagAccessSingle;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.PropertySource;
 
@@ -27,5 +31,10 @@ public class SingleStoreConfig {
 
     public void setTmpFileSuffix(String tmpFileSuffix) {
         this.tmpFileSuffix = tmpFileSuffix;
+    }
+
+    @Bean
+    public ETagAccess DistributionEtagAccess(){
+        return new ETagAccessSingle();
     }
 }

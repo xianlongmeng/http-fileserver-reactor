@@ -1,5 +1,7 @@
 package com.ly.rhdfs.store.single.config;
 
+import com.ly.etag.ETagAccess;
+import com.ly.etag.impl.access.ETagAccessDFS;
 import com.ly.rhdfs.store.StoreFile;
 import com.ly.rhdfs.store.single.DistributionFileStore;
 import org.springframework.beans.factory.annotation.Value;
@@ -38,5 +40,9 @@ public class DistributionStoreConfig {
         DistributionFileStore storeFile=new DistributionFileStore();
         storeFile.setConfig(this);
         return storeFile;
+    }
+    @Bean
+    public ETagAccess DistributionEtagAccess(){
+        return new ETagAccessDFS();
     }
 }

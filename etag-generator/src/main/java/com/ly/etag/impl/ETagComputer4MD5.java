@@ -8,9 +8,11 @@ import java.util.Optional;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
+import org.springframework.util.StringUtils;
 
 import com.ly.common.service.FileChunkReader;
 import com.ly.common.util.MyStringUtils;
+import com.ly.etag.ETagAccess;
 import com.ly.etag.ETagComputer;
 
 import reactor.core.publisher.Flux;
@@ -20,6 +22,12 @@ public class ETagComputer4MD5 implements ETagComputer {
 
     private DataBufferFactory dataBufferFactory = new DefaultDataBufferFactory();
     private int bufferInitLen = 1024;
+
+    private ETagAccess eTagAccess;
+
+    public void setETagAccess(ETagAccess eTagAccess) {
+        this.eTagAccess = eTagAccess;
+    }
 
     public DataBufferFactory getDataBufferFactory() {
         return dataBufferFactory;
@@ -38,17 +46,22 @@ public class ETagComputer4MD5 implements ETagComputer {
     }
 
     @Override
-    public Mono<String> etagFile(String filePath) {
-        return etagFile(Path.of(filePath));
+    public Mono<String> etagFile(String filePath, int chunk) {
+        return etagFile(Path.of(filePath), chunk);
     }
 
     @Override
-    public Mono<String> etagFile(Path filePath) {
-        return etagFile(FileChunkReader.readFile2Buffer(filePath));
+    public Mono<String> etagFile(Path filePath, int chunk) {
+        return etagFile(filePath.toString(), FileChunkReader.readFile2Buffer(filePath), chunk);
     }
 
     @Override
-    public Mono<String> etagFile(Flux<DataBuffer> dataBufferFlux) {
+    public Mono<String> etagFile(String filePath, Flux<DataBuffer> dataBufferFlux, int chunk) {
+        if (eTagAccess != null) {
+            String etag = eTagAccess.readEtag(filePath, chunk);
+            if (!StringUtils.isEmpty(etag))
+                return Mono.just(etag);
+        }
         return dataBufferFlux.collect(() -> {
             try {
                 return Optional.of(MessageDigest.getInstance("MD5"));
@@ -62,6 +75,11 @@ public class ETagComputer4MD5 implements ETagComputer {
                     } else {
                         return "";
                     }
+                }).map(etag -> {
+                    if (eTagAccess != null) {
+                        eTagAccess.saveEtag(filePath, etag, chunk);
+                    }
+                    return etag;
                 });
     }
 }

@@ -345,6 +345,8 @@ public class DFSCommandParse {
             return packageCommandServerAddress((DFSCommandServerAddress) dfsCommand);
         } else if (dfsCommand instanceof DFSCommandToken) {
             return packageCommandToken((DFSCommandToken) dfsCommand);
+        } else if (dfsCommand instanceof DFSCommandTokenClear) {
+            return packageCommandTokenClear((DFSCommandTokenClear) dfsCommand);
         } else if (dfsCommand instanceof DFSCommandFileTransfer) {
             return packageCommandFileTransfer((DFSCommandFileTransfer) dfsCommand);
         } else if (dfsCommand instanceof DFSCommandFileTransferState) {

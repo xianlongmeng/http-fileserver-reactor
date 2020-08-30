@@ -104,6 +104,17 @@ public class MasterManager extends ServerManager {
         }
     }
 
+    @Override
+    public void clearToken(TokenInfo tokenInfo) {
+        if(tokenInfo==null)
+            return;
+        if (tokenInfo.getTokenType()==TokenInfo.TOKEN_WRITE){
+            fileServerRunManager.clearUploadFile(tokenInfo,true);
+        }else if (tokenInfo.getTokenType()==TokenInfo.TOKEN_READ) {
+            fileServerRunManager.clearUploadFile(tokenInfo,true);
+        }
+    }
+
     public void resetServerState() {
         verifyMasterQualification();
     }

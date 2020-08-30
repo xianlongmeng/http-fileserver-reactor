@@ -38,6 +38,8 @@ public class ServerConfig {
     private long tokenWriteTimeout;
     @Value("${token.default.timeout}")
     private long tokenDefaultTimeout;
+    @Value("${file.chunk.suffix:chk}")
+    private String fileChunkSuffix;
 
     @Value("${param.name.path}")
     private String pathParamName = ParamConstants.PARAM_PATH_NAME;
@@ -182,5 +184,13 @@ public class ServerConfig {
 
     public void setTokenParamName(String tokenParamName) {
         this.tokenParamName = tokenParamName;
+    }
+
+    public String getFileChunkSuffix() {
+        return fileChunkSuffix;
+    }
+
+    public void setFileChunkSuffix(String fileChunkSuffix) {
+        this.fileChunkSuffix = fileChunkSuffix;
     }
 }

@@ -1,26 +1,47 @@
 package com.ly.etag.impl;
 
-import com.fasterxml.uuid.Generators;
-import com.ly.etag.ETagComputer;
+import java.nio.file.Path;
+
 import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.util.StringUtils;
+
+import com.fasterxml.uuid.Generators;
+import com.ly.etag.ETagAccess;
+import com.ly.etag.ETagComputer;
+
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.nio.file.Path;
-
 public class ETagComputer4UUIDTimestamp implements ETagComputer {
-    @Override
-    public Mono<String> etagFile(String filePath) {
-        return Mono.just(Generators.timeBasedGenerator().generate().toString());
+
+    private ETagAccess eTagAccess;
+
+    public void setETagAccess(ETagAccess eTagAccess) {
+        this.eTagAccess = eTagAccess;
     }
 
     @Override
-    public Mono<String> etagFile(Path filePath) {
-        return Mono.just(Generators.timeBasedGenerator().generate().toString());
+    public Mono<String> etagFile(String filePath, int chunk) {
+        if (eTagAccess != null) {
+            String etag = eTagAccess.readEtag(filePath, chunk);
+            if (!StringUtils.isEmpty(etag))
+                return Mono.just(etag);
+        }
+        return Mono.just(Generators.timeBasedGenerator().generate().toString()).map(etag -> {
+            if (eTagAccess != null) {
+                eTagAccess.saveEtag(filePath, etag, chunk);
+            }
+            return etag;
+        });
     }
 
     @Override
-    public Mono<String> etagFile(Flux<DataBuffer> dataBufferFlux) {
-        return Mono.just(Generators.timeBasedGenerator().generate().toString());
+    public Mono<String> etagFile(Path filePath, int chunk) {
+        return etagFile(filePath.toString());
+    }
+
+    @Override
+    public Mono<String> etagFile(String filePath, Flux<DataBuffer> dataBufferFlux, int chunk) {
+        return etagFile(filePath);
     }
 }

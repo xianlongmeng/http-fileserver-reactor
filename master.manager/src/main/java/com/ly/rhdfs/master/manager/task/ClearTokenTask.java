@@ -23,7 +23,6 @@ public class ClearTokenTask implements Runnable {
 
     @Override
     public void run() {
-        List<TokenClearServer> tokenInfoList = new ArrayList<>();
         int size = masterManager.getFileServerRunManager().getClearTokenQueue().size();
         for (int i = 0; i < size; i++) {
             TokenClearServer tokenClearServer = masterManager.getFileServerRunManager().getClearTokenQueue().poll();

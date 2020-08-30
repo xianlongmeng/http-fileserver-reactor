@@ -1,5 +1,6 @@
 package com.ly.rhdfs.config;
 
+import com.ly.etag.ETagAccess;
 import com.ly.etag.ETagComputer;
 import com.ly.rhdfs.authentication.AuthenticationVerify;
 import com.ly.rhdfs.authentication.impl.DefaultAuthenticationImpl;
@@ -22,17 +23,25 @@ public class ApplicationConfiguration {
     private void setServerConfig(ServerConfig serverConfig){
         this.serverConfig=serverConfig;
     }
+    private ETagAccess eTagAccess;
+    private void setETagAccess(ETagAccess eTagAccess){
+        this.eTagAccess=eTagAccess;
+    }
     @Bean
     @Primary
     @ConditionalOnProperty(prefix = "etag", name = "type", havingValue = "MD5", matchIfMissing = true)
     public ETagComputer eTagComputer4MD5() {
-        return new ETagComputer4MD5();
+        ETagComputer4MD5 eTagComputer=new ETagComputer4MD5();
+        eTagComputer.setETagAccess(eTagAccess);
+        return eTagComputer;
     }
 
     @Bean
     @ConditionalOnProperty(prefix = "etag", name = "type", havingValue = "UUIDTimestamp")
     public ETagComputer eTagComputer4UUIDTimestamp() {
-        return new ETagComputer4UUIDTimestamp();
+        ETagComputer4UUIDTimestamp eTagComputer=new ETagComputer4UUIDTimestamp();
+        eTagComputer.setETagAccess(eTagAccess);
+        return eTagComputer;
     }
 
     @Bean

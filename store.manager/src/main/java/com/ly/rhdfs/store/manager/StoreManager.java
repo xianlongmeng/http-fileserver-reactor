@@ -1,21 +1,29 @@
 package com.ly.rhdfs.store.manager;
 
 import java.time.Instant;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import com.ly.common.constant.ParamConstants;
+import com.ly.common.domain.token.TokenInfo;
 import com.ly.common.util.DfsFileUtils;
 import com.ly.rhdfs.manager.handler.CommandEventHandler;
 import com.ly.rhdfs.manager.handler.ServerStateCommandEventHandler;
+import com.ly.rhdfs.store.manager.handler.TokenCommandEventHandler;
 import com.ly.rhdfs.store.manager.task.ComputerStateTask;
+import io.netty.util.internal.StringUtil;
 import org.springframework.stereotype.Component;
 
 import com.ly.common.domain.server.ServerState;
 import com.ly.rhdfs.manager.server.ServerManager;
 import com.ly.rhdfs.store.manager.task.ComputerVoteTask;
+import org.springframework.util.StringUtils;
 
 @Component
 public class StoreManager extends ServerManager {
+
+    private final Map<String, TokenInfo> tokenInfoMap=new ConcurrentHashMap<>();
     public StoreManager() {
         scheduledThreadCount = 4;
     }
@@ -24,6 +32,7 @@ public class StoreManager extends ServerManager {
     protected void initCommandEventHandler() {
         super.initCommandEventHandler();
         commandEventHandler.setServerStateCommandEventHandler(new ServerStateCommandEventHandler(this));
+        commandEventHandler.setTokenCommandEventHandler(new TokenCommandEventHandler(this));
     }
 
     public void initial() {
@@ -67,5 +76,26 @@ public class StoreManager extends ServerManager {
     }
     public void computerFreeSpaceSize(){
         localServerState.setSpaceSize(DfsFileUtils.diskFreeSpace(serverConfig.getFileRootPath()));
+    }
+
+    public void putTokenInfo(TokenInfo tokenInfo){
+        if (tokenInfo==null || StringUtils.isEmpty(tokenInfo.getToken()))
+            return;
+        tokenInfoMap.put(tokenInfo.getToken(),tokenInfo);
+    }
+    public void removeTokenInfo(String token){
+        if (StringUtils.isEmpty(token))
+            return;
+        tokenInfoMap.remove(token);
+    }
+    public void removeTokenInfo(TokenInfo tokenInfo){
+        if (tokenInfo==null)
+            return;
+        removeTokenInfo(tokenInfo.getToken());
+    }
+
+    @Override
+    public void clearToken(TokenInfo tokenInfo) {
+        removeTokenInfo(tokenInfo);
     }
 }
