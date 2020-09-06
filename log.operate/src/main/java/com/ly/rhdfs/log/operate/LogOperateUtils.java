@@ -12,18 +12,35 @@ import java.util.stream.Collectors;
 import com.ly.common.util.ConvertUtil;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 import com.ly.common.domain.log.OperationLog;
 import com.ly.common.util.DateFormatUtils;
 import com.ly.common.util.DfsFileUtils;
 
+@Component
 public class LogOperateUtils {
 
-    public static String LOG_PATH;
     private static final Logger logger = LoggerFactory.getLogger(LogOperateUtils.class);
 
-    public static OperationLog parseOperationLog(String line) {
+    private String logPath;
+    private DfsFileUtils dfsFileUtils;
+    @Autowired
+    public void setDfsFileUtils(DfsFileUtils dfsFileUtils){
+        this.dfsFileUtils=dfsFileUtils;
+    }
+
+    public String getLogPath() {
+        return logPath;
+    }
+
+    public void setLogPath(String logPath) {
+        this.logPath = logPath;
+    }
+
+    public OperationLog parseOperationLog(String line) {
         if (line == null)
             return null;
         String[] s = line.split(",");
@@ -36,7 +53,7 @@ public class LogOperateUtils {
         return new OperationLog(timestamp, opType, path, fileName);
     }
 
-    public static long parseOperationLogWriteTime(String line) {
+    public long parseOperationLogWriteTime(String line) {
         if (line == null)
             return 0;
         int index=line.indexOf(',');
@@ -45,8 +62,8 @@ public class LogOperateUtils {
         return ConvertUtil.parseLong(line.substring(0,index),0);
     }
 
-    public static String findLastTimeFileName() {
-        List<String> fileNameList = DfsFileUtils.findFilePath(LOG_PATH, "", true).stream().sorted()
+    public String findLastTimeFileName() {
+        List<String> fileNameList = dfsFileUtils.findFilePath(logPath, "", true).stream().sorted()
                 .collect(Collectors.toList());
         if (fileNameList.isEmpty())
             return null;
@@ -54,7 +71,7 @@ public class LogOperateUtils {
             return fileNameList.get(fileNameList.size() - 1);
     }
 
-    public static String readLastLine(String fileName) {
+    public String readLastLine(String fileName) {
         if (StringUtils.isEmpty(fileName))
             return null;
         RandomAccessFile rf = null;
@@ -92,14 +109,14 @@ public class LogOperateUtils {
         }
     }
 
-    public static OperationLog readLastTimeOperationLog() {
+    public OperationLog readLastTimeOperationLog() {
         String operationLogLine = readLastLine(findLastTimeFileName());
         if (StringUtils.isEmpty(operationLogLine))
             return null;
-        return LogOperateUtils.parseOperationLog(operationLogLine);
+        return parseOperationLog(operationLogLine);
     }
 
-    public static long readLastTime() {
+    public long readLastTime() {
         OperationLog operationLog = readLastTimeOperationLog();
         if (operationLog == null)
             return Instant.now().toEpochMilli();

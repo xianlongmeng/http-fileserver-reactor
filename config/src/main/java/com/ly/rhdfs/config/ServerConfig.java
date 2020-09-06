@@ -41,15 +41,32 @@ public class ServerConfig {
     @Value("${file.chunk.suffix:chk}")
     private String fileChunkSuffix;
 
-    @Value("${param.name.path}")
-    private String pathParamName = ParamConstants.PARAM_PATH_NAME;
-    @Value("${param.name.file}")
-    private String fileNameParamName = ParamConstants.PARAM_FILE_NAME;
-    @Value("${param.name.file.size}")
-    private String fileSizeParamName = ParamConstants.PARAM_FILE_SIZE_NAME;
+    @Value("${param.name.path:path}")
+    private String pathParamName;
+    @Value("${param.name.file:file_name}")
+    private String fileNameParamName;
+    @Value("${param.name.file.size:file_size}")
+    private String fileSizeParamName;
     @Value("${param.name.token}")
     private String tokenParamName = ParamConstants.PARAM_TOKEN_NAME;
 
+    @Value("${store.file.rewrite:false}")
+    private boolean rewrite;
+    @Value("${store.file.temp.suffix}")
+    private String tmpFileSuffix;
+
+    @Value("${file.config.suffix}")
+    private String fileConfigSuffix;
+    @Value("${file.temp.config.suffix}")
+    private String fileTmpConfigSuffix;
+
+    public String getTmpFileSuffix() {
+        return tmpFileSuffix;
+    }
+
+    public void setTmpFileSuffix(String tmpFileSuffix) {
+        this.tmpFileSuffix = tmpFileSuffix;
+    }
     public int getCurrentServerId() {
         return currentServerId;
     }
@@ -192,5 +209,29 @@ public class ServerConfig {
 
     public void setFileChunkSuffix(String fileChunkSuffix) {
         this.fileChunkSuffix = fileChunkSuffix;
+    }
+
+    public boolean isRewrite() {
+        return rewrite;
+    }
+
+    public void setRewrite(boolean rewrite) {
+        this.rewrite = rewrite;
+    }
+
+    public String getFileConfigSuffix() {
+        return fileConfigSuffix;
+    }
+
+    public void setFileConfigSuffix(String fileConfigSuffix) {
+        this.fileConfigSuffix = fileConfigSuffix;
+    }
+
+    public String getFileTmpConfigSuffix() {
+        return fileTmpConfigSuffix;
+    }
+
+    public void setFileTmpConfigSuffix(String fileTmpConfigSuffix) {
+        this.fileTmpConfigSuffix = fileTmpConfigSuffix;
     }
 }

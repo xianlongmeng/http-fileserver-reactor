@@ -43,6 +43,7 @@ public class FileServerRunManager {
     private MasterManager masterManager;
     private List<ServerRunState> availableOrderlyServerRunStates;
     private FileInfoManager fileInfoManager;
+    private DfsFileUtils dfsFileUtils;
 
     @Autowired
     public void setMasterManager(MasterManager masterManager) {
@@ -54,6 +55,10 @@ public class FileServerRunManager {
         this.fileInfoManager = fileInfoManager;
     }
 
+    @Autowired
+    private void setDfsFileUtils(DfsFileUtils dfsFileUtils){
+        this.dfsFileUtils=dfsFileUtils;
+    }
     public Map<TokenInfo, FileInfo> getUploadRunningTask() {
         return uploadRunningTask;
     }
@@ -191,7 +196,7 @@ public class FileServerRunManager {
             logger.warn("Available server not enough!");
             return null;
         }
-        if (DfsFileUtils.fileExist(tokenInfo.getPath(), tokenInfo.getFileName())) {
+        if (dfsFileUtils.fileExist(tokenInfo.getPath(), tokenInfo.getFileName())) {
             logger.warn("File existed!path:{},file name:{}", tokenInfo.getPath(), tokenInfo.getFileName());
             return null;
         }
@@ -216,8 +221,8 @@ public class FileServerRunManager {
                     serverRunState.uploadPlus();
                 }
                 fileInfo.getFileChunkList().add(chunkInfo);
-                DfsFileUtils.JSONWriteFile(
-                        DfsFileUtils.joinFileTempConfigName(tokenInfo.getPath(), tokenInfo.getFileName()), fileInfo);
+                dfsFileUtils.JSONWriteFile(
+                        dfsFileUtils.joinFileTempConfigName(tokenInfo.getPath(), tokenInfo.getFileName()), fileInfo);
             }
         } finally {
             lockObj.readLock().unlock();
@@ -288,7 +293,7 @@ public class FileServerRunManager {
         } finally {
             lockObj.readLock().unlock();
         }
-        DfsFileUtils.JSONWriteFile(DfsFileUtils.joinFileTempConfigName(tokenInfo.getPath(), tokenInfo.getFileName()),
+        dfsFileUtils.JSONWriteFile(dfsFileUtils.joinFileTempConfigName(tokenInfo.getPath(), tokenInfo.getFileName()),
                 fi);
         masterManager.getLogFileOperate().writeOperateLog(new OperationLog(Instant.now().toEpochMilli(),
                 OperationLog.OP_TYPE_ADD_FILE_INIT_UPDATE, tokenInfo.getPath(), tokenInfo.getFileName()));
@@ -324,7 +329,7 @@ public class FileServerRunManager {
             clearTokenQueue.add(new TokenClearServer(TokenClearServer.TC_TYPE_TOKEN_CLEAR,tokenInfo,serverId));
         }
         fileInfoManager.submitFileInfo(fileInfo,
-                DfsFileUtils.joinFileTempConfigName(tokenInfo.getPath(), tokenInfo.getFileName()));
+                dfsFileUtils.joinFileTempConfigName(tokenInfo.getPath(), tokenInfo.getFileName()));
         long writeLogDateTime = Instant.now().toEpochMilli();
         masterManager.getLogFileOperate().writeOperateLog(new OperationLog(writeLogDateTime,
                 OperationLog.OP_TYPE_ADD_FILE_FINISH, tokenInfo.getPath(), tokenInfo.getFileName()));
@@ -365,7 +370,7 @@ public class FileServerRunManager {
                     .add(new TokenClearServer(TokenClearServer.TC_TYPE_FILE_DELETE, tokenInfo, serverId));
         }
         // 删除当前配置文件
-        DfsFileUtils.fileDelete(tokenInfo.getPath(), tokenInfo.getFileName());
+        dfsFileUtils.fileDelete(tokenInfo.getPath(), tokenInfo.getFileName());
         logger.warn("delete upload file,path[{}] file name[{}]", tokenInfo.getPath(), tokenInfo.getFileName());
         uploadRunningTask.remove(tokenInfo);
         // 上传完成后，重置ServerRunState的排序
@@ -392,7 +397,7 @@ public class FileServerRunManager {
         try {
             // load file save information
             fileInfo = fileInfoManager
-                    .findFileInfo(DfsFileUtils.joinFileConfigName(tokenInfo.getPath(), tokenInfo.getFileName()));
+                    .findFileInfo(dfsFileUtils.joinFileConfigName(tokenInfo.getPath(), tokenInfo.getFileName()));
             if (fileInfo == null || fileInfo.getFileChunkList() == null || fileInfo.getFileChunkList().isEmpty()) {
                 logger.error("File config information is error.");
                 return null;
@@ -555,7 +560,7 @@ public class FileServerRunManager {
                 }
             }
         }
-        DfsFileUtils.JSONWriteFile(DfsFileUtils.joinFileTempConfigName(fileInfo.getPath(), fileInfo.getFileName()),
+        dfsFileUtils.JSONWriteFile(dfsFileUtils.joinFileTempConfigName(fileInfo.getPath(), fileInfo.getFileName()),
                 fileInfo);
         masterManager.getLogFileOperate().writeOperateLog(new OperationLog(Instant.now().toEpochMilli(),
                 OperationLog.OP_TYPE_ADD_FILE_INIT_UPDATE, fileInfo.getPath(), fileInfo.getFileName()));

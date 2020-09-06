@@ -2,6 +2,7 @@ package com.ly.rhdfs.file.config;
 
 import java.io.File;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.cache.annotation.CachePut;
 import org.springframework.cache.annotation.Cacheable;
@@ -14,20 +15,24 @@ import com.ly.common.util.DfsFileUtils;
 
 @Service
 public class FileInfoManager {
-
+    private DfsFileUtils dfsFileUtils;
+    @Autowired
+    private void setDfsFileUtils(DfsFileUtils dfsFileUtils){
+        this.dfsFileUtils=dfsFileUtils;
+    }
     @Cacheable(value = "file.info", key = "#path")
     public FileInfo findFileInfo(String path) {
-        return DfsFileUtils.JSONReadFileInfo(path);
+        return dfsFileUtils.JSONReadFileInfo(path);
     }
 
     @CachePut(value = "file.info", key = "#path")
     public FileInfo submitFileInfo(FileInfo fileInfo) {
         if (fileInfo == null)
             return null;
-        String path=DfsFileUtils.joinFileConfigName(fileInfo.getPath(),fileInfo.getFileName());
+        String path=dfsFileUtils.joinFileConfigName(fileInfo.getPath(),fileInfo.getFileName());
         if ( StringUtils.isEmpty(path))
             return null;
-        DfsFileUtils.JSONWriteFile(path, fileInfo);
+        dfsFileUtils.JSONWriteFile(path, fileInfo);
         clearDirectCache(StringUtils.cleanPath(fileInfo.getPath()));
         return fileInfo;
     }
@@ -36,12 +41,12 @@ public class FileInfoManager {
     public FileInfo submitFileInfo(FileInfo fileInfo, String tmpPath) {
         if (fileInfo == null)
             return null;
-        String path=DfsFileUtils.joinFileConfigName(fileInfo.getPath(),fileInfo.getFileName());
+        String path=dfsFileUtils.joinFileConfigName(fileInfo.getPath(),fileInfo.getFileName());
         if ( StringUtils.isEmpty(path))
             return null;
         File file = new File(tmpPath);
-        if (!file.exists() || !DfsFileUtils.renameFile(tmpPath, path)) {
-            DfsFileUtils.JSONWriteFile(path, fileInfo);
+        if (!file.exists() || !dfsFileUtils.renameFile(tmpPath, path)) {
+            dfsFileUtils.JSONWriteFile(path, fileInfo);
         }
         clearDirectCache(StringUtils.cleanPath(fileInfo.getPath()));
         return fileInfo;
@@ -53,7 +58,7 @@ public class FileInfoManager {
         if (!directFile.exists() || !directFile.isDirectory())
             return null;
         DirectInfo directInfo = new DirectInfo();
-        directInfo.setItemInfos(DfsFileUtils.findDirectInfoItem(path, false));
+        directInfo.setItemInfos(dfsFileUtils.findDirectInfoItem(path, false));
         return directInfo;
     }
     @CacheEvict(value = "direct.info",key = "#path")

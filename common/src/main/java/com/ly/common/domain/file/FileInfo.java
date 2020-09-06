@@ -12,7 +12,7 @@ public class FileInfo {
     private String etag;
     private boolean chunk;
     // 分块大小，<=0表示不分块
-    private long chunkSize;
+    private int chunkSize;
     // 分块数量
     private int chunkCount;
 
@@ -75,11 +75,11 @@ public class FileInfo {
         this.chunk = chunk;
     }
 
-    public long getChunkSize() {
+    public int getChunkSize() {
         return chunkSize;
     }
 
-    public void setChunkSize(long chunkSize) {
+    public void setChunkSize(int chunkSize) {
         this.chunkSize = chunkSize;
     }
 

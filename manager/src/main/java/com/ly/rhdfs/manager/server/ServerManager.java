@@ -11,12 +11,14 @@ import java.util.concurrent.*;
 import com.ly.common.domain.ResultInfo;
 import com.ly.common.domain.token.TokenInfo;
 import com.ly.common.util.DfsFileUtils;
+import com.ly.common.util.SpringContextUtil;
 import com.ly.rhdfs.communicate.command.DFSCommand;
 import com.ly.rhdfs.file.config.FileInfoManager;
 import com.ly.rhdfs.manager.handler.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import org.springframework.util.ResourceUtils;
 import org.springframework.util.StringUtils;
 
@@ -32,14 +34,15 @@ import com.ly.rhdfs.log.operate.LogOperateUtils;
 import com.ly.rhdfs.manager.connect.ConnectManager;
 import com.ly.rhdfs.manager.connect.ConnectServerTask;
 import com.ly.rhdfs.manager.connect.ServerStateHeartBeatTask;
+import reactor.netty.Connection;
 
+@Component
 public abstract class ServerManager {
     protected final int initThreadDelay = 10;
     protected final int initThreadSecondDelay = 20;
     protected final int initThreadThirdDelay = 30;
     protected final Map<Long, ServerState> serverInfoMap = new ConcurrentHashMap<>();
-    protected final ServerState localServerState = new ServerState();
-    private final DFSCommandState localDFSCommandState = new DFSCommandState(localServerState);
+    private ServerState localServerState;
     protected int scheduledThreadCount = 5;
     protected Logger logger = LoggerFactory.getLogger(this.getClass());
     protected ConnectManager connectManager;
@@ -51,8 +54,10 @@ public abstract class ServerManager {
     //Master:disconnect 3 store last time;Store:disconnect master last time
     private long masterDisconnectedLastTime;
     private LogFileOperate logFileOperate;
+    private LogOperateUtils logOperateUtils;
     protected CommandEventHandler commandEventHandler;
     private FileInfoManager fileInfoManager;
+    private DfsFileUtils dfsFileUtils;
     public FileInfoManager getFileInfoManager(){
         return fileInfoManager;
     }
@@ -60,9 +65,19 @@ public abstract class ServerManager {
     private void setFileInfoManager(FileInfoManager fileInfoManager) {
         this.fileInfoManager = fileInfoManager;
     }
+    @Autowired
+    private void setLogFileOperate(LogFileOperate logFileOperate){
+        this.logFileOperate=logFileOperate;
+    }
+    @Autowired
+    private void setLogOperateUtils(LogOperateUtils logOperateUtils){
+        this.logOperateUtils=logOperateUtils;
+    }
+    @Autowired
+    private void setDfsFileUtils(DfsFileUtils dfsFileUtils){
+        this.dfsFileUtils=dfsFileUtils;
+    }
     public ServerManager() {
-        LogOperateUtils.LOG_PATH=serverConfig.getLogPath();
-        logFileOperate=new LogFileOperate(LogOperateUtils.LOG_PATH);
     }
 
     public ServerConfig getServerConfig() {
@@ -80,6 +95,10 @@ public abstract class ServerManager {
     }
 
     public ServerState getLocalServerState() {
+        if (localServerState==null) {
+            localServerState = new ServerState();
+            localServerState.setServerId(serverConfig.getCurrentServerId());
+        }
         return localServerState;
     }
 
@@ -88,11 +107,11 @@ public abstract class ServerManager {
     }
 
     public long getServerAddressUpdateLastTime() {
-        return localServerState.getUpdateAddressLastTime();
+        return getLocalServerState().getUpdateAddressLastTime();
     }
 
     public void setServerAddressUpdateLastTime(long serverAddressUpdateLastTime) {
-        localServerState.setUpdateAddressLastTime(serverAddressUpdateLastTime);
+        getLocalServerState().setUpdateAddressLastTime(serverAddressUpdateLastTime);
     }
 
     protected void initCommandEventHandler(){
@@ -118,10 +137,6 @@ public abstract class ServerManager {
 
     public LogFileOperate getLogFileOperate() {
         return logFileOperate;
-    }
-
-    public void setLogFileOperate(LogFileOperate logFileOperate) {
-        this.logFileOperate = logFileOperate;
     }
 
     /**
@@ -227,19 +242,19 @@ public abstract class ServerManager {
     }
 
     public long getLocalServerId() {
-        return localServerState.getServerId();
+        return getLocalServerState().getServerId();
     }
 
     public void setLocalServerId(int localServerId) {
-        localServerState.setServerId(localServerId);
+        getLocalServerState().setServerId(localServerId);
     }
 
     public int getPort() {
-        return localServerState.getPort();
+        return getLocalServerState().getPort();
     }
 
     public void setPort(int port) {
-        localServerState.setPort(port);
+        getLocalServerState().setPort(port);
     }
 
     public void reconnectServer(ServerState serverState) {
@@ -258,7 +273,7 @@ public abstract class ServerManager {
     public void sendHeart(ServerState serverState) {
         if (serverState == null)
             return;
-        connectManager.sendCommunicationObject(serverState, localServerState, DFSCommand.CT_STATE);
+        connectManager.sendCommunicationObject(serverState, getLocalServerState(), DFSCommand.CT_STATE);
     }
 
     public boolean sendFileInfoSync(ServerState serverState,byte[] fileInfo){
@@ -267,7 +282,7 @@ public abstract class ServerManager {
         return connectManager.sendFileInfoCommandSync(serverState,fileInfo);
     }
     public void initLastTime() {
-        localServerState.setWriteLastTime(LogOperateUtils.readLastTime());
+        getLocalServerState().setWriteLastTime(logOperateUtils.readLastTime());
     }
 
     public MasterServerConfig getMasterServerConfig(){
@@ -297,7 +312,7 @@ public abstract class ServerManager {
     }
     public int fileDelete(TokenInfo tokenInfo){
         clearToken(tokenInfo);
-        if (DfsFileUtils.fileDelete(tokenInfo.getPath(),
+        if (dfsFileUtils.fileDelete(tokenInfo.getPath(),
                 tokenInfo.getFileName())) {
             logger.info("file is deleted.path[{}],file name[{}]", tokenInfo.getPath(),
                     tokenInfo.getFileName());
@@ -309,4 +324,7 @@ public abstract class ServerManager {
         }
     }
     public abstract void clearToken(TokenInfo tokenInfo);
+    public Connection findConnection(long serverId){
+        return connectManager.findConnection(findServerState(serverId));
+    }
 }

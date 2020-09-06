@@ -10,6 +10,8 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.List;
 
+import com.ly.rhdfs.config.ServerConfig;
+import com.ly.rhdfs.store.AbstractFileStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.FileSystemResource;
@@ -32,40 +34,16 @@ import com.ly.rhdfs.store.single.config.SingleStoreConfig;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-public class SingleFileStore implements StoreFile {
+public class SingleFileStore extends AbstractFileStore {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private SingleStoreConfig config;
-    private FileChunkManger fileChunkManger;
 
     public SingleFileStore() {
-        fileChunkManger = SpringContextUtil.getBean(FileChunkManger.class);
     }
 
     public void setConfig(SingleStoreConfig config) {
         this.config = config;
-    }
-
-    @Override
-    public boolean existed(String fileId, String path) {
-        String uploadFilePath = buildFilePath(fileId, path);
-        if (StringUtils.isEmpty(uploadFilePath)) {
-            return false;
-        }
-        return new File(uploadFilePath).exists();
-    }
-
-    @Override
-    public Path takeFilePath(String fileId, String path, boolean temp) {
-        String uploadFilePath = buildFilePath(fileId, path);
-        if (StringUtils.isEmpty(uploadFilePath)) {
-            return null;
-        }
-        if (temp) {
-            return new File(uploadFilePath + config.getTmpFileSuffix()).toPath();
-        } else {
-            return new File(uploadFilePath).toPath();
-        }
     }
 
     @Override
@@ -104,23 +82,6 @@ public class SingleFileStore implements StoreFile {
             return file.length();
         }
         return 0;
-    }
-
-    private String buildFilePath(String fileId, String path) {
-        if (StringUtils.isEmpty(fileId)) {
-            return null;
-        }
-        if (StringUtils.isEmpty(path)) {
-            return String.format("%s/%s", config.getFileRootPath(), fileId);
-        } else {
-            while (path.startsWith(File.separator)) {
-                path = path.substring(1);
-            }
-            while (path.endsWith(File.separator)) {
-                path = path.substring(0, path.length() - 1);
-            }
-            return String.format("%s/%s/%s", config.getFileRootPath(), path, fileId);
-        }
     }
 
     @Override
@@ -182,10 +143,5 @@ public class SingleFileStore implements StoreFile {
                 sink.success(new ResultValueInfo<>(ResultInfo.S_ERROR, "open.file.211", ex.getMessage(), filePart));
             }
         });
-    }
-
-    @Override
-    public Mono<FileRanges> loadFile(String fileId, String path, List<HttpRange> ranges) {
-        return Mono.just(new FileRanges(new FileSystemResource(takeFilePath(fileId,path))));
     }
 }

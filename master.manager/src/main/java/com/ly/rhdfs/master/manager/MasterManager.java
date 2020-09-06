@@ -7,6 +7,7 @@ import com.ly.common.domain.server.ServerInfoConfiguration;
 import com.ly.common.domain.server.ServerRunState;
 import com.ly.common.domain.server.ServerState;
 import com.ly.common.domain.token.TokenInfo;
+import com.ly.common.util.DfsFileUtils;
 import com.ly.rhdfs.communicate.command.DFSCommand;
 import com.ly.rhdfs.manager.server.ServerManager;
 import com.ly.rhdfs.master.manager.handler.ServerStateCommandMasterEventHandler;
@@ -35,6 +36,7 @@ public class MasterManager extends ServerManager {
 
     private final Map<ServerState, Future> masterUpdateFileInfo = new ConcurrentHashMap<>();
     private FileServerRunManager fileServerRunManager;
+    private DfsFileUtils dfsFileUtils;
 
     public MasterManager() {
         scheduledThreadCount = 7;
@@ -49,6 +51,10 @@ public class MasterManager extends ServerManager {
         this.fileServerRunManager = fileServerRunManager;
     }
 
+    @Autowired
+    private void setDfsFileUtils(DfsFileUtils dfsFileUtils){
+        this.dfsFileUtils=dfsFileUtils;
+    }
     @Override
     protected void initCommandEventHandler() {
         commandEventHandler.setServerStateCommandEventHandler(new ServerStateCommandMasterEventHandler(this));
@@ -91,7 +97,7 @@ public class MasterManager extends ServerManager {
         if (serverState == null)
             return;
         masterUpdateFileInfo.put(serverState,
-                threadPoolExecutor.submit(new UpdateMasterFileInfoTask(this, serverState)));
+                threadPoolExecutor.submit(new UpdateMasterFileInfoTask(this,dfsFileUtils, serverState)));
     }
 
     @Override
@@ -122,7 +128,6 @@ public class MasterManager extends ServerManager {
     public void verifyMasterQualification() {
         // verify count
         int count = 0;
-
         // master失联后如何处理？
         // 1、master；多于copies连接不上，记录错误时间，超过一定时间，取消master状态
         // 2、master-backup：多于copies连接不上，取消ready状态；master连接失败，设置lost contact状态，恢复后重新验证writeTime
@@ -131,48 +136,48 @@ public class MasterManager extends ServerManager {
                 if (serverState.getType() == ServerState.SIT_STORE)
                     // store lost count
                     count++;
-                else if (localServerState.getType() != ServerState.SIT_MASTER
+                else if (getLocalServerState().getType() != ServerState.SIT_MASTER
                         && serverState.getType() == ServerState.SIT_MASTER
                         && serverState.getServerId() == masterServerId) {
-                    localServerState.setState(localServerState.getState() | ServerState.SIS_MASTER_LOST_CONTACT);
-                    localServerState.setLastTime(Instant.now().toEpochMilli());
+                    getLocalServerState().setState(getLocalServerState().getState() | ServerState.SIS_MASTER_LOST_CONTACT);
+                    getLocalServerState().setLastTime(Instant.now().toEpochMilli());
                 }
-            } else if (localServerState.getType() != ServerState.SIT_MASTER
+            } else if (getLocalServerState().getType() != ServerState.SIT_MASTER
                     && serverState.getType() == ServerState.SIT_MASTER && serverState.getServerId() == masterServerId
-                    && (localServerState.getState() == ServerState.SIS_UNKNOWN
-                    || (localServerState.getState() & ServerState.SIS_MASTER_LOST_CONTACT) != 0)
-                    && serverState.getWriteLastTime() > localServerState.getWriteLastTime()) {
+                    && (getLocalServerState().getState() == ServerState.SIS_UNKNOWN
+                    || (getLocalServerState().getState() & ServerState.SIS_MASTER_LOST_CONTACT) != 0)
+                    && serverState.getWriteLastTime() > getLocalServerState().getWriteLastTime()) {
                 // verify writeLastTime,clear lost contact mark after verify writeLastTime.
-                localServerState.setState(localServerState.getState() & ~ServerState.SIS_MASTER_LOST_CONTACT);
-                localServerState.setReady(false);
-                localServerState.setLastTime(Instant.now().toEpochMilli());
+                getLocalServerState().setState(getLocalServerState().getState() & ~ServerState.SIS_MASTER_LOST_CONTACT);
+                getLocalServerState().setReady(false);
+                getLocalServerState().setLastTime(Instant.now().toEpochMilli());
                 return;
             }
         }
         if (count >= serverConfig.getFileCopies()) {
-            if (localServerState.getType() == ServerState.SIT_MASTER_BACKUP && localServerState.isReady()) {
-                localServerState.setReady(false);
-                localServerState.setLastTime(Instant.now().toEpochMilli());
-            } else if (localServerState.getType() == ServerState.SIT_MASTER) {
-                if ((localServerState.getState() & ServerState.SIS_MASTER_NOT_ENOUGH_STORE) != 0) {
-                    if (Instant.now().toEpochMilli() - localServerState.getLastTime() > serverConfig
+            if (getLocalServerState().getType() == ServerState.SIT_MASTER_BACKUP && getLocalServerState().isReady()) {
+                getLocalServerState().setReady(false);
+                getLocalServerState().setLastTime(Instant.now().toEpochMilli());
+            } else if (getLocalServerState().getType() == ServerState.SIT_MASTER) {
+                if ((getLocalServerState().getState() & ServerState.SIS_MASTER_NOT_ENOUGH_STORE) != 0) {
+                    if (Instant.now().toEpochMilli() - getLocalServerState().getLastTime() > serverConfig
                             .getStoreServerDTMCancelMaster()) {
                         // clear master state,too many store server disconnected too long
-                        localServerState.setType(ServerState.SIT_MASTER_BACKUP);
-                        localServerState.setReady(false);
+                        getLocalServerState().setType(ServerState.SIT_MASTER_BACKUP);
+                        getLocalServerState().setReady(false);
                         masterServerId = -1;
                     }
                 } else {
                     // set not enough store state.
-                    localServerState.setState(localServerState.getState() | ServerState.SIS_MASTER_NOT_ENOUGH_STORE);
-                    localServerState.setLastTime(Instant.now().toEpochMilli());
+                    getLocalServerState().setState(getLocalServerState().getState() | ServerState.SIS_MASTER_NOT_ENOUGH_STORE);
+                    getLocalServerState().setLastTime(Instant.now().toEpochMilli());
                 }
             }
-        } else if ((localServerState.getState() & ServerState.SIS_MASTER_NOT_ENOUGH_STORE) != 0) {
+        } else if ((getLocalServerState().getState() & ServerState.SIS_MASTER_NOT_ENOUGH_STORE) != 0) {
             // restore enough store state
-            localServerState.setReady(true);
-            localServerState.setLastTime(Instant.now().toEpochMilli());
-            localServerState.setState(localServerState.getState() & ~ServerState.SIS_MASTER_NOT_ENOUGH_STORE);
+            getLocalServerState().setReady(true);
+            getLocalServerState().setLastTime(Instant.now().toEpochMilli());
+            getLocalServerState().setState(getLocalServerState().getState() & ~ServerState.SIS_MASTER_NOT_ENOUGH_STORE);
         }
 
     }
@@ -208,7 +213,7 @@ public class MasterManager extends ServerManager {
                 count++;
         }
         if (count > masterServerConfig.getStoreServerMap().size() * 2 / 3) {
-            localServerState.setType(ServerState.SIT_MASTER);
+            getLocalServerState().setType(ServerState.SIT_MASTER);
             masterServerId = getLocalServerId();
         }
     }

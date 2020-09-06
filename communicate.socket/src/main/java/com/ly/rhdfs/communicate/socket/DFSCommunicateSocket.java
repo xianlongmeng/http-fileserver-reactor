@@ -1,31 +1,38 @@
 package com.ly.rhdfs.communicate.socket;
 
-import com.fasterxml.uuid.Generators;
-import com.ly.common.domain.ResultInfo;
-import com.ly.common.domain.server.ServerState;
-import com.ly.rhdfs.communicate.DFSCommunicate;
-import com.ly.rhdfs.communicate.command.DFSCommand;
-import com.ly.rhdfs.communicate.handler.EventHandler;
-import com.ly.rhdfs.communicate.socket.codec.DFSCommandDecoder;
-import com.ly.rhdfs.communicate.socket.handler.DFSCommandHandler;
-import com.ly.rhdfs.communicate.socket.handler.HeartBeatHandler;
-import com.ly.rhdfs.communicate.socket.parse.DFSCommandParse;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
-import io.netty.handler.timeout.IdleStateHandler;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import reactor.netty.Connection;
-import reactor.netty.DisposableServer;
-import reactor.netty.tcp.TcpClient;
-import reactor.netty.tcp.TcpServer;
-
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+
+import com.fasterxml.uuid.Generators;
+import com.ly.common.domain.DFSPartChunk;
+import com.ly.common.domain.ResultInfo;
+import com.ly.common.domain.server.ServerState;
+import com.ly.rhdfs.communicate.DFSCommunicate;
+import com.ly.rhdfs.communicate.command.DFSCommand;
+import com.ly.rhdfs.communicate.command.DFSCommandFileTransfer;
+import com.ly.rhdfs.communicate.handler.EventHandler;
+import com.ly.rhdfs.communicate.socket.codec.DFSCommandDecoder;
+import com.ly.rhdfs.communicate.socket.handler.DFSCommandHandler;
+import com.ly.rhdfs.communicate.socket.handler.HeartBeatHandler;
+import com.ly.rhdfs.communicate.socket.parse.DFSCommandParse;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import io.netty.handler.timeout.IdleStateHandler;
+import reactor.core.publisher.Flux;
+import reactor.core.scheduler.Schedulers;
+import reactor.netty.Connection;
+import reactor.netty.DisposableServer;
+import reactor.netty.tcp.TcpClient;
+import reactor.netty.tcp.TcpServer;
 
 @Component
 public class DFSCommunicateSocket implements DFSCommunicate {
@@ -137,7 +144,8 @@ public class DFSCommunicateSocket implements DFSCommunicate {
     }
 
     @Override
-    public CompletableFuture<Integer> sendCommandAsyncReply(Connection connection, DFSCommand command, long timeout, TimeUnit timeUnit) {
+    public CompletableFuture<Integer> sendCommandAsyncReply(Connection connection, DFSCommand command, long timeout,
+            TimeUnit timeUnit) {
         CompletableFuture<Integer> completableFuture;
         if (timeout > 0 && timeUnit != null) {
             completableFuture = new CompletableFuture<Integer>().orTimeout(timeout, timeUnit)
@@ -157,27 +165,60 @@ public class DFSCommunicateSocket implements DFSCommunicate {
         uuidCompletableFutureMap.put(command.getUuid(), completableFuture);
         ChannelFuture channelFuture = sendCommandAsync(connection, command);
         channelFuture.addListener(futureListen -> {
-            if (!futureListen.isSuccess()) {
-                completableFuture.complete(ResultInfo.S_FAILED);
-                uuidCompletableFutureMap.remove(command.getUuid());
-            }
+            completableFuture.complete(futureListen.isSuccess() ? ResultInfo.S_OK : ResultInfo.S_FAILED);
+            uuidCompletableFutureMap.remove(command.getUuid());
         });
         return completableFuture;
     }
 
     @Override
-    public CompletableFuture<Integer> sendDataAsyncReply(Connection connection, Object msg, int commandType, long timeout, TimeUnit timeUnit) {
-        // 如何分包ChunkedStream
-        return sendCommandAsyncReply(connection, dfsCommandParse.convertCommandObject(msg, commandType), timeout, timeUnit);
+    public CompletableFuture<Integer> sendCommandDataAsyncReply(Connection connection, Flux<ByteBuf> byteBufFlux,
+            DFSCommandFileTransfer dfsCommandFileTransfer, long timeout, TimeUnit timeUnit) {
+        CompletableFuture<Integer> completableFuture;
+        if (timeout > 0 && timeUnit != null) {
+            completableFuture = new CompletableFuture<Integer>().orTimeout(timeout, timeUnit)
+                    .exceptionally(throwable -> {
+                        uuidCompletableFutureMap.remove(dfsCommandFileTransfer.getUuid());
+                        return ResultInfo.S_FAILED_TIMEOUT;
+                    });
+        } else {
+            completableFuture = new CompletableFuture<>();
+        }
+        if (connection == null || byteBufFlux == null || dfsCommandFileTransfer == null) {
+            completableFuture.complete(ResultInfo.S_ERROR);
+            return completableFuture;
+        }
+
+        if (dfsCommandFileTransfer.getUuid() == null)
+            dfsCommandFileTransfer.setUuid(Generators.timeBasedGenerator().generate());
+        uuidCompletableFutureMap.put(dfsCommandFileTransfer.getUuid(), completableFuture);
+        connection.outbound().send(byteBufFlux).then().subscribeOn(Schedulers.boundedElastic()).subscribe(null, t -> {
+            completableFuture.complete(ResultInfo.S_FAILED);
+            uuidCompletableFutureMap.remove(dfsCommandFileTransfer.getUuid());
+        }, () -> {
+            completableFuture.complete(ResultInfo.S_OK);
+            uuidCompletableFutureMap.remove(dfsCommandFileTransfer.getUuid());
+        });
+        return completableFuture;
     }
 
     @Override
-    public CompletableFuture<Integer> sendFileChunkFinishAsyncReply(Connection connection, Object msg, long timeout, TimeUnit timeUnit) {
+    public CompletableFuture<Integer> sendDataAsyncReply(Connection connection, Object msg, int commandType,
+            long timeout, TimeUnit timeUnit) {
+        // 如何分包ChunkedStream
+        return sendCommandAsyncReply(connection, dfsCommandParse.convertCommandObject(msg, commandType), timeout,
+                timeUnit);
+    }
+
+    @Override
+    public CompletableFuture<Integer> sendFileChunkFinishAsyncReply(Connection connection, Object msg, long timeout,
+            TimeUnit timeUnit) {
         return null;
     }
 
     @Override
-    public CompletableFuture<Integer> sendFileFinishCommandAsyncReply(Connection connection, Object msg, long timeout, TimeUnit timeUnit) {
+    public CompletableFuture<Integer> sendFileFinishCommandAsyncReply(Connection connection, Object msg, long timeout,
+            TimeUnit timeUnit) {
         return null;
     }
 }

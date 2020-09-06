@@ -1,19 +1,26 @@
 package com.ly.rhdfs.manager.connect;
 
-import com.ly.common.domain.server.ServerState;
-import com.ly.rhdfs.communicate.DFSCommunicate;
-import com.ly.rhdfs.communicate.command.DFSCommand;
-import com.ly.rhdfs.communicate.handler.EventHandler;
-import io.netty.channel.Channel;
-import io.netty.channel.ChannelFuture;
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import reactor.netty.Connection;
 
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import com.ly.common.domain.server.ServerState;
+import com.ly.rhdfs.communicate.DFSCommunicate;
+import com.ly.rhdfs.communicate.command.DFSCommand;
+import com.ly.rhdfs.communicate.command.DFSCommandFileTransfer;
+import com.ly.rhdfs.communicate.handler.EventHandler;
+
+import io.netty.buffer.ByteBuf;
+import io.netty.channel.Channel;
+import io.netty.channel.ChannelFuture;
+import reactor.core.publisher.Flux;
+import reactor.netty.Connection;
 
 @Component
 public class ConnectManager {
@@ -39,7 +46,7 @@ public class ConnectManager {
     }
 
     public synchronized boolean putServerConnection(ServerState serverState, Connection connection,
-                                                    Connection oldConnection) {
+            Connection oldConnection) {
         if (serverState == null || connection == null)
             return false;
         Connection curConnection = serverConnectionMap.get(serverState);
@@ -103,5 +110,11 @@ public class ConnectManager {
 
     public ChannelFuture sendCommunicationAsync(ServerState serverState, DFSCommand dfsCommand) {
         return dfsCommunicate.sendCommandAsync(findConnection(serverState), dfsCommand);
+    }
+
+    public CompletableFuture<Integer> sendCommandDataAsyncReply(ServerState serverState, Flux<ByteBuf> byteBufFlux,
+            DFSCommandFileTransfer dfsCommandFileTransfer, long timeout, TimeUnit timeUnit) {
+        return dfsCommunicate.sendCommandDataAsyncReply(findConnection(serverState), byteBufFlux,
+                dfsCommandFileTransfer, timeout, timeUnit);
     }
 }

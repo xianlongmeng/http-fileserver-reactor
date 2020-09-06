@@ -17,7 +17,6 @@ public class PartChunk {
         this.chunkSize = chunkSize;
         this.chunkCount = chunkCount;
     }
-
     public boolean isChunked() {
         return chunked;
     }

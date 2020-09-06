@@ -175,7 +175,7 @@ public class DownloadDfsStoreHandler {
         if (etagFlag) {
             int finalIfRangeType = ifRangeType;
             //验证etag模式
-            return eTagComputer.etagFile(storeFile.takeFilePath(fn, filePath),chunk).flatMap(etag -> {
+            return eTagComputer.etagFile(storeFile.takeFilePath(fn, filePath)).flatMap(etag -> {
                 if (finalIfRangeType == 2) {
                     //ifRange为etag的弱比较模式
                     ifRangeResult.set(etag.contains(ifRange));
@@ -184,11 +184,11 @@ public class DownloadDfsStoreHandler {
                     ifRangeResult.set(etag.equals(ifRange));
                 } else if (finalIfRangeType == 3){
                     //时间比较模式
-                    ifRangeResult.set(storeFile.takeFileUpdateTime(fileName, filePath)
+                    ifRangeResult.set(storeFile.takeFileUpdateTime(fn, filePath)
                             .equals(DateFormatUtils.parseLocalDateTime4GMT(ifRange)));
                 }
                 //验证checkModify
-                return request.checkNotModified(storeFile.takeFileInstant(fileName, filePath), etag);
+                return request.checkNotModified(storeFile.takeFileInstant(fn, filePath), etag);
             }).switchIfEmpty(responseMono);
         } else {
             //验证ifRange的时间模式

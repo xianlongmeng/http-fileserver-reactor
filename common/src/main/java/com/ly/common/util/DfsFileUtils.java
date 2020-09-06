@@ -19,17 +19,45 @@ import com.ly.common.domain.file.ItemInfo;
 
 public class DfsFileUtils {
 
-    public static final String FILE_CONFIG_SUFFIX = ".rfconf";
-    public static final String FILE_TMP_CONFIG_SUFFIX = ".rfconf.tmp";
+    private static final String FILE_CONFIG_SUFFIX = ".rfconf";
+    private static final String FILE_TMP_CONFIG_SUFFIX = ".rfconf.tmp";
 
-    public static List<String> findFilePath(String path, String pattern, boolean isSubDirect) {
-        return findFilePath(path, new RegexFileFilter(pattern), isSubDirect);
+    private String fileConfigSuffix=FILE_CONFIG_SUFFIX;
+    private String fileTmpConfigSuffix=FILE_TMP_CONFIG_SUFFIX;
+    private String fileRootPath;
+
+    public String getFileConfigSuffix() {
+        return fileConfigSuffix;
     }
 
-    public static List<String> findFilePath(String path, IOFileFilter ioFileFilter, boolean isSubDirect) {
+    public void setFileConfigSuffix(String fileConfigSuffix) {
+        this.fileConfigSuffix = fileConfigSuffix;
+    }
+
+    public String getFileTmpConfigSuffix() {
+        return fileTmpConfigSuffix;
+    }
+
+    public void setFileTmpConfigSuffix(String fileTmpConfigSuffix) {
+        this.fileTmpConfigSuffix = fileTmpConfigSuffix;
+    }
+
+    public String getFileRootPath() {
+        return fileRootPath;
+    }
+
+    public void setFileRootPath(String fileRootPath) {
+        this.fileRootPath = fileRootPath;
+    }
+
+    public List<String> findFilePath(String path, String pattern, boolean isSubDirect) {
+        return findFilePath(joinFileName(fileRootPath,path), new RegexFileFilter(pattern), isSubDirect);
+    }
+
+    public List<String> findFilePath(String path, IOFileFilter ioFileFilter, boolean isSubDirect) {
         List<String> fileNameList = new ArrayList<>();
         try {
-            Collection<File> fileList = FileUtils.listFiles(new File(path), ioFileFilter,
+            Collection<File> fileList = FileUtils.listFiles(new File(joinFileName(fileRootPath,path)), ioFileFilter,
                     isSubDirect ? TrueFileFilter.INSTANCE : null);
 
             for (File file : fileList) {
@@ -42,10 +70,10 @@ public class DfsFileUtils {
         return fileNameList;
     }
 
-    public static List<ItemInfo> findFileItem(String path, String pattern, boolean isSubDirect) {
+    public List<ItemInfo> findFileItem(String path, String pattern, boolean isSubDirect) {
         List<ItemInfo> itemList = new ArrayList<>();
         try {
-            Collection<File> fileList = FileUtils.listFiles(new File(path), new RegexFileFilter(pattern),
+            Collection<File> fileList = FileUtils.listFiles(new File(joinFileName(fileRootPath,path)), new RegexFileFilter(pattern),
                     isSubDirect ? TrueFileFilter.INSTANCE : null);
 
             for (File file : fileList) {
@@ -59,11 +87,11 @@ public class DfsFileUtils {
         return itemList;
     }
 
-    public static List<ItemInfo> findDirectInfoItem(String path, boolean isSubDirect) {
+    public List<ItemInfo> findDirectInfoItem(String path, boolean isSubDirect) {
         List<ItemInfo> itemList = new ArrayList<>();
         try {
-            Collection<File> fileList = FileUtils.listFilesAndDirs(new File(path),
-                    new SuffixFileFilter(FILE_CONFIG_SUFFIX), isSubDirect ? TrueFileFilter.INSTANCE : null);
+            Collection<File> fileList = FileUtils.listFilesAndDirs(new File(joinFileName(fileRootPath,path)),
+                    new SuffixFileFilter(getFileConfigSuffix()), isSubDirect ? TrueFileFilter.INSTANCE : null);
             for (File file : fileList) {
                 if (file != null && file.exists()) {
                     itemList.add(new ItemInfo(file.getName(), file.isDirectory()));
@@ -75,18 +103,18 @@ public class DfsFileUtils {
         return itemList;
     }
 
-    public static long diskFreeSpace(String filePath) {
+    public long diskFreeSpace(String filePath) {
         File disk = new File(filePath);
         if (!disk.exists())
             return 0;
         return disk.getFreeSpace();
     }
 
-    public static FileInfo JSONReadFileInfo(String fileName) {
+    public FileInfo JSONReadFileInfo(String fileName) {
         if (StringUtils.isEmpty(fileName))
             return null;
         try {
-            String content = FileUtils.readFileToString(new File(fileName), StandardCharsets.UTF_8);
+            String content = FileUtils.readFileToString(new File(joinFileName(fileRootPath,fileName)), StandardCharsets.UTF_8);
             return JSON.parseObject(content, FileInfo.class);
         } catch (IOException e) {
             e.printStackTrace();
@@ -94,11 +122,11 @@ public class DfsFileUtils {
         }
     }
 
-    public static boolean JSONWriteFile(String fileName, Object obj) {
+    public boolean JSONWriteFile(String fileName, Object obj) {
         if (StringUtils.isEmpty(fileName) || obj == null)
             return false;
         try {
-            FileWriter fileWriter = new FileWriter(fileName);
+            FileWriter fileWriter = new FileWriter(joinFileName(fileRootPath,fileName));
             JSON.writeJSONString(fileWriter, obj);
             return true;
         } catch (IOException e) {
@@ -107,75 +135,83 @@ public class DfsFileUtils {
         }
     }
 
-    public static String joinFileName(String path, String fileName) {
-        if (StringUtils.isEmpty(path))
-            return fileName;
-        if (StringUtils.isEmpty(fileName))
-            return path;
-        return String.format("%s%s%s", path, File.separator, fileName);
+    public String joinFileName(String ... paths) {
+        if (paths.length==0)
+            return "";
+        String path=paths[0];
+        for (int i=0;i<paths.length;i++){
+            String p=paths[i];
+            if (StringUtils.isEmpty(p))
+                continue;
+            if (StringUtils.isEmpty(path))
+                path=p;
+            else
+                path=String.format("%s/%s",path,p);
+        }
+        return StringUtils.cleanPath(path);
     }
 
-    public static String joinFileConfigName(String path, String fileName) {
+    public String joinFileConfigName(String path, String fileName) {
         if (StringUtils.isEmpty(path))
             return StringUtils.cleanPath(fileName);
         if (StringUtils.isEmpty(fileName))
             return StringUtils.cleanPath(path);
-        return StringUtils.cleanPath(String.format("%s%s%s%s", path, File.separator, fileName, FILE_CONFIG_SUFFIX));
+        return StringUtils.cleanPath(String.format("%s%s%s%s", path, File.separator, fileName, getFileConfigSuffix()));
     }
 
-    public static String joinFileTempConfigName(String path, String fileName) {
+    public String joinFileTempConfigName(String path, String fileName) {
         if (StringUtils.isEmpty(path))
             return StringUtils.cleanPath(fileName);
         if (StringUtils.isEmpty(fileName))
             return StringUtils.cleanPath(path);
-        return StringUtils.cleanPath(String.format("%s%s%s%s", path, File.separator, fileName, FILE_TMP_CONFIG_SUFFIX));
+        return StringUtils.cleanPath(String.format("%s%s%s%s", path, File.separator, fileName, getFileTmpConfigSuffix()));
     }
 
-    public static boolean renameFile(String oldFileName, String newFileName) {
+    public boolean renameFile(String oldFileName, String newFileName) {
         if (StringUtils.isEmpty(oldFileName) || StringUtils.isEmpty(newFileName))
             return false;
-        File file = new File(oldFileName);
+        File file = new File(joinFileName(fileRootPath,oldFileName));
         if (!file.exists()) {
             return false;
         }
-        return file.renameTo(new File(newFileName));
+        return file.renameTo(new File(joinFileName(fileRootPath,newFileName)));
     }
 
-    public static boolean fileConfigExist(String path, String fileName) {
-        File file = new File(joinFileConfigName(path, fileName));
+    public boolean fileConfigExist(String path, String fileName) {
+        File file = new File(joinFileName(fileRootPath,joinFileConfigName(path, fileName)));
         return file.exists();
     }
 
-    public static boolean fileExist(String path, String fileName) {
-        File file = new File(joinFileName(path, fileName));
+    public boolean fileExist(String path, String fileName) {
+        File file = new File(joinFileName(fileRootPath,joinFileName(path, fileName)));
         if (file.exists())
             return true;
-        file = new File(joinFileConfigName(path, fileName));
+        file = new File(joinFileName(fileRootPath,joinFileConfigName(path, fileName)));
         if (file.exists())
             return true;
-        file = new File(joinFileTempConfigName(path, fileName));
+        file = new File(joinFileName(fileRootPath,joinFileTempConfigName(path, fileName)));
         return file.exists();
     }
 
-    public static boolean fileDelete(String path, String fileName) {
+    public boolean fileDelete(String path, String fileName) {
         boolean res = true;
-        File file = new File(joinFileName(path, fileName));
+        File file = new File(joinFileName(fileRootPath,joinFileName(path, fileName)));
         if (file.exists())
             res = file.delete();
-        file = new File(joinFileConfigName(path, fileName));
+        file = new File(joinFileName(fileRootPath,joinFileConfigName(path, fileName)));
         if (file.exists())
             res &= file.delete();
-        file = new File(joinFileTempConfigName(path, fileName));
+        file = new File(joinFileName(fileRootPath,joinFileTempConfigName(path, fileName)));
         if (file.exists())
             res &= file.delete();
         return res;
     }
 
-    public static byte[] readFileInfo(String path, String fileName) {
+    public byte[] readFileInfo(String path, String fileName) {
         String filePath = joinFileConfigName(path, fileName);
         if (StringUtils.isEmpty(filePath))
             return null;
-        File file = new File(filePath);
+        File file = new File(joinFileName(fileRootPath,filePath));
         if (!file.exists())
             return null;
 

@@ -6,9 +6,11 @@ import com.ly.common.domain.ResultValueInfo;
 import org.reactivestreams.Publisher;
 import org.springframework.http.HttpRange;
 import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.util.StringUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.io.File;
 import java.nio.file.Path;
 import java.time.Instant;
 import java.time.LocalDateTime;
@@ -21,7 +23,17 @@ public interface StoreFile {
         return takeFilePath(fileId,path,false);
     }
 
-    Path takeFilePath(String fileId, String path, boolean temp);
+    default Path takeFilePath(String fileId, String path, boolean temp){
+        String filePathString=takeFilePathString(fileId,path,temp);
+        if (StringUtils.isEmpty(filePathString))
+            return null;
+        return new File(filePathString).toPath();
+    }
+
+    default String takeFilePathString(String fileId, String path){
+        return takeFilePathString(fileId,path,false);
+    }
+    String takeFilePathString(String fileId, String path, boolean temp);
 
     LocalDateTime takeFileUpdateTime(String fileId, String path);
 

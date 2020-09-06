@@ -1,10 +1,14 @@
 package com.ly.rhdfs.handler;
 
-import java.io.IOException;
-import java.nio.channels.AsynchronousFileChannel;
-import java.nio.file.StandardOpenOption;
-
-import com.ly.rhdfs.store.single.SingleFileStore;
+import com.ly.common.constant.ParamConstants;
+import com.ly.common.domain.PartChunk;
+import com.ly.common.domain.ResultInfo;
+import com.ly.common.domain.ResultValueInfo;
+import com.ly.common.domain.UploadResultInfo;
+import com.ly.common.util.ConvertUtil;
+import com.ly.common.util.ToolUtils;
+import com.ly.rhdfs.config.StoreConfiguration;
+import com.ly.rhdfs.store.StoreFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -15,19 +19,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.BodyExtractors;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
-
-import com.ly.common.domain.PartChunk;
-import com.ly.common.domain.ResultInfo;
-import com.ly.common.domain.ResultValueInfo;
-import com.ly.common.domain.UploadResultInfo;
-import com.ly.common.util.ConvertUtil;
-import com.ly.common.util.ToolUtils;
-import com.ly.rhdfs.config.StoreConfiguration;
-import com.ly.rhdfs.store.StoreFile;
-import com.ly.common.constant.ParamConstants;
-
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+
+import java.io.IOException;
+import java.nio.channels.AsynchronousFileChannel;
+import java.nio.file.StandardOpenOption;
 
 @Component
 public class UploadHandler {
@@ -41,11 +38,14 @@ public class UploadHandler {
         this.storeConfiguration = storeConfiguration;
     }
 
-    @Autowired void setStoreFile(StoreFile storeFile){
-        this.storeFile=storeFile;
+    @Autowired
+    void setStoreFile(StoreFile storeFile) {
+        this.storeFile = storeFile;
     }
+
     /**
      * 上传文件不分片
+     *
      * @param request
      * @return
      */
@@ -94,6 +94,7 @@ public class UploadHandler {
 
     /**
      * 上传文件，分片，检查
+     *
      * @param request
      * @return
      */
@@ -111,24 +112,30 @@ public class UploadHandler {
             partChunk = new PartChunk(false);
         }
         String path = request.queryParam(storeConfiguration.getPathParamName()).orElse(ParamConstants.PARAM_PATH_NAME);
-        return request.body(BodyExtractors.toParts()).flatMap(part -> {
-            if (part instanceof FilePart) {
-                FilePart filePart = (FilePart) part;
-                if (!storeConfiguration.isRewrite() && storeFile.existed(filePart.filename(), path)) {
-                    logger.warn("file is existed and can not rewrite.fileName:{}", filePart.filename());
-                    return Mono.just(
-                            new ResultValueInfo<>(ResultInfo.S_ERROR, "file.exist.100", "file is exist", filePart));
-                } else {
-                    return storeFile.storeFile(filePart, path, partChunk);
-                }
-            } else {
-                return Mono.just(new ResultValueInfo<>(ResultInfo.S_ERROR, "part.100", "not file part!", part));
-            }
-        }).map(resultValueInfo -> new UploadResultInfo(ResultInfo.S_ERROR, "part.100", "not file part!",
-                resultValueInfo.getSource().name(),
-                (resultValueInfo.getSource() instanceof FilePart) ? ((FilePart) resultValueInfo.getSource()).filename()
-                        : ""))
-                .collectList().flatMap(resultInfos -> ServerResponse.accepted().contentType(MediaType.APPLICATION_JSON)
-                        .bodyValue(resultInfos));
+        return request.body(BodyExtractors.toParts())
+                .single().onErrorResume(t -> Mono.empty())
+                .flatMap(part -> {
+                    if (part instanceof FilePart) {
+                        FilePart filePart = (FilePart) part;
+                        if (!storeConfiguration.isRewrite() && storeFile.existed(filePart.filename(), path)) {
+                            logger.warn("file is existed and can not rewrite.fileName:{}", filePart.filename());
+                            return Mono.just(
+                                    new ResultValueInfo<>(ResultInfo.S_ERROR, "file.exist.100", "file is exist", filePart));
+                        } else {
+                            return storeFile.storeFile(filePart, path, partChunk);
+                        }
+                    } else {
+                        return Mono.just(new ResultValueInfo<>(ResultInfo.S_ERROR, "part.100", "not file part!", part));
+                    }
+                }).map(resultValueInfo -> new UploadResultInfo(resultValueInfo.getResult(),
+                        resultValueInfo.getErrorCode(),
+                        resultValueInfo.getErrorDesc(),
+                        resultValueInfo.getSource().name(),
+                        (resultValueInfo.getSource() instanceof FilePart) ? ((FilePart) resultValueInfo.getSource()).filename()
+                                : "",
+                        partChunk))
+                .flatMap(uploadResultInfo -> ServerResponse.accepted().contentType(MediaType.APPLICATION_JSON)
+                        .bodyValue(uploadResultInfo))
+                .switchIfEmpty(ServerResponse.badRequest().bodyValue("no part data!"));
     }
 }

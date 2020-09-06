@@ -15,6 +15,7 @@ import org.slf4j.LoggerFactory;
 import com.ly.common.domain.log.OperationLog;
 import com.ly.common.util.DateFormatUtils;
 import com.ly.common.util.DfsFileUtils;
+import org.springframework.beans.factory.annotation.Autowired;
 
 public class LogFileOperate {
 
@@ -27,7 +28,11 @@ public class LogFileOperate {
     private BufferedReader currentFileReader;
     private FileWriter currentFileWriter;
     private LocalDate currentFileDate;
+    private DfsFileUtils dfsFileUtils;
 
+    public void setDfsFileUtils(DfsFileUtils dfsFileUtils){
+        this.dfsFileUtils=dfsFileUtils;
+    }
     public LogFileOperate(String logPath) {
         this.logPath = logPath;
     }
@@ -62,7 +67,7 @@ public class LogFileOperate {
         return -1;
     }
     public OperationLog openOperateFile(long writeLastTime) {
-        logFileNames = DfsFileUtils.findFilePath(logPath,
+        logFileNames = dfsFileUtils.findFilePath(logPath,
                 new AndFileFilter(new PrefixFileFilter("rhdfs_op"), new SuffixFileFilter(".log")), true);
         logFileNames.sort(String::compareTo);
         LocalDateTime writeDateTime=ConvertUtil.toLocalDateTime(writeLastTime);

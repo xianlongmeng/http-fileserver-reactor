@@ -4,6 +4,7 @@ public class UploadResultInfo extends ResultInfo {
 
     private String name;
     private String fileName;
+    private PartChunk partChunk;
 
     public UploadResultInfo(int result) {
         super(result);
@@ -15,10 +16,11 @@ public class UploadResultInfo extends ResultInfo {
         this.fileName = fileName;
     }
 
-    public UploadResultInfo(int result, String errorCode, String errorDesc, String name, String fileName) {
+    public UploadResultInfo(int result, String errorCode, String errorDesc, String name, String fileName,PartChunk partChunk) {
         super(result, errorCode, errorDesc);
         this.name = name;
         this.fileName = fileName;
+        this.partChunk=partChunk;
     }
 
     public String getName() {
@@ -35,5 +37,13 @@ public class UploadResultInfo extends ResultInfo {
 
     public void setFileName(String fileName) {
         this.fileName = fileName;
+    }
+
+    public PartChunk getPartChunk() {
+        return partChunk;
+    }
+
+    public void setPartChunk(PartChunk partChunk) {
+        this.partChunk = partChunk;
     }
 }

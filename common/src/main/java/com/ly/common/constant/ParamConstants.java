@@ -4,6 +4,7 @@ public class ParamConstants {
 
     public static final String PARAM_CHUNK_SIZE = "chunkSize";
     public static final String PARAM_CHUNK_COUNT = "chunkCount";
+    public static final String PARAM_CHUNK_INDEX = "chunkIndex";
     public static final String PARAM_CHUNK = "chunk";
     public static final String PARAM_CHUNKED = "chunked";
     public static final String PARAM_PATH_NAME = "path";

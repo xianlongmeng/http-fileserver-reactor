@@ -11,24 +11,26 @@ import com.ly.rhdfs.master.manager.MasterManager;
 
 public class UpdateMasterFileInfoTask implements Runnable {
 
-    private MasterManager masterManager;
-    private ServerState serverState;
+    private final MasterManager masterManager;
+    private final ServerState serverState;
+    private final DfsFileUtils dfsFileUtils;
 
-    public UpdateMasterFileInfoTask(MasterManager masterManager, ServerState serverState) {
+    public UpdateMasterFileInfoTask(MasterManager masterManager,DfsFileUtils dfsFileUtils, ServerState serverState) {
         this.masterManager = masterManager;
+        this.dfsFileUtils=dfsFileUtils;
         this.serverState = serverState;
     }
 
     @Override
     public void run() {
         //
-        LogFileOperate logFileOperate = new LogFileOperate(LogOperateUtils.LOG_PATH);
+        LogFileOperate logFileOperate =new LogFileOperate(masterManager.getServerConfig().getLogPath());
         OperationLog operationLog = logFileOperate.openOperateFile(serverState.getWriteLastTime());
         while (operationLog != null) {
             if (OperationLog.OP_TYPE_ADD_FILE_FINISH.equals(operationLog.getOpType())
                     || OperationLog.OP_TYPE_UPDATE_FILE.equals(operationLog.getOpType())) {
                 if (!masterManager.sendFileInfoSync(serverState,
-                        DfsFileUtils.readFileInfo(operationLog.getPath(), operationLog.getFileName())))
+                        dfsFileUtils.readFileInfo(operationLog.getPath(), operationLog.getFileName())))
                     return;
             } else if (OperationLog.OP_TYPE_DELETE_FILE.equals(operationLog.getOpType())) {
                 if (!masterManager.sendFileDeleteSync(serverState,
