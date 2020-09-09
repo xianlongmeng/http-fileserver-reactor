@@ -4,6 +4,7 @@ import com.ly.common.domain.DFSPartChunk;
 import com.ly.common.domain.server.ServerState;
 import com.ly.rhdfs.communicate.command.DFSCommand;
 import com.ly.rhdfs.communicate.command.DFSCommandFileTransfer;
+import com.ly.rhdfs.communicate.command.DFSCommandReply;
 import com.ly.rhdfs.communicate.handler.EventHandler;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
@@ -44,4 +45,7 @@ public interface DFSCommunicate {
     CompletableFuture<Integer> sendFileChunkFinishAsyncReply(Connection connection, Object/* command */ msg, long timeout, TimeUnit timeUnit);
 
     CompletableFuture<Integer> sendFileFinishCommandAsyncReply(Connection connection, Object/* command */ msg, long timeout, TimeUnit timeUnit);
+
+    boolean sendCommandReply(Connection connection,DFSCommand dfsCommand,byte replyResult);
+    void receiveReply(DFSCommandReply dfsCommandReply);
 }

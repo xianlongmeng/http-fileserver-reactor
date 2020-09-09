@@ -8,6 +8,8 @@ import java.util.concurrent.TimeUnit;
 
 import com.ly.common.domain.ResultInfo;
 import com.ly.common.domain.file.DFSBackupStoreFileChunkInfo;
+import com.ly.rhdfs.manager.handler.BackupFileChunkCommandEventHandler;
+import com.ly.rhdfs.manager.handler.ReplyCommandEventHandler;
 import com.ly.rhdfs.store.manager.task.TransferBackupTask;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.buffer.DataBuffer;
@@ -59,6 +61,7 @@ public class StoreManager extends ServerManager {
         super.initCommandEventHandler();
         commandEventHandler.setServerStateCommandEventHandler(new ServerStateCommandEventHandler(this));
         commandEventHandler.setTokenCommandEventHandler(new TokenCommandEventHandler(this));
+        commandEventHandler.setBackupFileChunkCommandEventHandler(new BackupFileChunkCommandEventHandler(this));
     }
 
     public void initial() {
@@ -160,7 +163,7 @@ public class StoreManager extends ServerManager {
                     dfsCommandFileTransfer, 30, TimeUnit.SECONDS)
                     .whenCompleteAsync((result, t) -> {
                         if (result== ResultInfo.S_OK){
-                            //success
+                            //success,todo:
                         }else{
                             //failed
                             backupStoreTaskScheduledThreadPoolExecutor.schedule(new TransferBackupTask(this,dfsBackupStoreFileChunkInfo), backupPeriod, TimeUnit.SECONDS);

@@ -5,6 +5,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
+import com.ly.rhdfs.communicate.command.DFSCommandReply;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -116,5 +117,13 @@ public class ConnectManager {
             DFSCommandFileTransfer dfsCommandFileTransfer, long timeout, TimeUnit timeUnit) {
         return dfsCommunicate.sendCommandDataAsyncReply(findConnection(serverState), byteBufFlux,
                 dfsCommandFileTransfer, timeout, timeUnit);
+    }
+    public boolean sendCommandReply(ServerState serverState,DFSCommand dfsCommand,byte replyResult){
+        if (dfsCommand==null)
+            return false;
+        return dfsCommunicate.sendCommandReply(findConnection(serverState),dfsCommand,replyResult);
+    }
+    public void receiveReply(DFSCommandReply dfsCommandReply) {
+        dfsCommunicate.receiveReply(dfsCommandReply);
     }
 }

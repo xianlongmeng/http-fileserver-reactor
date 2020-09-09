@@ -23,13 +23,12 @@ public class DFSCommand {
     public static final int CT_FILE_TRANSFER = 0x100;
     public static final int CT_FILE_TRANSFER_STATE = 0x101;
     public static final int CT_FILE_OPERATE = 0x200;
-    public static final byte REPLY_STATE_FALSE = 0x00;
-    public static final byte REPLY_STATE_TRUE = 0x01;
+    public static final int CT_REPLY = 0x8000;
+
     protected int commandType;
     protected int length;
     protected long serverId;
     protected long timestamp;
-    protected byte reply=0;
     protected UUID uuid;
     protected int fixLength = 37;
 
@@ -71,14 +70,6 @@ public class DFSCommand {
 
     public int getFixLength() {
         return fixLength;
-    }
-
-    public byte getReply() {
-        return reply;
-    }
-
-    public void setReply(byte reply) {
-        this.reply = reply;
     }
 
     public long getMostSigBits() {

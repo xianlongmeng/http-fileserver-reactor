@@ -58,7 +58,6 @@ public class DFSCommandParse {
         DFSCommand dfsCommand = newDFSCommand(commandType);
         dfsCommand.setServerId(byteBuf.readInt());
         dfsCommand.setTimestamp(byteBuf.readLong());
-        dfsCommand.setReply(byteBuf.readByte());
         long mostSigBits = byteBuf.readLong();
         long leastSigBits = byteBuf.readLong();
         dfsCommand.setUuid(new UUID(mostSigBits, leastSigBits));
@@ -89,6 +88,8 @@ public class DFSCommandParse {
                 return parseDirectFileItems(byteBuf, dfsCommand);
             case DFSCommand.CT_FILE_TRANSFER_STATE:
                 return parseFileTransferState(byteBuf, dfsCommand);
+            case DFSCommand.CT_REPLY:
+                return parseReply(byteBuf, dfsCommand);
             default:
                 return parseExpand(byteBuf, dfsCommand);
         }
@@ -120,6 +121,8 @@ public class DFSCommandParse {
                 return new DFSCommandDirectFileItems();
             case DFSCommand.CT_FILE_TRANSFER_STATE:
                 return new DFSCommandFileTransferState();
+            case DFSCommand.CT_REPLY:
+                return new DFSCommandReply();
             default:
                 return new DFSCommandExpand();
         }
@@ -332,6 +335,18 @@ public class DFSCommandParse {
         return dfsCommandExpand;
     }
 
+    public DFSCommandReply parseReply(ByteBuf byteBuf, DFSCommand dfsCommand) {
+        if (!(dfsCommand instanceof DFSCommandReply)) {
+            return null;
+        }
+        DFSCommandReply dfsCommandReply = (DFSCommandReply) dfsCommand;
+        long mostSigBits = byteBuf.readLong();
+        long leastSigBits = byteBuf.readLong();
+        dfsCommandReply.setReplyUUID(new UUID(mostSigBits, leastSigBits));
+        dfsCommandReply.setReply(byteBuf.readByte());
+        return dfsCommandReply;
+    }
+
     public ByteBuf packageCommand(DFSCommand dfsCommand) {
         if (dfsCommand instanceof DFSCommandFileInfo) {
             return packageCommandFileInfo((DFSCommandFileInfo) dfsCommand);
@@ -355,6 +370,8 @@ public class DFSCommandParse {
             return packageCommandFileTransfer((DFSCommandFileTransfer) dfsCommand);
         } else if (dfsCommand instanceof DFSCommandFileTransferState) {
             return packageCommandFileTransferState((DFSCommandFileTransferState) dfsCommand);
+        } else if (dfsCommand instanceof DFSCommandReply) {
+            return packageCommandReply((DFSCommandReply) dfsCommand);
         } else {
             return null;
         }
@@ -431,7 +448,6 @@ public class DFSCommandParse {
         byteBuf.writeInt(dfsCommand.getCommandType());
         byteBuf.writeLong(dfsCommand.getServerId());
         byteBuf.writeLong(dfsCommand.getTimestamp());
-        byteBuf.writeByte(dfsCommand.getReply());
         byteBuf.writeLong(dfsCommand.getMostSigBits());
         byteBuf.writeLong(dfsCommand.getLeastSigBits());
     }
@@ -810,4 +826,26 @@ public class DFSCommandParse {
     }
     // fileTransfer 需要使用组合bytebuf拼接基本信息和databuffer的文件信息
     // file finish,chunk finish,chunk server update
+    public DFSCommandReply convertCommandReply(UUID replyUUID,byte replyResult) {
+        if (replyUUID==null)
+            return null;
+        DFSCommandReply dfsCommandReply = new DFSCommandReply();
+        dfsCommandReply.setServerId(serverConfig.getCurrentServerId());
+        dfsCommandReply.setReplyUUID(replyUUID);
+        dfsCommandReply.setReply(replyResult);
+        dfsCommandReply.setTimestamp(Instant.now().toEpochMilli());
+        return dfsCommandReply;
+    }
+
+    public ByteBuf packageCommandReply(DFSCommandReply dfsCommandReply) {
+        if (dfsCommandReply == null || dfsCommandReply.getReplyUUID() == null)
+            return null;
+        dfsCommandReply.setLength(dfsCommandReply.getFixLength());
+        ByteBuf byteBuf = PooledByteBufAllocator.DEFAULT.buffer(dfsCommandReply.getLength() + 8);
+        packageCommandHeader(byteBuf, dfsCommandReply);
+        byteBuf.writeLong(dfsCommandReply.getReplyMostSigBits());
+        byteBuf.writeLong(dfsCommandReply.getReplyLeastSigBits());
+        byteBuf.writeByte(dfsCommandReply.getReply());
+        return byteBuf;
+    }
 }

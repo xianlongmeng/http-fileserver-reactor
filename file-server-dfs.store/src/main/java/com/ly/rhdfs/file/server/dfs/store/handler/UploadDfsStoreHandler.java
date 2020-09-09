@@ -1,16 +1,9 @@
 package com.ly.rhdfs.file.server.dfs.store.handler;
 
-import com.ly.common.constant.ParamConstants;
-import com.ly.common.domain.DFSPartChunk;
-import com.ly.common.domain.ResultInfo;
-import com.ly.common.domain.ResultValueInfo;
-import com.ly.common.domain.UploadResultInfo;
-import com.ly.common.domain.token.TokenInfo;
-import com.ly.common.util.ConvertUtil;
-import com.ly.etag.ETagComputer;
-import com.ly.rhdfs.config.ServerConfig;
-import com.ly.rhdfs.store.StoreFile;
-import com.ly.rhdfs.store.manager.StoreManager;
+import java.time.Instant;
+import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,11 +15,21 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.BodyExtractors;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
-import reactor.core.publisher.Mono;
 
-import java.time.Instant;
-import java.util.Optional;
-import java.util.concurrent.CompletableFuture;
+import com.ly.common.constant.ParamConstants;
+import com.ly.common.domain.DFSPartChunk;
+import com.ly.common.domain.ResultInfo;
+import com.ly.common.domain.ResultValueInfo;
+import com.ly.common.domain.UploadResultInfo;
+import com.ly.common.domain.file.FileInfo;
+import com.ly.common.domain.token.TokenInfo;
+import com.ly.common.util.ConvertUtil;
+import com.ly.etag.ETagComputer;
+import com.ly.rhdfs.config.ServerConfig;
+import com.ly.rhdfs.store.StoreFile;
+import com.ly.rhdfs.store.manager.StoreManager;
+
+import reactor.core.publisher.Mono;
 
 @Component
 public class UploadDfsStoreHandler {
@@ -85,30 +88,40 @@ public class UploadDfsStoreHandler {
                         .findFileInfo(storeFile.takeFilePathString(tokenInfo.getFileName(), tokenInfo.getPath())))))
                 .flatMap(optionalFileInfo -> {
                     if (optionalFileInfo.isEmpty())
-                        return ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR).bodyValue("file information not found!");
-                    //验证Chunk信息是否正确
-                    else
-                        return request.body(BodyExtractors.toParts())
-                                .single()
-                                .onErrorResume(t -> Mono.empty())
-                                .flatMap(part -> {
-                                    if (part instanceof FilePart) {
-                                        partChunk.setFileInfo(optionalFileInfo.get());
-                                        partChunk.setContentLength((int)part.headers().getContentLength());
-                                        return storeFile.storeFile((FilePart) part, path, partChunk);
-                                    } else {
-                                        return Mono.just(new ResultValueInfo<>(ResultInfo.S_ERROR, "part.100", "not file part!", part));
-                                    }
-                                })
-                                .map(resultValueInfo -> new UploadResultInfo(resultValueInfo.getResult(),
-                                        resultValueInfo.getErrorCode(),
-                                        resultValueInfo.getErrorDesc(),
-                                        resultValueInfo.getSource().name(),
-                                        (resultValueInfo.getSource() instanceof FilePart) ? ((FilePart) resultValueInfo.getSource()).filename() : "",
-                                        partChunk))
-                                .flatMap(uploadResultInfo -> ServerResponse.accepted()
-                                        .contentType(MediaType.APPLICATION_JSON).bodyValue(uploadResultInfo))
-                                .switchIfEmpty(ServerResponse.badRequest().bodyValue("no part data!"));
+                        return ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                                .bodyValue("file information not found!");
+                    else {
+                        FileInfo fileInfo = optionalFileInfo.get();
+                        if (fileInfo.getFileChunkList().size() <= partChunk.getIndex()
+                                || fileInfo.getFileChunkList().get(partChunk.getIndex()).getChunkServerIdList()
+                                        .isEmpty()
+                                || !fileInfo.getFileChunkList().get(partChunk.getIndex()).getChunkServerIdList()
+                                        .contains(serverConfig.getCurrentServerId())) {
+                            // 验证Chunk信息是否正确
+                            return ServerResponse.status(HttpStatus.UNAUTHORIZED).build();
+                        } else
+                            return request.body(BodyExtractors.toParts()).single().onErrorResume(t -> Mono.empty())
+                                    .flatMap(part -> {
+                                        if (part instanceof FilePart) {
+                                            partChunk.setFileInfo(optionalFileInfo.get());
+                                            partChunk.setContentLength((int) part.headers().getContentLength());
+                                            return storeFile.storeFile((FilePart) part, path, partChunk);
+                                        } else {
+                                            return Mono.just(new ResultValueInfo<>(ResultInfo.S_ERROR, "part.100",
+                                                    "not file part!", part));
+                                        }
+                                    })
+                                    .map(resultValueInfo -> new UploadResultInfo(resultValueInfo.getResult(),
+                                            resultValueInfo.getErrorCode(), resultValueInfo.getErrorDesc(),
+                                            resultValueInfo.getSource().name(),
+                                            (resultValueInfo.getSource() instanceof FilePart)
+                                                    ? ((FilePart) resultValueInfo.getSource()).filename()
+                                                    : "",
+                                            partChunk))
+                                    .flatMap(uploadResultInfo -> ServerResponse.accepted()
+                                            .contentType(MediaType.APPLICATION_JSON).bodyValue(uploadResultInfo))
+                                    .switchIfEmpty(ServerResponse.badRequest().bodyValue("no part data!"));
+                    }
                 });
     }
 

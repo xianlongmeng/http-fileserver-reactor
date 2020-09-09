@@ -7,6 +7,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import com.ly.rhdfs.communicate.command.DFSCommandReply;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -165,8 +166,10 @@ public class DFSCommunicateSocket implements DFSCommunicate {
         uuidCompletableFutureMap.put(command.getUuid(), completableFuture);
         ChannelFuture channelFuture = sendCommandAsync(connection, command);
         channelFuture.addListener(futureListen -> {
-            completableFuture.complete(futureListen.isSuccess() ? ResultInfo.S_OK : ResultInfo.S_FAILED);
-            uuidCompletableFutureMap.remove(command.getUuid());
+            if (!futureListen.isSuccess()) {
+                completableFuture.complete(ResultInfo.S_FAILED);
+                uuidCompletableFutureMap.remove(command.getUuid());
+            }
         });
         return completableFuture;
     }
@@ -195,10 +198,8 @@ public class DFSCommunicateSocket implements DFSCommunicate {
         connection.outbound().send(byteBufFlux).then().subscribeOn(Schedulers.boundedElastic()).subscribe(null, t -> {
             completableFuture.complete(ResultInfo.S_FAILED);
             uuidCompletableFutureMap.remove(dfsCommandFileTransfer.getUuid());
-        }, () -> {
-            completableFuture.complete(ResultInfo.S_OK);
-            uuidCompletableFutureMap.remove(dfsCommandFileTransfer.getUuid());
-        });
+        }, null);
+
         return completableFuture;
     }
 
@@ -220,5 +221,26 @@ public class DFSCommunicateSocket implements DFSCommunicate {
     public CompletableFuture<Integer> sendFileFinishCommandAsyncReply(Connection connection, Object msg, long timeout,
             TimeUnit timeUnit) {
         return null;
+    }
+    @Override
+    public boolean sendCommandReply(Connection connection,DFSCommand dfsCommand,byte replyResult){
+        if (connection==null || dfsCommand==null)
+            return false;
+        DFSCommandReply dfsCommandReply=dfsCommandParse.convertCommandReply(dfsCommand.getUuid(),replyResult);
+        return sendCommand(connection,dfsCommandReply);
+    }
+
+    @Override
+    public void receiveReply(DFSCommandReply dfsCommandReply) {
+        if (dfsCommandReply==null)
+            return;
+        CompletableFuture<Integer> completableFuture=findFuture(dfsCommandReply.getReplyUUID());
+        if (completableFuture==null)
+            return;
+        if (dfsCommandReply.getReply()==DFSCommandReply.REPLY_STATE_TRUE)
+            completableFuture.complete(ResultInfo.S_OK);
+        else
+            completableFuture.complete(ResultInfo.S_FAILED);
+
     }
 }

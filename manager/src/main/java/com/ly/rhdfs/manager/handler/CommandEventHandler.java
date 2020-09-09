@@ -19,6 +19,8 @@ public class CommandEventHandler implements EventHandler {
     private EventHandler fileTransferStateCommandEventHandler;
     private EventHandler tokenCommandEventHandler;
     private EventHandler clearTokenCommandEventHandler;
+    private EventHandler backupFileChunkCommandEventHandler;
+    private EventHandler replyCommandEventHandler;
 
     private final ServerManager serverManager;
 
@@ -98,6 +100,22 @@ public class CommandEventHandler implements EventHandler {
         this.clearTokenCommandEventHandler = clearTokenCommandEventHandler;
     }
 
+    public EventHandler getBackupFileChunkCommandEventHandler() {
+        return backupFileChunkCommandEventHandler;
+    }
+
+    public void setBackupFileChunkCommandEventHandler(EventHandler backupFileChunkCommandEventHandler) {
+        this.backupFileChunkCommandEventHandler = backupFileChunkCommandEventHandler;
+    }
+
+    public EventHandler getReplyCommandEventHandler() {
+        return replyCommandEventHandler;
+    }
+
+    public void setReplyCommandEventHandler(EventHandler replyCommandEventHandler) {
+        this.replyCommandEventHandler = replyCommandEventHandler;
+    }
+
     public ServerManager getServerManager() {
         return serverManager;
     }
@@ -124,6 +142,10 @@ public class CommandEventHandler implements EventHandler {
             return fileTransferStateCommandEventHandler.actorCommand(dfsCommand);
         }else if (dfsCommand instanceof DFSCommandToken && tokenCommandEventHandler!=null){
             return tokenCommandEventHandler.actorCommand(dfsCommand);
+        }else if (dfsCommand instanceof DFSCommandBackupFileChunk && backupFileChunkCommandEventHandler!=null){
+            return backupFileChunkCommandEventHandler.actorCommand(dfsCommand);
+        }else if (dfsCommand instanceof DFSCommandReply && replyCommandEventHandler!=null){
+            return replyCommandEventHandler.actorCommand(dfsCommand);
         }else {
             logger.error("Illegal command, the resolution handler was not found.");
             return ResultInfo.S_ERROR;

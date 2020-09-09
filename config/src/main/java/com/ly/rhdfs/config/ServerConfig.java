@@ -11,7 +11,7 @@ import com.ly.common.constant.ParamConstants;
 public class ServerConfig {
 
     @Value("${server.id}")
-    private int currentServerId;
+    private long currentServerId;
     @Value("${server.port}")
     private int port;
     @Value("${master.server.config.path}")
@@ -67,11 +67,11 @@ public class ServerConfig {
     public void setTmpFileSuffix(String tmpFileSuffix) {
         this.tmpFileSuffix = tmpFileSuffix;
     }
-    public int getCurrentServerId() {
+    public long getCurrentServerId() {
         return currentServerId;
     }
 
-    public void setCurrentServerId(int currentServerId) {
+    public void setCurrentServerId(long currentServerId) {
         this.currentServerId = currentServerId;
     }
 

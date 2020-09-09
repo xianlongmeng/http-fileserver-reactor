@@ -13,6 +13,7 @@ import com.ly.common.domain.token.TokenInfo;
 import com.ly.common.util.DfsFileUtils;
 import com.ly.common.util.SpringContextUtil;
 import com.ly.rhdfs.communicate.command.DFSCommand;
+import com.ly.rhdfs.communicate.command.DFSCommandReply;
 import com.ly.rhdfs.file.config.FileInfoManager;
 import com.ly.rhdfs.manager.handler.*;
 import org.slf4j.Logger;
@@ -77,6 +78,9 @@ public abstract class ServerManager {
     private void setDfsFileUtils(DfsFileUtils dfsFileUtils){
         this.dfsFileUtils=dfsFileUtils;
     }
+    public DfsFileUtils getDfsFileUtils(){
+        return dfsFileUtils;
+    }
     public ServerManager() {
     }
 
@@ -120,6 +124,7 @@ public abstract class ServerManager {
         commandEventHandler.setFileDeleteCommandEventHandler(new FileDeleteCommandEventHandler(this));
         commandEventHandler.setClearTokenCommandEventHandler(new ClearTokenCommandEventHandler(this));
         commandEventHandler.setFileInfoCommandEventHandler(new FileInfoCommandEventHandler(this));
+        commandEventHandler.setReplyCommandEventHandler(new ReplyCommandEventHandler(this));
     }
     public void initial(){
         initCommandEventHandler();
@@ -326,5 +331,14 @@ public abstract class ServerManager {
     public abstract void clearToken(TokenInfo tokenInfo);
     public Connection findConnection(long serverId){
         return connectManager.findConnection(findServerState(serverId));
+    }
+
+    public boolean sendCommandReply(DFSCommand dfsCommand,byte replyResult){
+        if (dfsCommand==null)
+            return false;
+        return connectManager.sendCommandReply(findServerState(dfsCommand.getServerId()),dfsCommand,replyResult);
+    }
+    public void receiveReply(DFSCommandReply dfsCommandReply) {
+        connectManager.receiveReply(dfsCommandReply);
     }
 }
