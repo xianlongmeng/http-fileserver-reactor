@@ -90,6 +90,8 @@ public class DFSCommandParse {
                 return parseFileTransferState(byteBuf, dfsCommand);
             case DFSCommand.CT_REPLY:
                 return parseReply(byteBuf, dfsCommand);
+            case DFSCommand.CT_FILE_CHUNK_COPY:
+                return parseFileChunkCopy(byteBuf, dfsCommand);
             default:
                 return parseExpand(byteBuf, dfsCommand);
         }
@@ -123,6 +125,8 @@ public class DFSCommandParse {
                 return new DFSCommandFileTransferState();
             case DFSCommand.CT_REPLY:
                 return new DFSCommandReply();
+            case DFSCommand.CT_FILE_CHUNK_COPY:
+                return new DFSCommandFileChunkCopy();
             default:
                 return new DFSCommandExpand();
         }
@@ -179,7 +183,18 @@ public class DFSCommandParse {
         dfsCommandChunkInfo.setChunkInfo(chunkInfo);
         return dfsCommandChunkInfo;
     }
-
+    public DFSCommandFileChunkCopy parseFileChunkCopy(ByteBuf byteBuf, DFSCommand dfsCommand) {
+        if (!(dfsCommand instanceof DFSCommandFileChunkCopy)) {
+            return null;
+        }
+        DFSCommandFileChunkCopy dfsCommandFileChunkCopy = (DFSCommandFileChunkCopy) dfsCommand;
+        byte[] bytes = new byte[dfsCommandFileChunkCopy.getLength() - dfsCommandFileChunkCopy.getFixLength()];
+        byteBuf.readBytes(bytes);
+        String fileChunkCopyStr = new String(bytes);
+        FileChunkCopy fileChunkCopy = JSON.parseObject(fileChunkCopyStr, FileChunkCopy.class);
+        dfsCommandFileChunkCopy.setFileChunkCopy(fileChunkCopy);
+        return dfsCommandFileChunkCopy;
+    }
     public DFSCommandFileOperate parseFileOperate(ByteBuf byteBuf, DFSCommand dfsCommand) {
         if (!(dfsCommand instanceof DFSCommandFileOperate)) {
             return null;
@@ -372,6 +387,8 @@ public class DFSCommandParse {
             return packageCommandFileTransferState((DFSCommandFileTransferState) dfsCommand);
         } else if (dfsCommand instanceof DFSCommandReply) {
             return packageCommandReply((DFSCommandReply) dfsCommand);
+        } else if (dfsCommand instanceof DFSCommandFileChunkCopy) {
+            return packageCommandFileChunkCopy((DFSCommandFileChunkCopy) dfsCommand);
         } else {
             return null;
         }
@@ -402,6 +419,8 @@ public class DFSCommandParse {
             return convertCommandFileTransferState((FileTransferState) commandObj);
         } else if (commandType == DFSCommand.CT_REQUEST_EXPAND) {
             return convertCommandExpand((byte[]) commandObj);
+        } else if (commandType == DFSCommand.CT_FILE_CHUNK_COPY) {
+            return convertCommandFileChunkCopy((FileChunkCopy) commandObj);
         } else {
             return null;
         }
@@ -435,6 +454,8 @@ public class DFSCommandParse {
             return convertCommandFileTransferState((FileTransferState) commandObj);
         } else if (commandObj instanceof byte[]) {
             return convertCommandExpand((byte[]) commandObj);
+        } else if (commandObj instanceof FileChunkCopy) {
+            return convertCommandFileChunkCopy((FileChunkCopy) commandObj);
         } else {
             return null;
         }
@@ -529,6 +550,26 @@ public class DFSCommandParse {
         return byteBuf;
     }
 
+    public DFSCommandFileChunkCopy convertCommandFileChunkCopy(FileChunkCopy fileChunkCopy) {
+        if (fileChunkCopy == null)
+            return null;
+        DFSCommandFileChunkCopy dfsCommandFileChunkCopy = new DFSCommandFileChunkCopy();
+        dfsCommandFileChunkCopy.setServerId(serverConfig.getCurrentServerId());
+        dfsCommandFileChunkCopy.setFileChunkCopy(fileChunkCopy);
+        dfsCommandFileChunkCopy.setTimestamp(Instant.now().toEpochMilli());
+        return dfsCommandFileChunkCopy;
+    }
+
+    public ByteBuf packageCommandFileChunkCopy(DFSCommandFileChunkCopy dfsCommandFileChunkCopy) {
+        if (dfsCommandFileChunkCopy == null || dfsCommandFileChunkCopy.getFileChunkCopy() == null)
+            return null;
+        byte[] bytes = JSON.toJSONString(dfsCommandFileChunkCopy.getFileChunkCopy()).getBytes();
+        dfsCommandFileChunkCopy.setLength(dfsCommandFileChunkCopy.getFixLength() + bytes.length);
+        ByteBuf byteBuf = PooledByteBufAllocator.DEFAULT.buffer(dfsCommandFileChunkCopy.getLength() + 8);
+        packageCommandHeader(byteBuf, dfsCommandFileChunkCopy);
+        byteBuf.writeBytes(bytes);
+        return byteBuf;
+    }
 
     public DFSCommandChunkInfo convertCommandChunkInfo(ChunkInfo chunkInfo) {
         if (chunkInfo == null)
@@ -718,6 +759,22 @@ public class DFSCommandParse {
         fileTransferInfo.setFileName(dfsPartChunk.getTokenInfo().getFileName());
         fileTransferInfo.setPath(dfsPartChunk.getTokenInfo().getPath());
         fileTransferInfo.setSize(dfsPartChunk.getContentLength());
+        return convertCommandFileTransfer(fileTransferInfo);
+    }
+    public DFSCommandFileTransfer convertCommandFileTransfer(FileChunkCopy fileChunkCopy,int chunkPieceIndex,int chunkPieceSize,int chunkPieceCount,int size){
+        FileTransferInfo fileTransferInfo = new FileTransferInfo();
+        fileTransferInfo.setStartPos(chunkPieceIndex * chunkPieceSize);
+        fileTransferInfo.setChunkPieceCount(chunkPieceCount);
+        fileTransferInfo.setChunkPieceSize(chunkPieceSize);
+        fileTransferInfo.setChunkPieceIndex(chunkPieceIndex);
+        fileTransferInfo.setChunkCount(fileChunkCopy.getChunkCount());
+        fileTransferInfo.setChunkSize(fileChunkCopy.getChunkSize());
+        fileTransferInfo.setChunkIndex(fileChunkCopy.getChunk());
+        fileTransferInfo.setEtag(null);
+        fileTransferInfo.setEtagLength((short) 0);
+        fileTransferInfo.setFileName(fileChunkCopy.getFileName());
+        fileTransferInfo.setPath(fileChunkCopy.getPath());
+        fileTransferInfo.setSize(size);
         return convertCommandFileTransfer(fileTransferInfo);
     }
     public DFSCommandFileTransfer convertCommandFileTransfer(FileTransferInfo fileTransferInfo) {

@@ -20,14 +20,12 @@ import com.ly.common.domain.log.OperationLog;
 import com.ly.common.util.DateFormatUtils;
 import com.ly.common.util.DfsFileUtils;
 
-@Component
 public class LogOperateUtils {
 
     private static final Logger logger = LoggerFactory.getLogger(LogOperateUtils.class);
 
     private String logPath;
     private DfsFileUtils dfsFileUtils;
-    @Autowired
     public void setDfsFileUtils(DfsFileUtils dfsFileUtils){
         this.dfsFileUtils=dfsFileUtils;
     }

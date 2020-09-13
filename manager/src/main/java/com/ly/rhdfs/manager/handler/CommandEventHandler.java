@@ -17,6 +17,7 @@ public class CommandEventHandler implements EventHandler {
     private EventHandler fileInfoCommandEventHandler;
     private EventHandler fileTransferCommandEventHandler;
     private EventHandler fileTransferStateCommandEventHandler;
+    private EventHandler fileChunkCopyCommandEventHandler;
     private EventHandler tokenCommandEventHandler;
     private EventHandler clearTokenCommandEventHandler;
     private EventHandler backupFileChunkCommandEventHandler;
@@ -116,6 +117,14 @@ public class CommandEventHandler implements EventHandler {
         this.replyCommandEventHandler = replyCommandEventHandler;
     }
 
+    public EventHandler getFileChunkCopyCommandEventHandler() {
+        return fileChunkCopyCommandEventHandler;
+    }
+
+    public void setFileChunkCopyCommandEventHandler(EventHandler fileChunkCopyCommandEventHandler) {
+        this.fileChunkCopyCommandEventHandler = fileChunkCopyCommandEventHandler;
+    }
+
     public ServerManager getServerManager() {
         return serverManager;
     }
@@ -146,6 +155,8 @@ public class CommandEventHandler implements EventHandler {
             return backupFileChunkCommandEventHandler.actorCommand(dfsCommand);
         }else if (dfsCommand instanceof DFSCommandReply && replyCommandEventHandler!=null){
             return replyCommandEventHandler.actorCommand(dfsCommand);
+        }else if (dfsCommand instanceof DFSCommandFileChunkCopy && fileChunkCopyCommandEventHandler!=null){
+            return fileChunkCopyCommandEventHandler.actorCommand(dfsCommand);
         }else {
             logger.error("Illegal command, the resolution handler was not found.");
             return ResultInfo.S_ERROR;

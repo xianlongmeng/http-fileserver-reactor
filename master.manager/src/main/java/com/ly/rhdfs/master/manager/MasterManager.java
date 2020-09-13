@@ -1,6 +1,7 @@
 package com.ly.rhdfs.master.manager;
 
 import com.ly.common.constant.ParamConstants;
+import com.ly.common.domain.file.FileChunkCopy;
 import com.ly.common.domain.file.FileInfo;
 import com.ly.common.domain.log.OperationLog;
 import com.ly.common.domain.server.ServerInfoConfiguration;
@@ -9,21 +10,23 @@ import com.ly.common.domain.server.ServerState;
 import com.ly.common.domain.token.TokenInfo;
 import com.ly.common.util.DfsFileUtils;
 import com.ly.rhdfs.communicate.command.DFSCommand;
+import com.ly.rhdfs.log.server.file.ServerFileChunkUtil;
 import com.ly.rhdfs.manager.server.ServerManager;
 import com.ly.rhdfs.master.manager.handler.ServerStateCommandMasterEventHandler;
 import com.ly.rhdfs.master.manager.runstate.FileServerRunManager;
 import com.ly.rhdfs.master.manager.runstate.ServerAssignException;
 import com.ly.rhdfs.master.manager.task.*;
-import com.ly.rhdfs.token.TokenFactory;
 import io.netty.channel.ChannelFuture;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
 
 import java.time.Instant;
 import java.util.*;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
@@ -37,9 +40,11 @@ public class MasterManager extends ServerManager {
     private final Map<ServerState, Future> masterUpdateFileInfo = new ConcurrentHashMap<>();
     private FileServerRunManager fileServerRunManager;
     private DfsFileUtils dfsFileUtils;
+    private ServerFileChunkUtil serverFileChunkUtil;
+    private RecoverStoreServerTask recoverStoreServerTask;
 
     public MasterManager() {
-        scheduledThreadCount = 7;
+        scheduledThreadCount = 8;
     }
 
     public FileServerRunManager getFileServerRunManager() {
@@ -52,9 +57,19 @@ public class MasterManager extends ServerManager {
     }
 
     @Autowired
-    private void setDfsFileUtils(DfsFileUtils dfsFileUtils){
-        this.dfsFileUtils=dfsFileUtils;
+    private void setDfsFileUtils(DfsFileUtils dfsFileUtils) {
+        this.dfsFileUtils = dfsFileUtils;
     }
+
+    public ServerFileChunkUtil getServerFileChunkUtil() {
+        return serverFileChunkUtil;
+    }
+
+    @Autowired
+    private void setServerFileChunkUtil(ServerFileChunkUtil serverFileChunkUtil) {
+        this.serverFileChunkUtil = serverFileChunkUtil;
+    }
+
     @Override
     protected void initCommandEventHandler() {
         commandEventHandler.setServerStateCommandEventHandler(new ServerStateCommandMasterEventHandler(this));
@@ -83,6 +98,8 @@ public class MasterManager extends ServerManager {
         // 定时处理有效服务负载排序状态
         scheduledThreadPoolExecutor.schedule(new AvailableOrderlyServerRunStateTask(this), initThreadThirdDelay,
                 TimeUnit.SECONDS);
+        recoverStoreServerTask = new RecoverStoreServerTask(this);
+        scheduledThreadPoolExecutor.schedule(recoverStoreServerTask, initThreadThirdDelay, TimeUnit.SECONDS);
     }
 
     public Map<ServerState, Future> getMasterUpdateFileInfo() {
@@ -97,7 +114,7 @@ public class MasterManager extends ServerManager {
         if (serverState == null)
             return;
         masterUpdateFileInfo.put(serverState,
-                threadPoolExecutor.submit(new UpdateMasterFileInfoTask(this,dfsFileUtils, serverState)));
+                threadPoolExecutor.submit(new UpdateMasterFileInfoTask(this, dfsFileUtils, serverState)));
     }
 
     @Override
@@ -112,12 +129,12 @@ public class MasterManager extends ServerManager {
 
     @Override
     public void clearToken(TokenInfo tokenInfo) {
-        if(tokenInfo==null)
+        if (tokenInfo == null)
             return;
-        if (tokenInfo.getTokenType()==TokenInfo.TOKEN_WRITE){
-            fileServerRunManager.clearUploadFile(tokenInfo,true);
-        }else if (tokenInfo.getTokenType()==TokenInfo.TOKEN_READ) {
-            fileServerRunManager.clearUploadFile(tokenInfo,true);
+        if (tokenInfo.getTokenType() == TokenInfo.TOKEN_WRITE) {
+            fileServerRunManager.clearUploadFile(tokenInfo, true);
+        } else if (tokenInfo.getTokenType() == TokenInfo.TOKEN_READ) {
+            fileServerRunManager.clearUploadFile(tokenInfo, true);
         }
     }
 
@@ -139,7 +156,8 @@ public class MasterManager extends ServerManager {
                 else if (getLocalServerState().getType() != ServerState.SIT_MASTER
                         && serverState.getType() == ServerState.SIT_MASTER
                         && serverState.getServerId() == masterServerId) {
-                    getLocalServerState().setState(getLocalServerState().getState() | ServerState.SIS_MASTER_LOST_CONTACT);
+                    getLocalServerState()
+                            .setState(getLocalServerState().getState() | ServerState.SIS_MASTER_LOST_CONTACT);
                     getLocalServerState().setLastTime(Instant.now().toEpochMilli());
                 }
             } else if (getLocalServerState().getType() != ServerState.SIT_MASTER
@@ -169,7 +187,8 @@ public class MasterManager extends ServerManager {
                     }
                 } else {
                     // set not enough store state.
-                    getLocalServerState().setState(getLocalServerState().getState() | ServerState.SIS_MASTER_NOT_ENOUGH_STORE);
+                    getLocalServerState()
+                            .setState(getLocalServerState().getState() | ServerState.SIS_MASTER_NOT_ENOUGH_STORE);
                     getLocalServerState().setLastTime(Instant.now().toEpochMilli());
                 }
             }
@@ -232,7 +251,7 @@ public class MasterManager extends ServerManager {
     public ChannelFuture sendFileDeleteAsync(ServerState serverState, TokenInfo fileDeleteTokenInfo) {
         if (serverState == null || fileDeleteTokenInfo == null)
             return null;
-        return connectManager.sendCommunicationObjectAsync(serverState, fileDeleteTokenInfo,DFSCommand.CT_FILE_DELETE);
+        return connectManager.sendCommunicationObjectAsync(serverState, fileDeleteTokenInfo, DFSCommand.CT_FILE_DELETE);
     }
 
     public ChannelFuture sendClearTokenAsync(long serverId, TokenInfo tokenInfo) {
@@ -242,31 +261,31 @@ public class MasterManager extends ServerManager {
     public ChannelFuture sendClearTokenAsync(ServerState serverState, TokenInfo tokenInfo) {
         if (serverState == null || tokenInfo == null)
             return null;
-        return connectManager.sendCommunicationObjectAsync(serverState, tokenInfo,DFSCommand.CT_TOKEN_CLEAR);
+        return connectManager.sendCommunicationObjectAsync(serverState, tokenInfo, DFSCommand.CT_TOKEN_CLEAR);
     }
 
     public boolean sendFileDeleteSync(ServerState serverState, TokenInfo fileDeleteTokenInfo) {
         if (serverState == null || fileDeleteTokenInfo == null)
             return false;
-        return connectManager.sendCommunicationObjectSync(serverState, fileDeleteTokenInfo,DFSCommand.CT_FILE_DELETE);
+        return connectManager.sendCommunicationObjectSync(serverState, fileDeleteTokenInfo, DFSCommand.CT_FILE_DELETE);
     }
 
     public ChannelFuture sendFileOperationLog(ServerState serverState, OperationLog operationLog) {
         if (serverState == null || operationLog == null)
             return null;
-        return connectManager.sendCommunicationObjectAsync(serverState, operationLog,DFSCommand.CT_FILE_OPERATE);
+        return connectManager.sendCommunicationObjectAsync(serverState, operationLog, DFSCommand.CT_FILE_OPERATE);
     }
 
     public ChannelFuture sendFileInfoAsync(ServerState serverState, FileInfo fileInfo) {
         if (serverState == null || fileInfo == null)
             return null;
-        return connectManager.sendCommunicationObjectAsync(serverState, fileInfo,DFSCommand.CT_FILE_INFO);
+        return connectManager.sendCommunicationObjectAsync(serverState, fileInfo, DFSCommand.CT_FILE_INFO);
     }
 
     public ChannelFuture sendToken(ServerState serverState, TokenInfo tokenInfo) {
         if (serverState == null || tokenInfo == null)
             return null;
-        return connectManager.sendCommunicationObjectAsync(serverState, tokenInfo,DFSCommand.CT_TOKEN);
+        return connectManager.sendCommunicationObjectAsync(serverState, tokenInfo, DFSCommand.CT_TOKEN);
     }
 
     public Mono<Boolean> sendFileInfo(ServerState serverState, FileInfo fileInfo) {
@@ -292,28 +311,25 @@ public class MasterManager extends ServerManager {
                     serverIds.set(fileServerRunManager.tidyServerId(fileInfo));
                     return Flux.fromIterable(serverIds.get());
                 })
-                .flatMap(serverId -> Mono
-                        .create((Consumer<MonoSink<Long>>) monoSink ->
-                                //发送Token到chunk server
-                                sendToken(serverInfoMap.get(serverId), tokenInfo)
-                                        .addListener(future -> {
-                                            //发送成功发射ServerId，不成功发射-1
-                                            if (future.isSuccess())
-                                                monoSink.success(serverId);
-                                            else
-                                                monoSink.success(-1L);
-                                        })))
-                .collect((Supplier<TreeSet<Long>>) TreeSet::new,
-                        (treeSet, serverId) -> {
-                            //收集发送成功的ServerId
-                            if (serverId > 0)
-                                treeSet.add(serverId);
-                        })
+                .flatMap(serverId -> Mono.create((Consumer<MonoSink<Long>>) monoSink ->
+                        // 发送Token到chunk server
+                        sendToken(serverInfoMap.get(serverId), tokenInfo).addListener(future -> {
+                            // 发送成功发射ServerId，不成功发射-1
+                            if (future.isSuccess())
+                                monoSink.success(serverId);
+                            else
+                                monoSink.success(-1L);
+                        })))
+                .collect((Supplier<TreeSet<Long>>) TreeSet::new, (treeSet, serverId) -> {
+                    // 收集发送成功的ServerId
+                    if (serverId > 0)
+                        treeSet.add(serverId);
+                })
                 .flatMap(treeSet -> {
                     if (treeSet.size() < serverIds.get().size()) {
                         if (!fileServerRunManager.resetInvalidServerId(fileInfoAtomic.get(), treeSet)) {
-                            //发送成功的服务器数量不足保存份数，触发异常
-                            fileServerRunManager.clearUploadFile(tokenInfo,true);
+                            // 发送成功的服务器数量不足保存份数，触发异常
+                            fileServerRunManager.clearUploadFile(tokenInfo, true);
                             return Mono.error(new ServerAssignException("Server count is not enough!"));
                         }
                     }
@@ -321,29 +337,70 @@ public class MasterManager extends ServerManager {
                     return Mono.just(serverIds.get());
                 })
                 .flux().flatMap(Flux::fromIterable)
-                .flatMap(serverId->sendFileInfo(serverInfoMap.get(serverId),fileInfoAtomic.get()))
-                .flatMap(sendResult->{
+                .flatMap(serverId -> sendFileInfo(serverInfoMap.get(serverId), fileInfoAtomic.get()))
+                .flatMap(sendResult -> {
                     if (!sendResult) {
                         fileServerRunManager.clearUploadFile(tokenInfo, true);
                         return Mono.error(new ServerAssignException("Server count is not enough!"));
                     }
                     return Mono.just(true);
-                })
-                .then(Mono.just(fileInfoAtomic.get()));
+                }).then(Mono.just(fileInfoAtomic.get()));
 
     }
-    public Mono<FileInfo> questFileServer(TokenInfo tokenInfo) {
-        if (tokenInfo == null)
+
+    public Mono<FileInfo> apportionFileServerChunk(TokenInfo tokenInfo, int chunk) {
+        if (tokenInfo == null || chunk <= 0)
             return Mono.error(new NullPointerException());
+        AtomicReference<FileInfo> fileInfoAtomic = new AtomicReference<>();
+        AtomicReference<Set<Long>> serverIds = new AtomicReference<>();
         return Mono
                 .defer(() -> {
                     // 分配Chunk存储服务器
-                    FileInfo fileInfo=fileServerRunManager.assignDownloadFileServer(tokenInfo);
-                    Set<Long> serverIds=fileServerRunManager.tidyServerId(fileInfo);
-                    for (long serverId:serverIds){
-                        sendToken(serverInfoMap.get(serverId), tokenInfo);
+                    fileInfoAtomic.set(fileServerRunManager.assignUploadFileServerChunk(tokenInfo, chunk));
+                    return Mono.just(fileInfoAtomic.get());
+                })
+                .flux().flatMap(fileInfo -> {
+                    // 整理涉及的chunk服务器列表
+                    return Flux.fromIterable(fileInfo.getFileChunkList().get(chunk).getChunkServerIdList());
+                })
+                .flatMap(serverId -> Flux.create((Consumer<FluxSink<Long>>) fluxSink ->
+                    // 发送Token到chunk server
+                    sendToken(serverInfoMap.get(serverId), tokenInfo)
+                            .addListener(future -> {
+                                // 发送成功发射ServerId，不成功发射-1
+                                if (future.isSuccess())
+                                    fluxSink.next(serverId);
+                                else
+                                    fluxSink.next(-1L);
+                            })))
+                .flatMap(serverId -> sendFileInfo(serverInfoMap.get(serverId), fileInfoAtomic.get()))
+                .flatMap(sendResult -> {
+                    if (!sendResult) {
+                        //fileServerRunManager.clearUploadFile(tokenInfo, true);
+                        return Mono.error(new ServerAssignException("Server count is not enough!"));
                     }
-                    return Mono.just(fileInfo);
-                });
+                    return Mono.just(true);
+                }).then(Mono.just(fileInfoAtomic.get()));
+
+    }
+
+    public Mono<FileInfo> questFileServer(TokenInfo tokenInfo) {
+        if (tokenInfo == null)
+            return Mono.error(new NullPointerException());
+        return Mono.defer(() -> {
+            // 分配Chunk存储服务器
+            FileInfo fileInfo = fileServerRunManager.assignDownloadFileServer(tokenInfo);
+            Set<Long> serverIds = fileServerRunManager.tidyServerId(fileInfo);
+            for (long serverId : serverIds) {
+                sendToken(serverInfoMap.get(serverId), tokenInfo);
+            }
+            return Mono.just(fileInfo);
+        });
+    }
+
+    public CompletableFuture<Integer> sendFileChunkCopyAsyncReply(long serverId, FileChunkCopy fileChunkCopy,
+                                                                  long timeout, TimeUnit timeUnit) {
+        return connectManager.sendDataAsyncReply(serverInfoMap.get(serverId), fileChunkCopy,
+                DFSCommand.CT_FILE_CHUNK_COPY, timeout, timeUnit);
     }
 }

@@ -113,6 +113,12 @@ public class ConnectManager {
         return dfsCommunicate.sendCommandAsync(findConnection(serverState), dfsCommand);
     }
 
+    public CompletableFuture<Integer> sendCommandAsyncReply(ServerState serverState, DFSCommand dfsCommand, long timeout, TimeUnit timeUnit) {
+        return dfsCommunicate.sendCommandAsyncReply(findConnection(serverState), dfsCommand, timeout, timeUnit);
+    }
+    public CompletableFuture<Integer> sendDataAsyncReply(ServerState serverState, Object/* command */ msg, int commandType, long timeout, TimeUnit timeUnit){
+        return dfsCommunicate.sendDataAsyncReply(findConnection(serverState),msg,commandType,timeout,timeUnit);
+    }
     public CompletableFuture<Integer> sendCommandDataAsyncReply(ServerState serverState, Flux<ByteBuf> byteBufFlux,
             DFSCommandFileTransfer dfsCommandFileTransfer, long timeout, TimeUnit timeUnit) {
         return dfsCommunicate.sendCommandDataAsyncReply(findConnection(serverState), byteBufFlux,

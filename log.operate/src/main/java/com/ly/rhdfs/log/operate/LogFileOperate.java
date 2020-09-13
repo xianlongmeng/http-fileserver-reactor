@@ -9,6 +9,7 @@ import com.ly.common.util.ConvertUtil;
 import org.apache.commons.io.filefilter.AndFileFilter;
 import org.apache.commons.io.filefilter.PrefixFileFilter;
 import org.apache.commons.io.filefilter.SuffixFileFilter;
+import org.apache.commons.logging.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,9 +30,13 @@ public class LogFileOperate {
     private FileWriter currentFileWriter;
     private LocalDate currentFileDate;
     private DfsFileUtils dfsFileUtils;
+    private LogOperateUtils logOperateUtils;
 
     public void setDfsFileUtils(DfsFileUtils dfsFileUtils){
         this.dfsFileUtils=dfsFileUtils;
+    }
+    public void setLogOperateUtils(LogOperateUtils logOperateUtils){
+        this.logOperateUtils=logOperateUtils;
     }
     public LogFileOperate(String logPath) {
         this.logPath = logPath;
@@ -87,9 +92,9 @@ public class LogFileOperate {
                     currentFileReader=new BufferedReader(new FileReader(currentFile));
                     String line;
                     while ((line = currentFileReader.readLine())!=null){
-                        long dt=LogOperateUtils.parseOperationLogWriteTime(line);
+                        long dt=logOperateUtils.parseOperationLogWriteTime(line);
                         if (dt>=writeLastTime) {
-                            return LogOperateUtils.parseOperationLog(line);
+                            return logOperateUtils.parseOperationLog(line);
                         }
                     }
                 } else {
@@ -157,7 +162,7 @@ public class LogFileOperate {
                     return null;
                 }
             }
-            return LogOperateUtils.parseOperationLog(currentFileReader.readLine());
+            return logOperateUtils.parseOperationLog(currentFileReader.readLine());
         } catch (IOException e) {
             logger.error(e.getLocalizedMessage(), e);
             return null;

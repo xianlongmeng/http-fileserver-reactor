@@ -20,8 +20,10 @@ public class ServerConfig {
     private int readTimeout;
     @Value("${server.type}")
     private String serverType = ParamConstants.ST_STORE;
-    @Value("${log.path:..}")
+    @Value("${log.path:log}")
     private String logPath;
+    @Value("${log.path.server.file:server_log}")
+    private String serverFileLogPath;
     @Value("${file.copies:3}")
     private int fileCopies;
     // 失去太多StoreServer的Master多长时间失去Master资格
@@ -50,6 +52,8 @@ public class ServerConfig {
     @Value("${param.name.token}")
     private String tokenParamName = ParamConstants.PARAM_TOKEN_NAME;
 
+    @Value("${param.name.chunk}")
+    private String chunkParamName = ParamConstants.PARAM_CHUNK;
     @Value("${store.file.rewrite:false}")
     private boolean rewrite;
     @Value("${store.file.temp.suffix}")
@@ -60,6 +64,15 @@ public class ServerConfig {
     @Value("${file.temp.config.suffix}")
     private String fileTmpConfigSuffix;
 
+    @Value("${store.backup.mode:sync}")
+    private String storeBackupMode;
+//    @Value("${store.backup.log.path:store_server_log}")
+//    private String storeBackupLogPath;
+
+    @Value("${store.chunk.size:0x4000000}")
+    private int chunkSize;
+    @Value("${store.chunk.piece.size:0x100000}")
+    private int chunkPieceSize;
     public String getTmpFileSuffix() {
         return tmpFileSuffix;
     }
@@ -187,6 +200,14 @@ public class ServerConfig {
         this.fileNameParamName = fileNameParamName;
     }
 
+    public String getChunkParamName() {
+        return chunkParamName;
+    }
+
+    public void setChunkParamName(String chunkParamName) {
+        this.chunkParamName = chunkParamName;
+    }
+
     public String getFileSizeParamName() {
         return fileSizeParamName;
     }
@@ -233,5 +254,37 @@ public class ServerConfig {
 
     public void setFileTmpConfigSuffix(String fileTmpConfigSuffix) {
         this.fileTmpConfigSuffix = fileTmpConfigSuffix;
+    }
+
+    public String getStoreBackupMode() {
+        return storeBackupMode;
+    }
+
+    public void setStoreBackupMode(String storeBackupMode) {
+        this.storeBackupMode = storeBackupMode;
+    }
+
+    public String getServerFileLogPath() {
+        return serverFileLogPath;
+    }
+
+    public void setServerFileLogPath(String serverFileLogPath) {
+        this.serverFileLogPath = serverFileLogPath;
+    }
+
+    public int getChunkSize() {
+        return chunkSize;
+    }
+
+    public void setChunkSize(int chunkSize) {
+        this.chunkSize = chunkSize;
+    }
+
+    public int getChunkPieceSize() {
+        return chunkPieceSize;
+    }
+
+    public void setChunkPieceSize(int chunkPieceSize) {
+        this.chunkPieceSize = chunkPieceSize;
     }
 }

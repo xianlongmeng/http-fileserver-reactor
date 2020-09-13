@@ -6,6 +6,8 @@ import com.ly.etag.ETagComputer;
 import com.ly.rhdfs.authentication.AuthenticationVerify;
 import com.ly.rhdfs.authentication.impl.DefaultAuthenticationImpl;
 import com.ly.rhdfs.log.operate.LogFileOperate;
+import com.ly.rhdfs.log.operate.LogOperateUtils;
+import com.ly.rhdfs.log.server.file.ServerFileChunkUtil;
 import com.ly.rhdfs.token.TokenFactory;
 import com.ly.rhdfs.token.random.TokenRandomFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -71,7 +73,22 @@ public class ApplicationConfiguration {
         return dfsFileUtils;
     }
     @Bean
+    public LogOperateUtils logOperateUtils(){
+        LogOperateUtils logOperateUtils= new LogOperateUtils();
+        logOperateUtils.setDfsFileUtils(dfsFileUtils());
+        return logOperateUtils;
+    }
+    @Bean
     public LogFileOperate logFileOperate(){
-        return new LogFileOperate(serverConfig.getLogPath());
+        LogFileOperate logFileOperate= new LogFileOperate(serverConfig.getLogPath());
+        logFileOperate.setDfsFileUtils(dfsFileUtils());
+        logFileOperate.setLogOperateUtils(logOperateUtils());
+        return logFileOperate;
+    }
+    @Bean
+    public ServerFileChunkUtil serverFileChunkUtil(){
+        ServerFileChunkUtil serverFileChunkUtil=new ServerFileChunkUtil();
+        serverFileChunkUtil.setBootPath(serverConfig.getServerFileLogPath());
+        return serverFileChunkUtil;
     }
 }

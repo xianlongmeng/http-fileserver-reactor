@@ -170,11 +170,21 @@ public abstract class ServerManager {
     }
 
     //只负责删除ServerState内容，不负责数据转存
-    public void removeServerState(ServerState serverState){
+    public void removeServerState(ServerState serverState) {
         if (serverState==null)
             return;
         serverInfoMap.remove(serverState.getServerId());
         if (masterServerConfig!=null){
+            if (serverState.getType()==ServerState.SIT_STORE){
+                masterServerConfig.removeMasterServer(serverState.getServerId());
+            }else{
+                masterServerConfig.removeStoreServer(serverState.getServerId());
+            }
+        }
+    }
+    public void removeServerState(long serverId){
+        ServerState serverState=serverInfoMap.remove(serverId);
+        if (masterServerConfig!=null && serverState!=null){
             if (serverState.getType()==ServerState.SIT_STORE){
                 masterServerConfig.removeMasterServer(serverState.getServerId());
             }else{

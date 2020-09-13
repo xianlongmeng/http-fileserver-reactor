@@ -7,7 +7,6 @@ import com.alibaba.fastjson.annotation.JSONField;
 
 public class MasterServerConfig {
 
-    @JSONField(defaultValue = "3")
     private final Map<Long, ServerInfoConfiguration> masterServerMap = new ConcurrentHashMap<>();
     // 变化更新，master负责发送变化的情况
     private final Map<Long, ServerInfoConfiguration> storeServerMap = new ConcurrentHashMap<>();

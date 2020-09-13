@@ -6,7 +6,7 @@ public class DFSBackupStoreFileChunkInfo {
     private int times=0;
     private long createTime;
     private long expire=0;
-    private int maxTimes=30;
+    private int maxTimes=0;
     private DFSPartChunk dfsPartChunk;
 
     public int getTimes() {

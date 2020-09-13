@@ -14,28 +14,27 @@ public class TransferBackupTask implements Runnable {
 
     private final StoreManager storeManager;
     private final DFSBackupStoreFileChunkInfo dfsBackupStoreFileChunkInfo;
+    private final long serverId;
 
-    public TransferBackupTask(StoreManager storeManager, DFSBackupStoreFileChunkInfo dfsBackupStoreFileChunkInfo) {
+    public TransferBackupTask(StoreManager storeManager, DFSBackupStoreFileChunkInfo dfsBackupStoreFileChunkInfo,
+            long serverId) {
         this.storeManager = storeManager;
         this.dfsBackupStoreFileChunkInfo = dfsBackupStoreFileChunkInfo;
+        this.serverId = serverId;
     }
 
     @Override
     public void run() {
         if (dfsBackupStoreFileChunkInfo == null)
             return;
-        if (dfsBackupStoreFileChunkInfo.getTimes() > dfsBackupStoreFileChunkInfo.getMaxTimes()
+        if (storeManager.findServerState(serverId) == null
+                || (dfsBackupStoreFileChunkInfo.getTimes() > dfsBackupStoreFileChunkInfo.getMaxTimes()
+                        && dfsBackupStoreFileChunkInfo.getMaxTimes() > 0)
                 || (dfsBackupStoreFileChunkInfo.getExpire() > 0 && dfsBackupStoreFileChunkInfo.getCreateTime()
                         + dfsBackupStoreFileChunkInfo.getExpire() < Instant.now().toEpochMilli())) {
-            // todo:
-            // send backup failed message to master
+            // send backup failed,wait master move server store file
             return;
         }
-        Flux<DataBuffer> dataBufferFlux = FileChunkReader.readFile2Buffer(
-                dfsBackupStoreFileChunkInfo.getDfsPartChunk().getFileFullName(),
-                dfsBackupStoreFileChunkInfo.getDfsPartChunk().getChunk()
-                        * dfsBackupStoreFileChunkInfo.getDfsPartChunk().getChunkSize(),
-                dfsBackupStoreFileChunkInfo.getDfsPartChunk().getContentLength());
-        storeManager.sendBackupStoreFile(dataBufferFlux, dfsBackupStoreFileChunkInfo);
+        storeManager.sendBackupStoreFile(serverId, dfsBackupStoreFileChunkInfo);
     }
 }

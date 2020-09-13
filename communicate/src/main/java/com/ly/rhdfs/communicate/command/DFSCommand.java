@@ -23,6 +23,7 @@ public class DFSCommand {
     public static final int CT_FILE_TRANSFER = 0x100;
     public static final int CT_FILE_TRANSFER_STATE = 0x101;
     public static final int CT_FILE_OPERATE = 0x200;
+    public static final int CT_FILE_CHUNK_COPY = 0x400;
     public static final int CT_REPLY = 0x8000;
 
     protected int commandType;

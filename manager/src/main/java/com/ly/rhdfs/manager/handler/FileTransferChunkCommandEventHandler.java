@@ -19,13 +19,13 @@ import java.nio.channels.AsynchronousFileChannel;
 import java.nio.channels.CompletionHandler;
 import java.nio.file.StandardOpenOption;
 
-public class BackupFileChunkCommandEventHandler implements EventHandler {
+public class FileTransferChunkCommandEventHandler implements EventHandler {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final ServerManager serverManager;
     private StoreFile storeFile;
 
-    public BackupFileChunkCommandEventHandler(ServerManager serverManager) {
+    public FileTransferChunkCommandEventHandler(ServerManager serverManager) {
         this.serverManager = serverManager;
         storeFile = SpringContextUtil.getBean(StoreFile.class);
     }
@@ -33,20 +33,20 @@ public class BackupFileChunkCommandEventHandler implements EventHandler {
     @Override
     public int actorCommand(DFSCommand dfsCommand) {
         if (!(dfsCommand instanceof DFSCommandFileTransfer)) {
-            logger.error("Illegal command,not a server address command.");
+            logger.error("Illegal command,not a file transfer command.");
             return ResultInfo.S_ERROR;
         }
         DFSCommandFileTransfer dfsCommandFileTransfer = (DFSCommandFileTransfer) dfsCommand;
         FileInfo fileInfo = serverManager.getFileInfoManager().findFileInfo(serverManager.getDfsFileUtils().joinFileConfigName(dfsCommandFileTransfer.getFileTransferInfo().getPath(), dfsCommandFileTransfer.getFileTransferInfo().getFileName()));
         if (fileInfo == null) {
-            logger.error("file transfer failed,file is not authority.path[{}],file name[{}]",
+            logger.error("file transfer failed,file is not found.path[{}],file name[{}]",
                     dfsCommandFileTransfer.getFileTransferInfo().getPath(), dfsCommandFileTransfer.getFileTransferInfo().getFileName());
             return ResultInfo.S_ERROR;
         } else {
             String fileName = String.format("%s.%d.%s", dfsCommandFileTransfer.getFileTransferInfo().getFileName(), dfsCommandFileTransfer.getFileTransferInfo().getChunkIndex(), serverManager.getServerConfig().getFileChunkSuffix());
             String fileFullName = storeFile.takeFilePath(fileName, dfsCommandFileTransfer.getFileTransferInfo().getPath()).toString();
 
-            AsynchronousFileChannel asynchronousFileChannel = null;
+            AsynchronousFileChannel asynchronousFileChannel;
             try {
                 asynchronousFileChannel = AsynchronousFileChannel.open(
                         new File(fileFullName).toPath(), StandardOpenOption.CREATE,
