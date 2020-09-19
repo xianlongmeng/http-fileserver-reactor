@@ -4,7 +4,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.ly.common.domain.ResultInfo;
-import com.ly.common.util.DfsFileUtils;
 import com.ly.rhdfs.communicate.command.DFSCommand;
 import com.ly.rhdfs.communicate.command.DFSCommandFileDelete;
 import com.ly.rhdfs.communicate.handler.EventHandler;

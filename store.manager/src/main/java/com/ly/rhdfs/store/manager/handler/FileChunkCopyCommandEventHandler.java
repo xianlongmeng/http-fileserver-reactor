@@ -38,7 +38,9 @@ public class FileChunkCopyCommandEventHandler implements EventHandler {
             logger.error("Illegal command,file chunk copy is null.");
             return ResultInfo.S_ERROR;
         }
-        FileInfo fileInfo = storeManager.getFileInfoManager().findFileInfo(storeManager.getDfsFileUtils().joinFileConfigName(dfsCommandFileChunkCopy.getFileChunkCopy().getPath(), dfsCommandFileChunkCopy.getFileChunkCopy().getFileName()));
+        FileInfo fileInfo = storeManager.getFileInfoManager().findFileInfo(
+                dfsCommandFileChunkCopy.getFileChunkCopy().getPath(),
+                dfsCommandFileChunkCopy.getFileChunkCopy().getFileName());
         if (fileInfo == null) {
             logger.error("file copy failed,file is not found.path[{}],file name[{}]",
                     fileChunkCopy.getPath(), fileChunkCopy.getFileName());
@@ -51,13 +53,13 @@ public class FileChunkCopyCommandEventHandler implements EventHandler {
                     logger.info(
                             "file transfer success,path[{}],file name[{}],index[{}]",
                             fileChunkCopy.getPath(), fileChunkCopy.getFileName(), fileChunkCopy.getChunk());
-                    storeManager.sendCommandReply(dfsCommandFileChunkCopy, DFSCommandReply.REPLY_STATE_TRUE);
+                    storeManager.sendCommandReply(dfsCommandFileChunkCopy, DFSCommandReply.REPLY_STATE_TRUE,0);
                 } else {
                     // failed
                     logger.warn(
                             "file transfer failed,path[{}],file name[{}],index[{}]",
                             fileChunkCopy.getPath(), fileChunkCopy.getFileName(), fileChunkCopy.getChunk());
-                    storeManager.sendCommandReply(dfsCommandFileChunkCopy, DFSCommandReply.REPLY_STATE_FALSE);
+                    storeManager.sendCommandReply(dfsCommandFileChunkCopy, DFSCommandReply.REPLY_STATE_FALSE,401);
                 }
             });
         }

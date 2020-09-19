@@ -1,39 +1,38 @@
 package com.ly.rhdfs.communicate.socket;
 
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
-
-import com.ly.rhdfs.communicate.command.DFSCommandReply;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
 import com.fasterxml.uuid.Generators;
-import com.ly.common.domain.DFSPartChunk;
 import com.ly.common.domain.ResultInfo;
 import com.ly.common.domain.server.ServerState;
 import com.ly.rhdfs.communicate.DFSCommunicate;
 import com.ly.rhdfs.communicate.command.DFSCommand;
 import com.ly.rhdfs.communicate.command.DFSCommandFileTransfer;
+import com.ly.rhdfs.communicate.command.DFSCommandReply;
 import com.ly.rhdfs.communicate.handler.EventHandler;
 import com.ly.rhdfs.communicate.socket.codec.DFSCommandDecoder;
 import com.ly.rhdfs.communicate.socket.handler.DFSCommandHandler;
 import com.ly.rhdfs.communicate.socket.handler.HeartBeatHandler;
 import com.ly.rhdfs.communicate.socket.parse.DFSCommandParse;
-
+import com.ly.rhdfs.config.ServerConfig;
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
+import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.timeout.IdleStateHandler;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 import reactor.netty.Connection;
 import reactor.netty.DisposableServer;
 import reactor.netty.tcp.TcpClient;
 import reactor.netty.tcp.TcpServer;
+
+import java.util.Map;
+import java.util.UUID;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 @Component
 public class DFSCommunicateSocket implements DFSCommunicate {
@@ -43,12 +42,17 @@ public class DFSCommunicateSocket implements DFSCommunicate {
     private final Map<UUID, CompletableFuture<Integer>> uuidCompletableFutureMap = new ConcurrentHashMap<>();
     private DisposableServer localServer;
     private DFSCommandParse dfsCommandParse;
+    private ServerConfig serverConfig;
 
     @Autowired
     private void setDfsCommandParse(DFSCommandParse dfsCommandParse) {
         this.dfsCommandParse = dfsCommandParse;
     }
 
+    @Autowired
+    private void setServerConfig(ServerConfig serverConfig){
+        this.serverConfig=serverConfig;
+    }
     public CompletableFuture<Integer> findFuture(UUID uuid) {
         if (uuid == null)
             return null;
@@ -118,11 +122,12 @@ public class DFSCommunicateSocket implements DFSCommunicate {
             curConnection.set(connection);
             // 处理连接失败，以及重新连接
             connection.addHandlerFirst(new IdleStateHandler(readerIdle, writerIdle, 0));
-            connection.addHandlerLast(new HeartBeatHandler(serverState));
-            // decode
-            connection.addHandlerLast(new DFSCommandDecoder());
-            // heart,connect init
-            connection.addHandlerLast(new DFSCommandHandler(eventHandler));
+            connection.addHandlerLast(new HeartBeatHandler(serverState))
+                    // decode
+                    .addHandlerLast(new LengthFieldBasedFrameDecoder(serverConfig.getFrameDatagramMaxSize(), 4, 4))
+                    .addHandlerLast(new DFSCommandDecoder())
+                    // heart,connect init
+                    .addHandlerLast(new DFSCommandHandler(eventHandler));
             // command
             // serverConnectionMap.put(serverState, connection);
         }).connectNow();
@@ -134,19 +139,20 @@ public class DFSCommunicateSocket implements DFSCommunicate {
         localServer = TcpServer.create().port(port).handle((inbound, outbound) -> inbound.receive().then())
                 .doOnConnection(connection -> {
                     // heart,connect init
-                    connection.addHandlerFirst(new IdleStateHandler(readerIdle, writerIdle, 0));
-                    connection.addHandlerLast("heart-beat", new HeartBeatHandler());
-                    // decode
-                    connection.addHandlerLast(new DFSCommandDecoder());
-                    // command
-                    connection.addHandlerLast(new DFSCommandHandler(connection, eventHandler));
+                    connection.addHandlerFirst(new IdleStateHandler(readerIdle, writerIdle, 0))
+                            .addHandlerLast("heart-beat", new HeartBeatHandler())
+                            // decode
+                            .addHandlerLast(new LengthFieldBasedFrameDecoder(serverConfig.getFrameDatagramMaxSize(), 4, 4))
+                            .addHandlerLast(new DFSCommandDecoder())
+                            // command
+                            .addHandlerLast(new DFSCommandHandler(connection, eventHandler));
                 }).bindNow();
         return localServer.channel();
     }
 
     @Override
     public CompletableFuture<Integer> sendCommandAsyncReply(Connection connection, DFSCommand command, long timeout,
-            TimeUnit timeUnit) {
+                                                            TimeUnit timeUnit) {
         CompletableFuture<Integer> completableFuture;
         if (timeout > 0 && timeUnit != null) {
             completableFuture = new CompletableFuture<Integer>().orTimeout(timeout, timeUnit)
@@ -176,7 +182,7 @@ public class DFSCommunicateSocket implements DFSCommunicate {
 
     @Override
     public CompletableFuture<Integer> sendCommandDataAsyncReply(Connection connection, Flux<ByteBuf> byteBufFlux,
-            DFSCommandFileTransfer dfsCommandFileTransfer, long timeout, TimeUnit timeUnit) {
+                                                                DFSCommandFileTransfer dfsCommandFileTransfer, long timeout, TimeUnit timeUnit) {
         CompletableFuture<Integer> completableFuture;
         if (timeout > 0 && timeUnit != null) {
             completableFuture = new CompletableFuture<Integer>().orTimeout(timeout, timeUnit)
@@ -205,7 +211,7 @@ public class DFSCommunicateSocket implements DFSCommunicate {
 
     @Override
     public CompletableFuture<Integer> sendDataAsyncReply(Connection connection, Object msg, int commandType,
-            long timeout, TimeUnit timeUnit) {
+                                                         long timeout, TimeUnit timeUnit) {
         // 如何分包ChunkedStream
         return sendCommandAsyncReply(connection, dfsCommandParse.convertCommandObject(msg, commandType), timeout,
                 timeUnit);
@@ -213,31 +219,32 @@ public class DFSCommunicateSocket implements DFSCommunicate {
 
     @Override
     public CompletableFuture<Integer> sendFileChunkFinishAsyncReply(Connection connection, Object msg, long timeout,
-            TimeUnit timeUnit) {
+                                                                    TimeUnit timeUnit) {
         return null;
     }
 
     @Override
     public CompletableFuture<Integer> sendFileFinishCommandAsyncReply(Connection connection, Object msg, long timeout,
-            TimeUnit timeUnit) {
+                                                                      TimeUnit timeUnit) {
         return null;
     }
+
     @Override
-    public boolean sendCommandReply(Connection connection,DFSCommand dfsCommand,byte replyResult){
-        if (connection==null || dfsCommand==null)
+    public boolean sendCommandReply(Connection connection, DFSCommand dfsCommand, byte replyResult, int errorCode) {
+        if (connection == null || dfsCommand == null)
             return false;
-        DFSCommandReply dfsCommandReply=dfsCommandParse.convertCommandReply(dfsCommand.getUuid(),replyResult);
-        return sendCommand(connection,dfsCommandReply);
+        DFSCommandReply dfsCommandReply = dfsCommandParse.convertCommandReply(dfsCommand.getUuid(), replyResult, errorCode);
+        return sendCommand(connection, dfsCommandReply);
     }
 
     @Override
     public void receiveReply(DFSCommandReply dfsCommandReply) {
-        if (dfsCommandReply==null)
+        if (dfsCommandReply == null)
             return;
-        CompletableFuture<Integer> completableFuture=findFuture(dfsCommandReply.getReplyUUID());
-        if (completableFuture==null)
+        CompletableFuture<Integer> completableFuture = findFuture(dfsCommandReply.getReplyUUID());
+        if (completableFuture == null)
             return;
-        if (dfsCommandReply.getReply()==DFSCommandReply.REPLY_STATE_TRUE)
+        if (dfsCommandReply.getReply() == DFSCommandReply.REPLY_STATE_TRUE)
             completableFuture.complete(ResultInfo.S_OK);
         else
             completableFuture.complete(ResultInfo.S_FAILED);

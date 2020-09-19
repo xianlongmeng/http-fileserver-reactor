@@ -22,7 +22,6 @@ public class DFSCommandDecoder extends ByteToMessageDecoder {
     }
 
     protected Object decode(ChannelHandlerContext ctx, ByteBuf in) {
-        // 查找包头
         return dfsCommandParse.parse(in);
     }
 }

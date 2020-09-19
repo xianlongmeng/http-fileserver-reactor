@@ -64,6 +64,7 @@ public class UploadDfsStoreHandler {
     public Mono<ServerResponse> uploadStoreFile(ServerRequest request) {
         // 1/If-Match(412) && If-Unmodified-Since(412)
         String token = request.queryParam(ParamConstants.PARAM_TOKEN_NAME).orElse("");
+        String etag = request.queryParam(ParamConstants.PARAM_ETAG).orElse("");
         if (StringUtils.isEmpty(token))
             return ServerResponse.status(HttpStatus.NON_AUTHORITATIVE_INFORMATION).build();
         TokenInfo tokenInfo = storeManager.findTokenInfo(token);
@@ -78,14 +79,14 @@ public class UploadDfsStoreHandler {
             int chunk = ConvertUtil.parseInt(request.queryParam(ParamConstants.PARAM_CHUNK).orElse("0"), 0);
             int chunkSize = ConvertUtil.parseInt(request.queryParam(ParamConstants.PARAM_CHUNK_SIZE).orElse("0"), 0);
             int chunkCount = ConvertUtil.parseInt(request.queryParam(ParamConstants.PARAM_CHUNK_COUNT).orElse("0"), 1);
-            partChunk = new DFSPartChunk(true, chunkIndex, chunk, chunkSize, chunkCount, tokenInfo);
+            partChunk = new DFSPartChunk(true, chunkIndex, chunk, chunkSize, chunkCount, tokenInfo,etag);
         } else {
-            partChunk = new DFSPartChunk(false, tokenInfo);
+            partChunk = new DFSPartChunk(false, tokenInfo,etag);
         }
         String path = request.queryParam(serverConfig.getPathParamName()).orElse(ParamConstants.PARAM_PATH_NAME);
         return Mono
                 .fromFuture(CompletableFuture.supplyAsync(() -> Optional.ofNullable(storeManager.getFileInfoManager()
-                        .findFileInfo(storeFile.takeFilePathString(tokenInfo.getFileName(), tokenInfo.getPath())))))
+                        .findFileInfo(tokenInfo.getFileName(), tokenInfo.getPath()))))
                 .flatMap(optionalFileInfo -> {
                     if (optionalFileInfo.isEmpty())
                         return ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR)

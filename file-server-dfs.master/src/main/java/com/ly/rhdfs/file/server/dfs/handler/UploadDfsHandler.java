@@ -1,6 +1,8 @@
 package com.ly.rhdfs.file.server.dfs.handler;
 
+import com.ly.common.constant.ParamConstants;
 import com.ly.common.domain.ResultInfo;
+import com.ly.common.domain.TaskInfo;
 import com.ly.common.domain.token.TokenInfo;
 import com.ly.common.util.ConvertUtil;
 import com.ly.rhdfs.authentication.AuthenticationVerify;
@@ -11,12 +13,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
 
+import javax.validation.constraints.NotNull;
+import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
@@ -56,18 +61,18 @@ public class UploadDfsHandler {
     private void setHandlerUtil(HandlerUtil handlerUtil) {
         this.handlerUtil = handlerUtil;
     }
-
+    @NonNull
     public Mono<ServerResponse> uploadFileMasterRequest(ServerRequest request) {
         return authenticationVerify.verifyAuthentication(request).flatMap(resultInfo -> {
             if (resultInfo.getResult() != ResultInfo.S_OK) {
                 return ServerResponse.status(HttpStatus.UNAUTHORIZED).build();
             }
             // param：filename,path,size,--reserved:user,token
-            String path = request.queryParam(serverConfig.getPathParamName()).orElse("");
+            String path = request.pathVariable("path");
             String fileName = request.queryParam(serverConfig.getFileNameParamName()).orElse("");
             long fileSize = ConvertUtil.parseLong(request.queryParam(serverConfig.getFileSizeParamName()).orElse("0"),
                     0);
-            if (StringUtils.isEmpty(path) || StringUtils.isEmpty(fileName) || fileSize <= 0) {
+            if (StringUtils.isEmpty(fileName) || fileSize <= 0) {
                 return ServerResponse.status(HttpStatus.FORBIDDEN).bodyValue("Parameter error!");
             }
             AtomicReference<TokenInfo> tokenInfoAtomicReference = new AtomicReference<>();
@@ -83,7 +88,7 @@ public class UploadDfsHandler {
         });
 
     }
-
+    @NonNull
     public Mono<ServerResponse> uploadFileServerChunkMasterRequest(ServerRequest request) {
         // 主Server错误，切换分配Server，验证备Server，设置一个为主Server，重新选择一个备Server
         // 返回主StoreServer
@@ -91,6 +96,11 @@ public class UploadDfsHandler {
         if (tokenInfo == null) {
             return ServerResponse.status(HttpStatus.FORBIDDEN).bodyValue("Parameter error!");
         }
+        TaskInfo taskInfo = masterManager.getFileServerRunManager().getUploadRunningTask().get(tokenInfo);
+        if (taskInfo == null || taskInfo.getTokenInfo() == null || taskInfo.getFileInfo() == null)
+            return ServerResponse.status(HttpStatus.FORBIDDEN).bodyValue("Parameter error!");
+        TokenInfo finalTokenInfo = taskInfo.getTokenInfo();
+        finalTokenInfo.setLastTime(Instant.now().toEpochMilli());
         return authenticationVerify.verifyAuthentication(request)
                 .flatMap(resultInfo -> {
                     if (resultInfo.getResult() != ResultInfo.S_OK) {
@@ -102,7 +112,7 @@ public class UploadDfsHandler {
                         return ServerResponse.status(HttpStatus.FORBIDDEN).bodyValue("Parameter error!");
                     }
                     AtomicReference<TokenInfo> tokenInfoAtomicReference = new AtomicReference<>();
-                    return masterManager.apportionFileServerChunk(tokenInfo, chunk)
+                    return masterManager.apportionFileServerChunk(finalTokenInfo, chunk)
                             .flatMap(fileInfo -> {
                                 Map<String, Object> resultMap = new HashMap<>();
                                 resultMap.put("token", tokenInfoAtomicReference.get());
@@ -112,13 +122,14 @@ public class UploadDfsHandler {
                             .onErrorResume(t -> ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
                 });
     }
-
+    @NonNull
     public Mono<ServerResponse> uploadFileServerFinish(ServerRequest request) {
         TokenInfo tokenInfo = handlerUtil.queryRequestTokenParam(request);
         if (tokenInfo == null) {
             return ServerResponse.status(HttpStatus.FORBIDDEN).bodyValue("Parameter error!");
         }
-        masterManager.getFileServerRunManager().uploadFileFinish(tokenInfo);
+        String etag = request.queryParam(ParamConstants.PARAM_ETAG).orElse("");
+        masterManager.getFileServerRunManager().uploadFileFinish(tokenInfo, etag);
         return ServerResponse.ok().build();
     }
 
@@ -130,6 +141,36 @@ public class UploadDfsHandler {
         }
         masterManager.getFileServerRunManager().clearUploadFile(tokenInfo, true);
         return ServerResponse.ok().build();
+
+    }
+
+    @NonNull
+    public Mono<ServerResponse> deleteFileMasterRequest(@NotNull ServerRequest request) {
+        TokenInfo tokenInfo = handlerUtil.queryRequestTokenParam(request);
+        if (tokenInfo == null) {
+            return ServerResponse.status(HttpStatus.FORBIDDEN).bodyValue("Parameter error!");
+        }
+        return authenticationVerify
+                .verifyAuthentication(request)
+                .flatMap(resultInfo -> {
+                    if (resultInfo.getResult() != ResultInfo.S_OK) {
+                        return ServerResponse.status(HttpStatus.UNAUTHORIZED).build();
+                    }
+                    // param：filename,path,size,--reserved:user,token
+                    if (tokenInfo == null || StringUtils.isEmpty(tokenInfo.getFileName())) {
+                        return ServerResponse.status(HttpStatus.FORBIDDEN).bodyValue("Parameter error!");
+                    }
+                    return Mono
+                            .just(tokenInfo)
+                            .flatMap(ti -> {
+                                if (masterManager.getFileServerRunManager().deleteFile(tokenInfo)) {
+                                    return ServerResponse.ok().bodyValue("delete submit!");
+                                } else {
+                                    return ServerResponse.status(HttpStatus.CONFLICT).bodyValue("delete file failed!");
+                                }
+                            })
+                            .onErrorResume(t -> ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
+                });
 
     }
 

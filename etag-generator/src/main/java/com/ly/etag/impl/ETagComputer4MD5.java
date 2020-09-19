@@ -8,6 +8,7 @@ import java.util.Optional;
 import org.springframework.core.io.buffer.DataBuffer;
 import org.springframework.core.io.buffer.DataBufferFactory;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
+import org.springframework.util.DigestUtils;
 import org.springframework.util.StringUtils;
 
 import com.ly.common.service.FileChunkReader;

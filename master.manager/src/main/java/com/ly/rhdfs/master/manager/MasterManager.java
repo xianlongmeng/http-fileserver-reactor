@@ -1,6 +1,7 @@
 package com.ly.rhdfs.master.manager;
 
 import com.ly.common.constant.ParamConstants;
+import com.ly.common.domain.file.DirectInfo;
 import com.ly.common.domain.file.FileChunkCopy;
 import com.ly.common.domain.file.FileInfo;
 import com.ly.common.domain.log.OperationLog;
@@ -8,7 +9,9 @@ import com.ly.common.domain.server.ServerInfoConfiguration;
 import com.ly.common.domain.server.ServerRunState;
 import com.ly.common.domain.server.ServerState;
 import com.ly.common.domain.token.TokenInfo;
-import com.ly.common.util.DfsFileUtils;
+import com.ly.common.exception.DirectNotFoundException;
+import com.ly.common.exception.FileNotFoundException;
+import com.ly.rhdfs.file.util.DfsFileUtils;
 import com.ly.rhdfs.communicate.command.DFSCommand;
 import com.ly.rhdfs.log.server.file.ServerFileChunkUtil;
 import com.ly.rhdfs.manager.server.ServerManager;
@@ -352,7 +355,6 @@ public class MasterManager extends ServerManager {
         if (tokenInfo == null || chunk <= 0)
             return Mono.error(new NullPointerException());
         AtomicReference<FileInfo> fileInfoAtomic = new AtomicReference<>();
-        AtomicReference<Set<Long>> serverIds = new AtomicReference<>();
         return Mono
                 .defer(() -> {
                     // 分配Chunk存储服务器
@@ -377,10 +379,11 @@ public class MasterManager extends ServerManager {
                 .flatMap(sendResult -> {
                     if (!sendResult) {
                         //fileServerRunManager.clearUploadFile(tokenInfo, true);
-                        return Mono.error(new ServerAssignException("Server count is not enough!"));
+                        return Mono.error(new ServerAssignException("Server file information send failed!"));
                     }
                     return Mono.just(true);
-                }).then(Mono.just(fileInfoAtomic.get()));
+                })
+                .then(Mono.just(fileInfoAtomic.get()));
 
     }
 
@@ -402,5 +405,27 @@ public class MasterManager extends ServerManager {
                                                                   long timeout, TimeUnit timeUnit) {
         return connectManager.sendDataAsyncReply(serverInfoMap.get(serverId), fileChunkCopy,
                 DFSCommand.CT_FILE_CHUNK_COPY, timeout, timeUnit);
+    }
+    public Mono<DirectInfo> findDirectInfoAsync(String path){
+        return Mono.create(monoSink->
+                CompletableFuture
+                        .supplyAsync(()->fileInfoManager.findDirectInfo(path))
+                        .whenCompleteAsync((result,t)->{
+                            if (result==null)
+                                monoSink.error(new DirectNotFoundException(String.format("Direct %s not found.",path)));
+                            else
+                                monoSink.success(result);
+                        }));
+    }
+    public Mono<FileInfo> findFileInfoAsync(String path,String fileName){
+        return Mono.create(monoSink->
+                CompletableFuture
+                        .supplyAsync(()->fileInfoManager.findFileInfo(path,fileName))
+                        .whenCompleteAsync((result,t)->{
+                            if (result==null)
+                                monoSink.error(new FileNotFoundException(String.format("Direct %s not found.",path)));
+                            else
+                                monoSink.success(result);
+                        }));
     }
 }

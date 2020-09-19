@@ -73,6 +73,8 @@ public class ServerConfig {
     private int chunkSize;
     @Value("${store.chunk.piece.size:0x100000}")
     private int chunkPieceSize;
+    @Value("${datagram.package.max.size:0x101000}")
+    private int frameDatagramMaxSize;
     public String getTmpFileSuffix() {
         return tmpFileSuffix;
     }
@@ -286,5 +288,13 @@ public class ServerConfig {
 
     public void setChunkPieceSize(int chunkPieceSize) {
         this.chunkPieceSize = chunkPieceSize;
+    }
+
+    public int getFrameDatagramMaxSize() {
+        return frameDatagramMaxSize;
+    }
+
+    public void setFrameDatagramMaxSize(int frameDatagramMaxSize) {
+        this.frameDatagramMaxSize = frameDatagramMaxSize;
     }
 }

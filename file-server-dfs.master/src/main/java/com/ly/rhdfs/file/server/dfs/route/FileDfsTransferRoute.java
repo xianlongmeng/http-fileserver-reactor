@@ -24,37 +24,49 @@ public class FileDfsTransferRoute {
     @Bean
     public RouterFunction<ServerResponse> routeDownloadFile(DownloadDfsHandler downloadDfsHandler) {
         return RouterFunctions.route()
-                .path("/dfs/download-request",
+                .path("/dfs/download-request/{*path}",
                         builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST)
                                         .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
                                 downloadDfsHandler::downloadFileMasterRequest))
-                .path("/dfs/download-chunk-request",
+                .path("/dfs/download-chunk-request/{*path}",
                         builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST)
                                         .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
                                 downloadDfsHandler::downloadFileChunkMasterRequest))
-                .path("/dfs/download-finish",
+                .path("/dfs/download-finish/{*path}",
                         builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST)
                                         .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
                                 downloadDfsHandler::downloadFileFinish))
+                .path("/dfs/find-direct/{*path}",
+                        builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST)
+                                        .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
+                                downloadDfsHandler::listDirectInfo))
+                .path("/dfs/find-file/{*path}",
+                        builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST)
+                                        .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
+                                downloadDfsHandler::listFileInfo))
                 .build();
     }
 
     @Bean
     public RouterFunction<ServerResponse> routeUploadFile(UploadDfsHandler uploadDfsHandler) {
         return RouterFunctions.route()
-                .path("/dfs/upload-request",
+                .path("/dfs/upload-request/{*path}",
                         builder -> builder.route(
                                 RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST)
                                         .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
                                 uploadDfsHandler::uploadFileMasterRequest))
-                .path("/dfs/upload-chunk-request",
+                .path("/dfs/upload-chunk-request/{*path}",
                         builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST)
                                         .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
                                 uploadDfsHandler::uploadFileServerChunkMasterRequest))
-                .path("/dfs/upload-finish",
+                .path("/dfs/upload-finish/{*path}",
                         builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST)
                                         .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
                                 uploadDfsHandler::uploadFileServerFinish))
+                .path("/dfs/delete-file/{*path}",
+                        builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST)
+                                        .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
+                                uploadDfsHandler::deleteFileMasterRequest))
                 .build();
     }
 }

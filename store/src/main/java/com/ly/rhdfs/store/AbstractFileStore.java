@@ -2,7 +2,7 @@ package com.ly.rhdfs.store;
 
 import com.ly.common.domain.FileRanges;
 import com.ly.common.service.FileChunkManger;
-import com.ly.common.util.DfsFileUtils;
+import com.ly.rhdfs.file.util.DfsFileUtils;
 import com.ly.common.util.SpringContextUtil;
 import com.ly.rhdfs.config.ServerConfig;
 import org.slf4j.Logger;

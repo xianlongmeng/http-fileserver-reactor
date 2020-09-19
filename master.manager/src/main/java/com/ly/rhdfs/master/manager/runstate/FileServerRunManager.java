@@ -1,19 +1,6 @@
 package com.ly.rhdfs.master.manager.runstate;
 
-import java.time.Instant;
-import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.stream.Collectors;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-import org.springframework.util.StringUtils;
-
+import com.ly.common.domain.TaskInfo;
 import com.ly.common.domain.file.ChunkInfo;
 import com.ly.common.domain.file.FileInfo;
 import com.ly.common.domain.log.OperationLog;
@@ -22,9 +9,22 @@ import com.ly.common.domain.log.UpdateChunkServer;
 import com.ly.common.domain.server.ServerRunState;
 import com.ly.common.domain.token.TokenClearServer;
 import com.ly.common.domain.token.TokenInfo;
-import com.ly.common.util.DfsFileUtils;
+import com.ly.rhdfs.file.util.DfsFileUtils;
 import com.ly.rhdfs.file.config.FileInfoManager;
 import com.ly.rhdfs.master.manager.MasterManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
+
+import java.time.Instant;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import java.util.stream.Collectors;
 
 @Component
 public class FileServerRunManager {
@@ -38,7 +38,7 @@ public class FileServerRunManager {
 
     private final Map<Long, ServerRunState> serverRunStateMap = new ConcurrentHashMap<>();
     private final ReentrantReadWriteLock lockObj = new ReentrantReadWriteLock();
-    private final Map<TokenInfo, FileInfo> uploadRunningTask = new ConcurrentHashMap<>();
+    private final Map<TokenInfo, TaskInfo> uploadRunningTask = new ConcurrentHashMap<>();
     private final Map<TokenInfo, FileInfo> downloadRunningTask = new ConcurrentHashMap<>();
     // 准备删除的file信息，系统定时扫描此队列，并循环处理，如果server不存在，则丢弃
     private final Queue<TokenClearServer> clearTokenQueue = new ConcurrentLinkedDeque<>();
@@ -63,7 +63,7 @@ public class FileServerRunManager {
         this.dfsFileUtils = dfsFileUtils;
     }
 
-    public Map<TokenInfo, FileInfo> getUploadRunningTask() {
+    public Map<TokenInfo, TaskInfo> getUploadRunningTask() {
         return uploadRunningTask;
     }
 
@@ -179,9 +179,10 @@ public class FileServerRunManager {
         return compareServerPrior(ss1, ss2);
     }
 
-    private int getChunkSize(){
+    private int getChunkSize() {
         return masterManager.getServerConfig().getChunkSize();
     }
+
     /**
      * 分配上传文件的分块服务器信息
      *
@@ -234,7 +235,7 @@ public class FileServerRunManager {
         } finally {
             lockObj.readLock().unlock();
         }
-        uploadRunningTask.put(tokenInfo, fileInfo);
+        uploadRunningTask.put(tokenInfo, new TaskInfo(tokenInfo, fileInfo));
         masterManager.getLogFileOperate().writeOperateLog(new OperationLog(Instant.now().toEpochMilli(),
                 OperationLog.OP_TYPE_ADD_FILE_INIT, tokenInfo.getPath(), tokenInfo.getFileName()));
         // 上传分配后，重置ServerRunState的排序
@@ -256,7 +257,12 @@ public class FileServerRunManager {
         lockObj.readLock().lock();
         if (availableOrderlyServerRunStates.size() < FILE_COPIES)
             return null;
-        FileInfo fileInfo = uploadRunningTask.get(tokenInfo);
+        TaskInfo taskInfo = uploadRunningTask.get(tokenInfo);
+        if (taskInfo == null) {
+            logger.error("Do not find upload file information.");
+            return null;
+        }
+        FileInfo fileInfo = taskInfo.getFileInfo();
         if (fileInfo == null || fileInfo.getFileChunkList() == null || fileInfo.getFileChunkList().size() <= chunk) {
             logger.error("Do not find upload file information.");
             return null;
@@ -309,8 +315,7 @@ public class FileServerRunManager {
         lockObj.readLock().lock();
         if (availableOrderlyServerRunStates.size() < FILE_COPIES)
             return null;
-        FileInfo fileInfo = fileInfoManager.findFileInfo(
-                dfsFileUtils.joinFileConfigName(serverFileChunkLog.getPath(), serverFileChunkLog.getFileName()));
+        FileInfo fileInfo = fileInfoManager.findFileInfo(serverFileChunkLog.getPath(), serverFileChunkLog.getFileName());
         if (fileInfo == null || fileInfo.getFileChunkList() == null
                 || fileInfo.getFileChunkList().size() <= serverFileChunkLog.getChunk()) {
             logger.error("Do not find upload file information.");
@@ -337,6 +342,30 @@ public class FileServerRunManager {
         return new UpdateChunkServer(fileInfo, serverFileChunkLog.getChunk(), serverId, serverRunState.getServerId());
     }
 
+    public UpdateChunkServer takeUpdateFileChunkServer(long serverId, ServerFileChunkLog serverFileChunkLog) {
+        if (serverFileChunkLog == null || StringUtils.isEmpty(serverFileChunkLog.getFileName()))
+            return null;
+        FileInfo fileInfo = fileInfoManager.findFileInfo(serverFileChunkLog.getPath(), serverFileChunkLog.getFileName());
+        if (fileInfo == null || fileInfo.getFileChunkList() == null
+                || fileInfo.getFileChunkList().size() <= serverFileChunkLog.getChunk()
+                || fileInfo.getFileChunkList().get(serverFileChunkLog.getChunk()).getChunkServerIdList().size() < 2) {
+            logger.error("Do not find upload file information.");
+            return null;
+        }
+        ServerRunState serverRunState = null;
+        for (long sId : fileInfo.getFileChunkList().get(serverFileChunkLog.getChunk()).getChunkServerIdList()) {
+            if (sId == serverId)
+                continue;
+            serverRunState = serverRunStateMap.get(sId);
+        }
+        if (serverRunState == null) {
+            logger.error("No backup.");
+            return null;
+        }
+        serverRunState.uploadPlus();
+        return new UpdateChunkServer(fileInfo, serverFileChunkLog.getChunk(), serverId, serverRunState.getServerId());
+    }
+
     public void clearUpdateChunkServer(UpdateChunkServer updateChunkServer) {
         if (updateChunkServer == null)
             return;
@@ -352,7 +381,7 @@ public class FileServerRunManager {
         if (updateChunkServer == null || updateChunkServer.getFileInfo() == null
                 || updateChunkServer.getFileInfo().getFileChunkList().size() <= updateChunkServer.getChunk()
                 || updateChunkServer.getFileInfo().getFileChunkList().get(updateChunkServer.getChunk())
-                        .getChunkServerIdList() == null)
+                .getChunkServerIdList() == null)
             return;
         int sourceIndex = updateChunkServer.getSourceIndex();
         if (sourceIndex < 0)
@@ -363,13 +392,13 @@ public class FileServerRunManager {
             int index = (sourceIndex + i) % serverIdList.size();
             long serverId = serverIdList.get(index);
             if (serverId != updateChunkServer.getNewServerId() && serverId != updateChunkServer.getSourceServerId()) {
-                ServerRunState oldServerRunState=serverRunStateMap.get(updateChunkServer.getSourceServerId());
-                if (oldServerRunState!=null)
+                ServerRunState oldServerRunState = serverRunStateMap.get(updateChunkServer.getSourceServerId());
+                if (oldServerRunState != null)
                     oldServerRunState.uploadSub();
                 updateChunkServer.setSourceIndex(index);
                 updateChunkServer.setSourceServerId(serverId);
-                ServerRunState newServerRunState=serverRunStateMap.get(updateChunkServer.getSourceServerId());
-                if (newServerRunState!=null)
+                ServerRunState newServerRunState = serverRunStateMap.get(updateChunkServer.getSourceServerId());
+                if (newServerRunState != null)
                     newServerRunState.uploadPlus();
                 return;
             }
@@ -381,16 +410,20 @@ public class FileServerRunManager {
      *
      * @param tokenInfo
      */
-    public void uploadFileFinish(TokenInfo tokenInfo) {
+    public void uploadFileFinish(TokenInfo tokenInfo,String etag) {
         if (tokenInfo == null || tokenInfo.getTokenType() == TokenInfo.TOKEN_READ
                 || StringUtils.isEmpty(tokenInfo.getPath()) || StringUtils.isEmpty(tokenInfo.getFileName()))
             return;
 
-        FileInfo fileInfo = uploadRunningTask.get(tokenInfo);
-        if (fileInfo == null) {
+        TaskInfo taskInfo = uploadRunningTask.get(tokenInfo);
+        if (taskInfo == null || taskInfo.getFileInfo() == null) {
             logger.warn("this file is not running upload!");
             return;
         }
+        FileInfo fileInfo = taskInfo.getFileInfo();
+        if (fileInfo==null)
+            return;
+        fileInfo.setEtag(etag);
         uploadRunningTask.remove(tokenInfo);
         for (int i = 0; i < fileInfo.getFileChunkList().size(); i++) {
             ChunkInfo chunkInfo = fileInfo.getFileChunkList().get(i);
@@ -399,6 +432,8 @@ public class FileServerRunManager {
                 if (serverRunState != null) {
                     serverRunState.uploadSub();
                 }
+                //记录当前服务器chunk增加日志
+                masterManager.getServerFileChunkUtil().writeAddServerFileChunk(serverId,tokenInfo.getPath(),tokenInfo.getFileName(),chunkInfo.getIndex());
             }
         }
         for (long serverId : tidyServerId(fileInfo)) {
@@ -425,11 +460,12 @@ public class FileServerRunManager {
                 || StringUtils.isEmpty(tokenInfo.getPath()) || StringUtils.isEmpty(tokenInfo.getFileName()))
             return;
         Set<Long> serverIdSet = new TreeSet<>();
-        FileInfo fileInfo = uploadRunningTask.get(tokenInfo);
-        if (fileInfo == null) {
+        TaskInfo taskInfo = uploadRunningTask.get(tokenInfo);
+        if (taskInfo == null || taskInfo.getFileInfo() == null) {
             logger.warn("this file is not running upload!");
             return;
         }
+        FileInfo fileInfo = taskInfo.getFileInfo();
         for (int i = 0; i < fileInfo.getFileChunkList().size(); i++) {
             ChunkInfo chunkInfo = fileInfo.getFileChunkList().get(i);
             for (long serverId : chunkInfo.getChunkServerIdList()) {
@@ -454,7 +490,31 @@ public class FileServerRunManager {
         masterManager.getLogFileOperate().writeOperateLog(new OperationLog(Instant.now().toEpochMilli(),
                 OperationLog.OP_TYPE_ADD_FILE_FAIL, tokenInfo.getPath(), tokenInfo.getFileName()));
     }
-
+    public boolean deleteFile(TokenInfo tokenInfo) {
+        if (tokenInfo==null || StringUtils.isEmpty(tokenInfo.getFileName()))
+            return false;
+        FileInfo fileInfo = fileInfoManager.findFileInfo(tokenInfo.getPath(),tokenInfo.getFileName());
+        if (fileInfo==null)
+            return false;
+        Set<Long> serverIdSet = new TreeSet<>();
+        for (int i = 0; i < fileInfo.getFileChunkList().size(); i++) {
+            ChunkInfo chunkInfo = fileInfo.getFileChunkList().get(i);
+            for (long serverId : chunkInfo.getChunkServerIdList()) {
+                masterManager.getServerFileChunkUtil().writeDeleteServerFileChunk(serverId,tokenInfo.getPath(),tokenInfo.getFileName(),chunkInfo.getIndex());
+                serverIdSet.add(serverId);
+            }
+        }
+        for (long serverId : serverIdSet) {
+            clearTokenQueue.add(new TokenClearServer(TokenClearServer.TC_TYPE_FILE_DELETE, tokenInfo, serverId));
+        }
+        // 删除当前配置文件
+        boolean res=fileInfoManager.deleteFile(tokenInfo.getPath(),tokenInfo.getFileName());
+        logger.warn("delete upload file,path[{}] file name[{}]", tokenInfo.getPath(),tokenInfo.getFileName());
+        // 上传完成后，重置ServerRunState的排序
+        masterManager.getLogFileOperate().writeOperateLog(new OperationLog(Instant.now().toEpochMilli(),
+                OperationLog.OP_TYPE_DELETE_FILE, tokenInfo.getPath(),tokenInfo.getFileName()));
+        return res;
+    }
     /**
      * 分配下载文件的服务器信息
      *
@@ -472,7 +532,7 @@ public class FileServerRunManager {
         try {
             // load file save information
             fileInfo = fileInfoManager
-                    .findFileInfo(dfsFileUtils.joinFileConfigName(tokenInfo.getPath(), tokenInfo.getFileName()));
+                    .findFileInfo(tokenInfo.getPath(), tokenInfo.getFileName());
             if (fileInfo == null || fileInfo.getFileChunkList() == null || fileInfo.getFileChunkList().isEmpty()) {
                 logger.error("File config information is error.");
                 return null;

@@ -1,6 +1,6 @@
 package com.ly.rhdfs.config;
 
-import com.ly.common.util.DfsFileUtils;
+import com.ly.rhdfs.file.util.DfsFileUtils;
 import com.ly.etag.ETagAccess;
 import com.ly.etag.ETagComputer;
 import com.ly.rhdfs.authentication.AuthenticationVerify;

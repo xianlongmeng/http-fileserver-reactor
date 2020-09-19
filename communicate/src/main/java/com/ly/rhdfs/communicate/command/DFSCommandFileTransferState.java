@@ -8,7 +8,7 @@ public class DFSCommandFileTransferState extends DFSCommand {
 
     public DFSCommandFileTransferState() {
         commandType = DFSCommand.CT_FILE_TRANSFER_STATE;
-        fixLength = 74;
+        fixLength = 78;
     }
 
     public FileTransferState getFileTransferState() {

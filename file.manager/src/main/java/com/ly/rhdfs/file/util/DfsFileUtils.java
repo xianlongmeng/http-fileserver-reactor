@@ -1,4 +1,4 @@
-package com.ly.common.util;
+package com.ly.rhdfs.file.util;
 
 import java.io.*;
 import java.nio.charset.StandardCharsets;
@@ -11,6 +11,8 @@ import org.apache.commons.io.filefilter.IOFileFilter;
 import org.apache.commons.io.filefilter.RegexFileFilter;
 import org.apache.commons.io.filefilter.SuffixFileFilter;
 import org.apache.commons.io.filefilter.TrueFileFilter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
 import com.alibaba.fastjson.JSON;
@@ -19,6 +21,7 @@ import com.ly.common.domain.file.ItemInfo;
 
 public class DfsFileUtils {
 
+    private Logger logger= LoggerFactory.getLogger(getClass());
     private static final String FILE_CONFIG_SUFFIX = ".rfconf";
     private static final String FILE_TMP_CONFIG_SUFFIX = ".rfconf.tmp";
 
@@ -113,11 +116,17 @@ public class DfsFileUtils {
     public FileInfo JSONReadFileInfo(String fileName) {
         if (StringUtils.isEmpty(fileName))
             return null;
+        return JSONReadConfigFileInfo(joinFileName(fileRootPath,fileName));
+    }
+
+    public FileInfo JSONReadConfigFileInfo(String configFileName) {
+        if (StringUtils.isEmpty(configFileName))
+            return null;
         try {
-            String content = FileUtils.readFileToString(new File(joinFileName(fileRootPath,fileName)), StandardCharsets.UTF_8);
+            String content = FileUtils.readFileToString(new File(configFileName), StandardCharsets.UTF_8);
             return JSON.parseObject(content, FileInfo.class);
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error(e.getMessage(),e);
             return null;
         }
     }
@@ -125,12 +134,17 @@ public class DfsFileUtils {
     public boolean JSONWriteFile(String fileName, Object obj) {
         if (StringUtils.isEmpty(fileName) || obj == null)
             return false;
+        return JSONWriteConfigFile(joinFileName(fileRootPath,fileName),obj);
+    }
+    public boolean JSONWriteConfigFile(String configFileName, Object obj) {
+        if (StringUtils.isEmpty(configFileName) || obj == null)
+            return false;
         try {
-            FileWriter fileWriter = new FileWriter(joinFileName(fileRootPath,fileName));
+            FileWriter fileWriter = new FileWriter(configFileName);
             JSON.writeJSONString(fileWriter, obj);
             return true;
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.error(e.getMessage(),e);
             return false;
         }
     }
@@ -139,14 +153,17 @@ public class DfsFileUtils {
         if (paths.length==0)
             return "";
         String path=paths[0];
-        for (int i=0;i<paths.length;i++){
-            String p=paths[i];
+        for (String p : paths) {
             if (StringUtils.isEmpty(p))
                 continue;
             if (StringUtils.isEmpty(path))
-                path=p;
-            else
-                path=String.format("%s/%s",path,p);
+                path = p;
+            else {
+                while (p.startsWith("/") || p.startsWith("\\")){
+                    p=p.substring(1);
+                }
+                path = String.format("%s%s%s", path, File.separator, p);
+            }
         }
         return StringUtils.cleanPath(path);
     }
@@ -157,6 +174,11 @@ public class DfsFileUtils {
         if (StringUtils.isEmpty(fileName))
             return StringUtils.cleanPath(path);
         return StringUtils.cleanPath(String.format("%s%s%s%s", path, File.separator, fileName, getFileConfigSuffix()));
+    }
+    public String joinFileConfigName(String fileFullName) {
+        if (StringUtils.isEmpty(fileFullName))
+            return null;
+        return StringUtils.cleanPath(String.format("%s%s", fileFullName, getFileConfigSuffix()));
     }
 
     public String joinFileTempConfigName(String path, String fileName) {

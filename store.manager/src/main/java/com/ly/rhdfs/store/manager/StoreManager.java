@@ -9,7 +9,7 @@ import com.ly.common.domain.file.FileChunkCopy;
 import com.ly.common.domain.server.ServerState;
 import com.ly.common.domain.token.TokenInfo;
 import com.ly.common.service.FileChunkReader;
-import com.ly.common.util.DfsFileUtils;
+import com.ly.rhdfs.file.util.DfsFileUtils;
 import com.ly.rhdfs.communicate.command.DFSCommandFileTransfer;
 import com.ly.rhdfs.communicate.exception.TransferFileException;
 import com.ly.rhdfs.communicate.socket.parse.DFSCommandParse;
@@ -315,4 +315,5 @@ public class StoreManager extends ServerManager {
             }
         });
     }
+
 }

@@ -1,12 +1,11 @@
 package com.ly.rhdfs.store.distribution.config;
 
-import com.ly.common.util.DfsFileUtils;
+import com.ly.rhdfs.file.util.DfsFileUtils;
 import com.ly.etag.ETagAccess;
+import com.ly.etag.ETagComputer;
 import com.ly.etag.impl.access.ETagAccessDFS;
-import com.ly.rhdfs.communicate.socket.parse.DFSCommandParse;
 import com.ly.rhdfs.config.ServerConfig;
 import com.ly.rhdfs.file.config.FileInfoManager;
-import com.ly.rhdfs.store.StoreFile;
 import com.ly.rhdfs.store.distribution.DistributionFileStore;
 import com.ly.rhdfs.store.manager.StoreManager;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,8 +19,8 @@ public class DistributionStoreConfig {
     private ServerConfig serverConfig;
     private FileInfoManager fileInfoManager;
     private DfsFileUtils dfsFileUtils;
-    private DFSCommandParse dfsCommandParse;
     private StoreManager storeManager;
+    private ETagComputer eTagComputer;
 
     @Autowired
     private void setServerConfig(ServerConfig serverConfig){
@@ -36,21 +35,20 @@ public class DistributionStoreConfig {
         this.dfsFileUtils=dfsFileUtils;
     }
     @Autowired
-    private void setDfsCommandParse(DFSCommandParse dfsCommandParse){
-        this.dfsCommandParse=dfsCommandParse;
-    }
-    @Autowired
     private void setStoreManager(StoreManager storeManager){
         this.storeManager=storeManager;
+    }
+    @Autowired
+    private void setETagComputer(ETagComputer eTagComputer){
+        this.eTagComputer=eTagComputer;
     }
     @Bean
     public DistributionFileStore storeFile(){
         DistributionFileStore storeFile=new DistributionFileStore();
-        storeFile.setConfig(this);
         storeFile.setServerConfig(serverConfig);
         storeFile.setFileInfoManager(fileInfoManager);
         storeFile.setDfsFileUtils(dfsFileUtils);
-        storeFile.setDfsCommandParse(dfsCommandParse);
+        storeFile.setETagComputer(eTagComputer);
         storeFile.setStoreManager(storeManager);
         return storeFile;
     }

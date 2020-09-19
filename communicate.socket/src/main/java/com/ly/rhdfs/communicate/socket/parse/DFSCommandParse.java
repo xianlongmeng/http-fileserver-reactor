@@ -56,7 +56,7 @@ public class DFSCommandParse {
         // read commandType
         int commandType = byteBuf.readInt();
         DFSCommand dfsCommand = newDFSCommand(commandType);
-        dfsCommand.setServerId(byteBuf.readInt());
+        dfsCommand.setServerId(byteBuf.readLong());
         dfsCommand.setTimestamp(byteBuf.readLong());
         long mostSigBits = byteBuf.readLong();
         long leastSigBits = byteBuf.readLong();
@@ -92,6 +92,8 @@ public class DFSCommandParse {
                 return parseReply(byteBuf, dfsCommand);
             case DFSCommand.CT_FILE_CHUNK_COPY:
                 return parseFileChunkCopy(byteBuf, dfsCommand);
+            case DFSCommand.CT_FILE_CHUNK_INFO:
+                return parseFileChunkInfo(byteBuf, dfsCommand);
             default:
                 return parseExpand(byteBuf, dfsCommand);
         }
@@ -127,6 +129,8 @@ public class DFSCommandParse {
                 return new DFSCommandReply();
             case DFSCommand.CT_FILE_CHUNK_COPY:
                 return new DFSCommandFileChunkCopy();
+            case DFSCommand.CT_FILE_CHUNK_INFO:
+                return new DFSCommandFileChunkInfo();
             default:
                 return new DFSCommandExpand();
         }
@@ -183,6 +187,20 @@ public class DFSCommandParse {
         dfsCommandChunkInfo.setChunkInfo(chunkInfo);
         return dfsCommandChunkInfo;
     }
+
+    public DFSCommandFileChunkInfo parseFileChunkInfo(ByteBuf byteBuf, DFSCommand dfsCommand) {
+        if (!(dfsCommand instanceof DFSCommandFileChunkInfo)) {
+            return null;
+        }
+        DFSCommandFileChunkInfo dfsCommandFileChunkInfo = (DFSCommandFileChunkInfo) dfsCommand;
+        byte[] bytes = new byte[dfsCommandFileChunkInfo.getLength() - dfsCommandFileChunkInfo.getFixLength()];
+        byteBuf.readBytes(bytes);
+        String fileChunkInfoStr = new String(bytes);
+        FileChunkInfo fileChunkInfo = JSON.parseObject(fileChunkInfoStr, FileChunkInfo.class);
+        dfsCommandFileChunkInfo.setFileChunkInfo(fileChunkInfo);
+        return dfsCommandFileChunkInfo;
+    }
+
     public DFSCommandFileChunkCopy parseFileChunkCopy(ByteBuf byteBuf, DFSCommand dfsCommand) {
         if (!(dfsCommand instanceof DFSCommandFileChunkCopy)) {
             return null;
@@ -359,6 +377,7 @@ public class DFSCommandParse {
         long leastSigBits = byteBuf.readLong();
         dfsCommandReply.setReplyUUID(new UUID(mostSigBits, leastSigBits));
         dfsCommandReply.setReply(byteBuf.readByte());
+        dfsCommandReply.setErrorCode(byteBuf.readInt());
         return dfsCommandReply;
     }
 
@@ -389,6 +408,10 @@ public class DFSCommandParse {
             return packageCommandReply((DFSCommandReply) dfsCommand);
         } else if (dfsCommand instanceof DFSCommandFileChunkCopy) {
             return packageCommandFileChunkCopy((DFSCommandFileChunkCopy) dfsCommand);
+        } else if (dfsCommand instanceof DFSCommandBackupFileChunk) {
+            return packageCommandBackupFileChunk((DFSCommandBackupFileChunk) dfsCommand);
+        } else if (dfsCommand instanceof DFSCommandFileChunkInfo) {
+            return packageCommandFileChunkInfo((DFSCommandFileChunkInfo) dfsCommand);
         } else {
             return null;
         }
@@ -421,6 +444,8 @@ public class DFSCommandParse {
             return convertCommandExpand((byte[]) commandObj);
         } else if (commandType == DFSCommand.CT_FILE_CHUNK_COPY) {
             return convertCommandFileChunkCopy((FileChunkCopy) commandObj);
+        } else if (commandType == DFSCommand.CT_FILE_CHUNK_INFO) {
+            return convertCommandFileChunkInfo((FileChunkInfo) commandObj);
         } else {
             return null;
         }
@@ -456,6 +481,8 @@ public class DFSCommandParse {
             return convertCommandExpand((byte[]) commandObj);
         } else if (commandObj instanceof FileChunkCopy) {
             return convertCommandFileChunkCopy((FileChunkCopy) commandObj);
+        } else if (commandObj instanceof FileChunkInfo) {
+            return convertCommandFileChunkInfo((FileChunkInfo) commandObj);
         } else {
             return null;
         }
@@ -588,6 +615,27 @@ public class DFSCommandParse {
         dfsCommandChunkInfo.setLength(dfsCommandChunkInfo.getFixLength() + bytes.length);
         ByteBuf byteBuf = PooledByteBufAllocator.DEFAULT.buffer(dfsCommandChunkInfo.getLength() + 8);
         packageCommandHeader(byteBuf, dfsCommandChunkInfo);
+        byteBuf.writeBytes(bytes);
+        return byteBuf;
+    }
+
+    public DFSCommandFileChunkInfo convertCommandFileChunkInfo(FileChunkInfo fileChunkInfo) {
+        if (fileChunkInfo == null)
+            return null;
+        DFSCommandFileChunkInfo dfsCommandFileChunkInfo = new DFSCommandFileChunkInfo();
+        dfsCommandFileChunkInfo.setServerId(serverConfig.getCurrentServerId());
+        dfsCommandFileChunkInfo.setFileChunkInfo(fileChunkInfo);
+        dfsCommandFileChunkInfo.setTimestamp(Instant.now().toEpochMilli());
+        return dfsCommandFileChunkInfo;
+    }
+
+    public ByteBuf packageCommandFileChunkInfo(DFSCommandFileChunkInfo dfsCommandFileChunkInfo) {
+        if (dfsCommandFileChunkInfo == null || dfsCommandFileChunkInfo.getFileChunkInfo() == null)
+            return null;
+        byte[] bytes = JSON.toJSONString(dfsCommandFileChunkInfo.getFileChunkInfo()).getBytes();
+        dfsCommandFileChunkInfo.setLength(dfsCommandFileChunkInfo.getFixLength() + bytes.length);
+        ByteBuf byteBuf = PooledByteBufAllocator.DEFAULT.buffer(dfsCommandFileChunkInfo.getLength() + 8);
+        packageCommandHeader(byteBuf, dfsCommandFileChunkInfo);
         byteBuf.writeBytes(bytes);
         return byteBuf;
     }
@@ -883,13 +931,14 @@ public class DFSCommandParse {
     }
     // fileTransfer 需要使用组合bytebuf拼接基本信息和databuffer的文件信息
     // file finish,chunk finish,chunk server update
-    public DFSCommandReply convertCommandReply(UUID replyUUID,byte replyResult) {
+    public DFSCommandReply convertCommandReply(UUID replyUUID,byte replyResult,int errorCode) {
         if (replyUUID==null)
             return null;
         DFSCommandReply dfsCommandReply = new DFSCommandReply();
         dfsCommandReply.setServerId(serverConfig.getCurrentServerId());
         dfsCommandReply.setReplyUUID(replyUUID);
         dfsCommandReply.setReply(replyResult);
+        dfsCommandReply.setErrorCode(errorCode);
         dfsCommandReply.setTimestamp(Instant.now().toEpochMilli());
         return dfsCommandReply;
     }
@@ -903,6 +952,7 @@ public class DFSCommandParse {
         byteBuf.writeLong(dfsCommandReply.getReplyMostSigBits());
         byteBuf.writeLong(dfsCommandReply.getReplyLeastSigBits());
         byteBuf.writeByte(dfsCommandReply.getReply());
+        byteBuf.writeInt(dfsCommandReply.getErrorCode());
         return byteBuf;
     }
 }

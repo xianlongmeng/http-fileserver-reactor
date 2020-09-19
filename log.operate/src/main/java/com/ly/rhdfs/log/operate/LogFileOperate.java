@@ -9,14 +9,12 @@ import com.ly.common.util.ConvertUtil;
 import org.apache.commons.io.filefilter.AndFileFilter;
 import org.apache.commons.io.filefilter.PrefixFileFilter;
 import org.apache.commons.io.filefilter.SuffixFileFilter;
-import org.apache.commons.logging.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.ly.common.domain.log.OperationLog;
 import com.ly.common.util.DateFormatUtils;
-import com.ly.common.util.DfsFileUtils;
-import org.springframework.beans.factory.annotation.Autowired;
+import com.ly.rhdfs.file.util.DfsFileUtils;
 
 public class LogFileOperate {
 

@@ -3,7 +3,7 @@ package com.ly.rhdfs.master.manager.task;
 import com.ly.common.domain.log.OperationLog;
 import com.ly.common.domain.server.ServerState;
 import com.ly.common.domain.token.TokenInfo;
-import com.ly.common.util.DfsFileUtils;
+import com.ly.rhdfs.file.util.DfsFileUtils;
 import com.ly.common.util.SpringContextUtil;
 import com.ly.rhdfs.log.operate.LogFileOperate;
 import com.ly.rhdfs.log.operate.LogOperateUtils;

@@ -2,7 +2,9 @@ package com.ly.rhdfs.manager.handler;
 
 import com.ly.common.domain.ResultInfo;
 import com.ly.common.domain.file.FileInfo;
+import com.ly.common.service.FileChunkManger;
 import com.ly.common.util.SpringContextUtil;
+import com.ly.etag.ETagComputer;
 import com.ly.rhdfs.communicate.command.DFSCommand;
 import com.ly.rhdfs.communicate.command.DFSCommandFileTransfer;
 import com.ly.rhdfs.communicate.command.DFSCommandReply;
@@ -23,11 +25,15 @@ public class FileTransferChunkCommandEventHandler implements EventHandler {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final ServerManager serverManager;
+    private final FileChunkManger fileChunkManger;
     private StoreFile storeFile;
+    private ETagComputer eTagComputer;
 
     public FileTransferChunkCommandEventHandler(ServerManager serverManager) {
         this.serverManager = serverManager;
         storeFile = SpringContextUtil.getBean(StoreFile.class);
+        fileChunkManger = SpringContextUtil.getBean(FileChunkManger.class);
+        eTagComputer = SpringContextUtil.getBean(ETagComputer.class);
     }
 
     @Override
@@ -37,7 +43,9 @@ public class FileTransferChunkCommandEventHandler implements EventHandler {
             return ResultInfo.S_ERROR;
         }
         DFSCommandFileTransfer dfsCommandFileTransfer = (DFSCommandFileTransfer) dfsCommand;
-        FileInfo fileInfo = serverManager.getFileInfoManager().findFileInfo(serverManager.getDfsFileUtils().joinFileConfigName(dfsCommandFileTransfer.getFileTransferInfo().getPath(), dfsCommandFileTransfer.getFileTransferInfo().getFileName()));
+        FileInfo fileInfo = serverManager.getFileInfoManager().findFileInfo(
+                dfsCommandFileTransfer.getFileTransferInfo().getPath(),
+                dfsCommandFileTransfer.getFileTransferInfo().getFileName());
         if (fileInfo == null) {
             logger.error("file transfer failed,file is not found.path[{}],file name[{}]",
                     dfsCommandFileTransfer.getFileTransferInfo().getPath(), dfsCommandFileTransfer.getFileTransferInfo().getFileName());
@@ -59,12 +67,39 @@ public class FileTransferChunkCommandEventHandler implements EventHandler {
                                 new CompletionHandler<>() {
                                     @Override
                                     public void completed(Integer result, ByteBuffer attachment) {
-                                        logger.info("file is saved.path[{}],file name[{}],position[{}],size[{}]",
+                                        logger.info("file is saved.path[{}],file name[{}],chunk[{}],position[{}],size[{}]",
                                                 dfsCommandFileTransfer.getFileTransferInfo().getPath(),
                                                 dfsCommandFileTransfer.getFileTransferInfo().getFileName(),
+                                                dfsCommandFileTransfer.getFileTransferInfo().getChunkIndex(),
                                                 dfsCommandFileTransfer.getFileTransferInfo().getStartPos(),
                                                 dfsCommandFileTransfer.getFileTransferInfo().getSize());
-                                        serverManager.sendCommandReply(dfsCommandFileTransfer, DFSCommandReply.REPLY_STATE_TRUE);
+                                        int count = fileChunkManger.setFileChunkState(fileFullName,
+                                                dfsCommandFileTransfer.getFileTransferInfo().getChunkPieceCount(),
+                                                dfsCommandFileTransfer.getFileTransferInfo().getChunkPieceIndex());
+                                        if (count == dfsCommandFileTransfer.getFileTransferInfo().getChunkPieceCount()) {
+                                            //verify etag
+                                            eTagComputer
+                                                    .etagFile(serverManager.getDfsFileUtils()
+                                                            .joinFileName(dfsCommandFileTransfer.getFileTransferInfo().getPath(),
+                                                                    dfsCommandFileTransfer.getFileTransferInfo().getFileName()))
+                                                    .subscribe(etag -> {
+                                                        if (etag.equals(dfsCommandFileTransfer.getFileTransferInfo().getEtag())) {
+                                                            logger.info("file is completed.path[{}],file name[{}],chunk[{}]",
+                                                                    dfsCommandFileTransfer.getFileTransferInfo().getPath(),
+                                                                    dfsCommandFileTransfer.getFileTransferInfo().getFileName(),
+                                                                    dfsCommandFileTransfer.getFileTransferInfo().getChunkIndex());
+                                                            serverManager.sendCommandReply(dfsCommandFileTransfer, DFSCommandReply.REPLY_STATE_TRUE, 0);
+                                                        } else {
+                                                            logger.warn("file verify failed.path[{}],file name[{}],chunk[{}]",
+                                                                    dfsCommandFileTransfer.getFileTransferInfo().getPath(),
+                                                                    dfsCommandFileTransfer.getFileTransferInfo().getFileName(),
+                                                                    dfsCommandFileTransfer.getFileTransferInfo().getChunkIndex());
+                                                            serverManager.sendCommandReply(dfsCommandFileTransfer, DFSCommandReply.REPLY_STATE_FALSE, 501);
+                                                        }
+                                                    });
+                                        } else {
+                                            serverManager.sendCommandReply(dfsCommandFileTransfer, DFSCommandReply.REPLY_STATE_TRUE, 0);
+                                        }
                                     }
 
                                     @Override
@@ -75,7 +110,7 @@ public class FileTransferChunkCommandEventHandler implements EventHandler {
                                                 dfsCommandFileTransfer.getFileTransferInfo().getStartPos(),
                                                 dfsCommandFileTransfer.getFileTransferInfo().getSize()),
                                                 exc);
-                                        serverManager.sendCommandReply(dfsCommandFileTransfer, DFSCommandReply.REPLY_STATE_FALSE);
+                                        serverManager.sendCommandReply(dfsCommandFileTransfer, DFSCommandReply.REPLY_STATE_FALSE, 401);
                                     }
                                 });
             } catch (IOException e) {
@@ -85,7 +120,7 @@ public class FileTransferChunkCommandEventHandler implements EventHandler {
                         dfsCommandFileTransfer.getFileTransferInfo().getStartPos(),
                         dfsCommandFileTransfer.getFileTransferInfo().getSize()),
                         e);
-                serverManager.sendCommandReply(dfsCommandFileTransfer, DFSCommandReply.REPLY_STATE_FALSE);
+                serverManager.sendCommandReply(dfsCommandFileTransfer, DFSCommandReply.REPLY_STATE_FALSE, 1);
             }
         }
         return ResultInfo.S_OK;

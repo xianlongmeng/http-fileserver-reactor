@@ -124,10 +124,10 @@ public class ConnectManager {
         return dfsCommunicate.sendCommandDataAsyncReply(findConnection(serverState), byteBufFlux,
                 dfsCommandFileTransfer, timeout, timeUnit);
     }
-    public boolean sendCommandReply(ServerState serverState,DFSCommand dfsCommand,byte replyResult){
+    public boolean sendCommandReply(ServerState serverState,DFSCommand dfsCommand,byte replyResult,int errorCode){
         if (dfsCommand==null)
             return false;
-        return dfsCommunicate.sendCommandReply(findConnection(serverState),dfsCommand,replyResult);
+        return dfsCommunicate.sendCommandReply(findConnection(serverState),dfsCommand,replyResult,errorCode);
     }
     public void receiveReply(DFSCommandReply dfsCommandReply) {
         dfsCommunicate.receiveReply(dfsCommandReply);

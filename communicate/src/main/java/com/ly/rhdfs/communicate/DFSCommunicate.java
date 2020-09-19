@@ -46,6 +46,6 @@ public interface DFSCommunicate {
 
     CompletableFuture<Integer> sendFileFinishCommandAsyncReply(Connection connection, Object/* command */ msg, long timeout, TimeUnit timeUnit);
 
-    boolean sendCommandReply(Connection connection,DFSCommand dfsCommand,byte replyResult);
+    boolean sendCommandReply(Connection connection,DFSCommand dfsCommand,byte replyResult,int errorCode);
     void receiveReply(DFSCommandReply dfsCommandReply);
 }

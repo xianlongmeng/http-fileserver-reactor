@@ -24,6 +24,7 @@ public class DFSCommand {
     public static final int CT_FILE_TRANSFER_STATE = 0x101;
     public static final int CT_FILE_OPERATE = 0x200;
     public static final int CT_FILE_CHUNK_COPY = 0x400;
+    public static final int CT_FILE_CHUNK_INFO = 0x800;
     public static final int CT_REPLY = 0x8000;
 
     protected int commandType;
@@ -31,7 +32,7 @@ public class DFSCommand {
     protected long serverId;
     protected long timestamp;
     protected UUID uuid;
-    protected int fixLength = 37;
+    protected int fixLength = 36;
 
     public DFSCommand(){
         uuid= Generators.timeBasedGenerator().generate();

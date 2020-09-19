@@ -1,14 +1,13 @@
 package com.ly.rhdfs.communicate.command;
 
 import com.ly.common.domain.file.FileTransferInfo;
-import io.netty.buffer.ByteBuf;
 
-public class DFSCommandFileTransfer extends DFSCommand{
+public class DFSCommandFileTransfer extends DFSCommand {
     private FileTransferInfo fileTransferInfo;
 
-    public DFSCommandFileTransfer(){
-        commandType=DFSCommand.CT_FILE_TRANSFER;
-        fixLength=78;
+    public DFSCommandFileTransfer() {
+        commandType = DFSCommand.CT_FILE_TRANSFER;
+        fixLength = 74;
     }
 
     public FileTransferInfo getFileTransferInfo() {

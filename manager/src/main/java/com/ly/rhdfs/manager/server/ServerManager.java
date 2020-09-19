@@ -8,14 +8,6 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.*;
 
-import com.ly.common.domain.ResultInfo;
-import com.ly.common.domain.token.TokenInfo;
-import com.ly.common.util.DfsFileUtils;
-import com.ly.common.util.SpringContextUtil;
-import com.ly.rhdfs.communicate.command.DFSCommand;
-import com.ly.rhdfs.communicate.command.DFSCommandReply;
-import com.ly.rhdfs.file.config.FileInfoManager;
-import com.ly.rhdfs.manager.handler.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,63 +17,75 @@ import org.springframework.util.StringUtils;
 
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.TypeReference;
+import com.ly.common.domain.ResultInfo;
+import com.ly.common.domain.file.FileChunkInfo;
 import com.ly.common.domain.server.MasterServerConfig;
 import com.ly.common.domain.server.ServerInfoConfiguration;
 import com.ly.common.domain.server.ServerState;
-import com.ly.rhdfs.communicate.command.DFSCommandState;
+import com.ly.common.domain.token.TokenInfo;
+import com.ly.rhdfs.file.util.DfsFileUtils;
+import com.ly.rhdfs.communicate.command.DFSCommand;
+import com.ly.rhdfs.communicate.command.DFSCommandReply;
 import com.ly.rhdfs.config.ServerConfig;
+import com.ly.rhdfs.file.config.FileInfoManager;
 import com.ly.rhdfs.log.operate.LogFileOperate;
 import com.ly.rhdfs.log.operate.LogOperateUtils;
 import com.ly.rhdfs.manager.connect.ConnectManager;
 import com.ly.rhdfs.manager.connect.ConnectServerTask;
 import com.ly.rhdfs.manager.connect.ServerStateHeartBeatTask;
+import com.ly.rhdfs.manager.handler.*;
+
 import reactor.netty.Connection;
 
 @Component
 public abstract class ServerManager {
+
     protected final int initThreadDelay = 10;
     protected final int initThreadSecondDelay = 20;
     protected final int initThreadThirdDelay = 30;
     protected final Map<Long, ServerState> serverInfoMap = new ConcurrentHashMap<>();
-    private ServerState localServerState;
+    protected final ThreadPoolExecutor threadPoolExecutor = new ThreadPoolExecutor(8, 16, 60, TimeUnit.SECONDS,
+            new LinkedBlockingQueue<>());
     protected int scheduledThreadCount = 5;
     protected Logger logger = LoggerFactory.getLogger(this.getClass());
     protected ConnectManager connectManager;
     protected ServerConfig serverConfig;
     protected ScheduledThreadPoolExecutor scheduledThreadPoolExecutor;
-    protected final ThreadPoolExecutor threadPoolExecutor= new ThreadPoolExecutor(8,16,60,TimeUnit.SECONDS,new LinkedBlockingQueue<>());
     protected long masterServerId = -1;
     protected MasterServerConfig masterServerConfig;
-    //Master:disconnect 3 store last time;Store:disconnect master last time
-    private long masterDisconnectedLastTime;
-    private LogFileOperate logFileOperate;
-    private LogOperateUtils logOperateUtils;
     protected CommandEventHandler commandEventHandler;
-    private FileInfoManager fileInfoManager;
-    private DfsFileUtils dfsFileUtils;
-    public FileInfoManager getFileInfoManager(){
+    protected ServerState localServerState;
+    // Master:disconnect 3 store last time;Store:disconnect master last time
+    protected long masterDisconnectedLastTime;
+    protected LogFileOperate logFileOperate;
+    protected LogOperateUtils logOperateUtils;
+    protected FileInfoManager fileInfoManager;
+    protected DfsFileUtils dfsFileUtils;
+
+    public ServerManager() {
+    }
+
+    public FileInfoManager getFileInfoManager() {
         return fileInfoManager;
     }
+
     @Autowired
     private void setFileInfoManager(FileInfoManager fileInfoManager) {
         this.fileInfoManager = fileInfoManager;
     }
+
     @Autowired
-    private void setLogFileOperate(LogFileOperate logFileOperate){
-        this.logFileOperate=logFileOperate;
+    private void setLogOperateUtils(LogOperateUtils logOperateUtils) {
+        this.logOperateUtils = logOperateUtils;
     }
-    @Autowired
-    private void setLogOperateUtils(LogOperateUtils logOperateUtils){
-        this.logOperateUtils=logOperateUtils;
-    }
-    @Autowired
-    private void setDfsFileUtils(DfsFileUtils dfsFileUtils){
-        this.dfsFileUtils=dfsFileUtils;
-    }
-    public DfsFileUtils getDfsFileUtils(){
+
+    public DfsFileUtils getDfsFileUtils() {
         return dfsFileUtils;
     }
-    public ServerManager() {
+
+    @Autowired
+    private void setDfsFileUtils(DfsFileUtils dfsFileUtils) {
+        this.dfsFileUtils = dfsFileUtils;
     }
 
     public ServerConfig getServerConfig() {
@@ -99,7 +103,7 @@ public abstract class ServerManager {
     }
 
     public ServerState getLocalServerState() {
-        if (localServerState==null) {
+        if (localServerState == null) {
             localServerState = new ServerState();
             localServerState.setServerId(serverConfig.getCurrentServerId());
         }
@@ -118,15 +122,17 @@ public abstract class ServerManager {
         getLocalServerState().setUpdateAddressLastTime(serverAddressUpdateLastTime);
     }
 
-    protected void initCommandEventHandler(){
-        commandEventHandler=new CommandEventHandler(this);
+    protected void initCommandEventHandler() {
+        commandEventHandler = new CommandEventHandler(this);
         commandEventHandler.setServerAddressCommandEventHandler(new ServerAddressCommandEventHandler(this));
         commandEventHandler.setFileDeleteCommandEventHandler(new FileDeleteCommandEventHandler(this));
         commandEventHandler.setClearTokenCommandEventHandler(new ClearTokenCommandEventHandler(this));
         commandEventHandler.setFileInfoCommandEventHandler(new FileInfoCommandEventHandler(this));
         commandEventHandler.setReplyCommandEventHandler(new ReplyCommandEventHandler(this));
+        commandEventHandler.setFileChunkInfoCommandEventHandler(new FileChunkInfoCommandEventHandler(this));
     }
-    public void initial(){
+
+    public void initial() {
         initCommandEventHandler();
         // 初始化ServerManager
         loadMasterServer(serverConfig.getConfigPath());
@@ -144,8 +150,14 @@ public abstract class ServerManager {
         return logFileOperate;
     }
 
+    @Autowired
+    private void setLogFileOperate(LogFileOperate logFileOperate) {
+        this.logFileOperate = logFileOperate;
+    }
+
     /**
      * 收到心跳后，放入新的ServerState，处理相关Config信息。
+     * 
      * @param serverState
      */
     public void putServerState(ServerState serverState) {
@@ -157,9 +169,8 @@ public abstract class ServerManager {
         } else {
             ServerInfoConfiguration serverInfoConfiguration = masterServerConfig
                     .getServerInfoConfiguration(serverState.getServerId());
-            if (serverInfoConfiguration != null
-                    && ((serverState.getAddress() != null
-                            && !serverState.getAddress().equals(serverInfoConfiguration.getAddress()))
+            if (serverInfoConfiguration != null && ((serverState.getAddress() != null
+                    && !serverState.getAddress().equals(serverInfoConfiguration.getAddress()))
                     || serverState.getPort() != serverInfoConfiguration.getPort())) {
                 serverState.setUpdateAddressLastTime(Instant.now().toEpochMilli());
                 serverInfoConfiguration.setServerState(serverState);
@@ -169,29 +180,31 @@ public abstract class ServerManager {
         }
     }
 
-    //只负责删除ServerState内容，不负责数据转存
+    // 只负责删除ServerState内容，不负责数据转存
     public void removeServerState(ServerState serverState) {
-        if (serverState==null)
+        if (serverState == null)
             return;
         serverInfoMap.remove(serverState.getServerId());
-        if (masterServerConfig!=null){
-            if (serverState.getType()==ServerState.SIT_STORE){
+        if (masterServerConfig != null) {
+            if (serverState.getType() == ServerState.SIT_STORE) {
                 masterServerConfig.removeMasterServer(serverState.getServerId());
-            }else{
+            } else {
                 masterServerConfig.removeStoreServer(serverState.getServerId());
             }
         }
     }
-    public void removeServerState(long serverId){
-        ServerState serverState=serverInfoMap.remove(serverId);
-        if (masterServerConfig!=null && serverState!=null){
-            if (serverState.getType()==ServerState.SIT_STORE){
+
+    public void removeServerState(long serverId) {
+        ServerState serverState = serverInfoMap.remove(serverId);
+        if (masterServerConfig != null && serverState != null) {
+            if (serverState.getType() == ServerState.SIT_STORE) {
                 masterServerConfig.removeMasterServer(serverState.getServerId());
-            }else{
+            } else {
                 masterServerConfig.removeStoreServer(serverState.getServerId());
             }
         }
     }
+
     public ScheduledThreadPoolExecutor getScheduledThreadPoolExecutor() {
         return scheduledThreadPoolExecutor;
     }
@@ -200,8 +213,8 @@ public abstract class ServerManager {
         return serverInfoMap.get(serverId);
     }
 
-    protected void addServerInfo(ServerInfoConfiguration serverInfoConfiguration){
-        if (serverInfoConfiguration!=null)
+    protected void addServerInfo(ServerInfoConfiguration serverInfoConfiguration) {
+        if (serverInfoConfiguration != null)
             serverInfoMap.put(serverInfoConfiguration.getServerId(), newServerInfo(serverInfoConfiguration));
     }
 
@@ -239,9 +252,10 @@ public abstract class ServerManager {
         return serverState;
     }
 
-    public void saveMasterServerConfig(){
+    public void saveMasterServerConfig() {
         saveMasterServerConfig(serverConfig.getConfigPath());
     }
+
     public synchronized void saveMasterServerConfig(String configPath) {
         if (StringUtils.isEmpty(configPath)) {
             return;
@@ -291,18 +305,20 @@ public abstract class ServerManager {
         connectManager.sendCommunicationObject(serverState, getLocalServerState(), DFSCommand.CT_STATE);
     }
 
-    public boolean sendFileInfoSync(ServerState serverState,byte[] fileInfo){
-        if (serverState==null)
+    public boolean sendFileInfoSync(ServerState serverState, byte[] fileInfo) {
+        if (serverState == null)
             return false;
-        return connectManager.sendFileInfoCommandSync(serverState,fileInfo);
+        return connectManager.sendFileInfoCommandSync(serverState, fileInfo);
     }
+
     public void initLastTime() {
         getLocalServerState().setWriteLastTime(logOperateUtils.readLastTime());
     }
 
-    public MasterServerConfig getMasterServerConfig(){
+    public MasterServerConfig getMasterServerConfig() {
         return masterServerConfig;
     }
+
     public int getStoreServerCount() {
         if (masterServerConfig == null)
             return 3;
@@ -325,30 +341,42 @@ public abstract class ServerManager {
     public void setMasterDisconnectedLastTime(long masterDisconnectedLastTime) {
         this.masterDisconnectedLastTime = masterDisconnectedLastTime;
     }
-    public int fileDelete(TokenInfo tokenInfo){
+
+    public int fileDelete(TokenInfo tokenInfo) {
         clearToken(tokenInfo);
-        if (dfsFileUtils.fileDelete(tokenInfo.getPath(),
-                tokenInfo.getFileName())) {
-            logger.info("file is deleted.path[{}],file name[{}]", tokenInfo.getPath(),
-                    tokenInfo.getFileName());
+        if (dfsFileUtils.fileDelete(tokenInfo.getPath(), tokenInfo.getFileName())) {
+            logger.info("file is deleted.path[{}],file name[{}]", tokenInfo.getPath(), tokenInfo.getFileName());
             return ResultInfo.S_OK;
         } else {
-            logger.info("file delete failed.path[{}],file name[{}]", tokenInfo.getPath(),
-                    tokenInfo.getFileName());
+            logger.info("file delete failed.path[{}],file name[{}]", tokenInfo.getPath(), tokenInfo.getFileName());
             return ResultInfo.S_FAILED;
         }
     }
+
     public abstract void clearToken(TokenInfo tokenInfo);
-    public Connection findConnection(long serverId){
+
+    public Connection findConnection(long serverId) {
         return connectManager.findConnection(findServerState(serverId));
     }
 
-    public boolean sendCommandReply(DFSCommand dfsCommand,byte replyResult){
-        if (dfsCommand==null)
+    public boolean sendCommandReply(DFSCommand dfsCommand, byte replyResult,int errorCode) {
+        if (dfsCommand == null)
             return false;
-        return connectManager.sendCommandReply(findServerState(dfsCommand.getServerId()),dfsCommand,replyResult);
+        return connectManager.sendCommandReply(findServerState(dfsCommand.getServerId()), dfsCommand, replyResult,errorCode);
     }
+
     public void receiveReply(DFSCommandReply dfsCommandReply) {
         connectManager.receiveReply(dfsCommandReply);
+    }
+
+    public CompletableFuture<Integer> sendFileChunkInfoAsyncReply(long serverId, FileChunkInfo fileChunkInfo,
+            long timeout, TimeUnit timeUnit) {
+        return connectManager.sendDataAsyncReply(serverInfoMap.get(serverId), fileChunkInfo,
+                DFSCommand.CT_FILE_CHUNK_INFO, timeout, timeUnit);
+    }
+
+    public boolean sendFileChunkInfoAsync(long serverId, FileChunkInfo fileChunkInfo) {
+        return connectManager.sendCommunicationObject(serverInfoMap.get(serverId), fileChunkInfo,
+                DFSCommand.CT_FILE_CHUNK_INFO);
     }
 }

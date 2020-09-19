@@ -12,6 +12,7 @@ public class ParamConstants {
     public static final String PARAM_FILE_NAME = "file_name";
     public static final String PARAM_FILE_SIZE_NAME = "file_size";
     public static final String PARAM_TOKEN_NAME = "token";
+    public static final String PARAM_ETAG = "ETag";
     public static final int MASTER_SERVER_DEFAULT_PORT = 11527;
     public static final String ST_MASTER = "master";
     public static final String ST_STORE = "store";
