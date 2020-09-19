@@ -1,5 +1,6 @@
 package com.ly.rhdfs.file.server.dfs.route;
 
+import com.ly.rhdfs.file.server.dfs.handler.CommandDfsHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.annotation.Bean;
@@ -67,6 +68,20 @@ public class FileDfsTransferRoute {
                         builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST)
                                         .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
                                 uploadDfsHandler::deleteFileMasterRequest))
+                .build();
+    }
+    @Bean
+    public RouterFunction<ServerResponse> routeCommand(CommandDfsHandler commandDfsHandler) {
+        return RouterFunctions.route()
+                .path("/dfs/backup-server/{serverId}",
+                        builder -> builder.route(
+                                RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST)
+                                        .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
+                                commandDfsHandler::backupServer))
+                .path("/dfs/recover-server/{oldServerId}/{newServerId}",
+                        builder -> builder.route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST)
+                                        .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
+                                commandDfsHandler::recoverServer))
                 .build();
     }
 }

@@ -323,9 +323,7 @@ public class FileServerRunManager {
         }
         ServerRunState serverRunState;
         try {
-            fileInfo.setLastModifyTime(fileInfo.getCreateTime());
             ChunkInfo chunkInfo = fileInfo.getFileChunkList().get(serverFileChunkLog.getChunk());
-            chunkInfo.getChunkServerIdList().remove(serverId);
             int index = 0;
             serverRunState = availableOrderlyServerRunStates.get(index);
             while (serverId == serverRunState.getServerId()
@@ -342,7 +340,7 @@ public class FileServerRunManager {
         return new UpdateChunkServer(fileInfo, serverFileChunkLog.getChunk(), serverId, serverRunState.getServerId());
     }
 
-    public UpdateChunkServer takeUpdateFileChunkServer(long serverId, ServerFileChunkLog serverFileChunkLog) {
+    public UpdateChunkServer takeUpdateFileChunkServer(long serverId,long newServerId, ServerFileChunkLog serverFileChunkLog) {
         if (serverFileChunkLog == null || StringUtils.isEmpty(serverFileChunkLog.getFileName()))
             return null;
         FileInfo fileInfo = fileInfoManager.findFileInfo(serverFileChunkLog.getPath(), serverFileChunkLog.getFileName());
@@ -352,18 +350,13 @@ public class FileServerRunManager {
             logger.error("Do not find upload file information.");
             return null;
         }
-        ServerRunState serverRunState = null;
-        for (long sId : fileInfo.getFileChunkList().get(serverFileChunkLog.getChunk()).getChunkServerIdList()) {
-            if (sId == serverId)
-                continue;
-            serverRunState = serverRunStateMap.get(sId);
-        }
-        if (serverRunState == null) {
+        ServerRunState serverRunState =  serverRunStateMap.get(newServerId);
+        if (serverRunState == null || !serverRunState.isOnline()) {
             logger.error("No backup.");
             return null;
         }
         serverRunState.uploadPlus();
-        return new UpdateChunkServer(fileInfo, serverFileChunkLog.getChunk(), serverId, serverRunState.getServerId());
+        return new UpdateChunkServer(fileInfo, serverFileChunkLog.getChunk(), serverId, newServerId);
     }
 
     public void clearUpdateChunkServer(UpdateChunkServer updateChunkServer) {

@@ -11,8 +11,8 @@ import com.ly.common.domain.server.ServerState;
 import com.ly.common.domain.token.TokenInfo;
 import com.ly.common.exception.DirectNotFoundException;
 import com.ly.common.exception.FileNotFoundException;
-import com.ly.rhdfs.file.util.DfsFileUtils;
 import com.ly.rhdfs.communicate.command.DFSCommand;
+import com.ly.rhdfs.file.util.DfsFileUtils;
 import com.ly.rhdfs.log.server.file.ServerFileChunkUtil;
 import com.ly.rhdfs.manager.server.ServerManager;
 import com.ly.rhdfs.master.manager.handler.ServerStateCommandMasterEventHandler;
@@ -26,6 +26,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
+import reactor.util.function.Tuple2;
+import reactor.util.function.Tuples;
 
 import java.time.Instant;
 import java.util.*;
@@ -137,7 +139,7 @@ public class MasterManager extends ServerManager {
         if (tokenInfo.getTokenType() == TokenInfo.TOKEN_WRITE) {
             fileServerRunManager.clearUploadFile(tokenInfo, true);
         } else if (tokenInfo.getTokenType() == TokenInfo.TOKEN_READ) {
-            fileServerRunManager.clearUploadFile(tokenInfo, true);
+            fileServerRunManager.clearDownloadFile(tokenInfo, true);
         }
     }
 
@@ -329,12 +331,10 @@ public class MasterManager extends ServerManager {
                         treeSet.add(serverId);
                 })
                 .flatMap(treeSet -> {
-                    if (treeSet.size() < serverIds.get().size()) {
-                        if (!fileServerRunManager.resetInvalidServerId(fileInfoAtomic.get(), treeSet)) {
-                            // 发送成功的服务器数量不足保存份数，触发异常
-                            fileServerRunManager.clearUploadFile(tokenInfo, true);
-                            return Mono.error(new ServerAssignException("Server count is not enough!"));
-                        }
+                    if (treeSet.size() < serverIds.get().size() && !fileServerRunManager.resetInvalidServerId(fileInfoAtomic.get(), treeSet)) {
+                        // 发送成功的服务器数量不足保存份数，触发异常
+                        fileServerRunManager.clearUploadFile(tokenInfo, true);
+                        return Mono.error(new ServerAssignException("Server count is not enough!"));
                     }
                     // 成功，发射FileInfo信息
                     return Mono.just(serverIds.get());
@@ -361,20 +361,19 @@ public class MasterManager extends ServerManager {
                     fileInfoAtomic.set(fileServerRunManager.assignUploadFileServerChunk(tokenInfo, chunk));
                     return Mono.just(fileInfoAtomic.get());
                 })
-                .flux().flatMap(fileInfo -> {
-                    // 整理涉及的chunk服务器列表
-                    return Flux.fromIterable(fileInfo.getFileChunkList().get(chunk).getChunkServerIdList());
-                })
+                .flux()
+                // 整理涉及的chunk服务器列表
+                .flatMap(fileInfo -> Flux.fromIterable(fileInfo.getFileChunkList().get(chunk).getChunkServerIdList()))
                 .flatMap(serverId -> Flux.create((Consumer<FluxSink<Long>>) fluxSink ->
-                    // 发送Token到chunk server
-                    sendToken(serverInfoMap.get(serverId), tokenInfo)
-                            .addListener(future -> {
-                                // 发送成功发射ServerId，不成功发射-1
-                                if (future.isSuccess())
-                                    fluxSink.next(serverId);
-                                else
-                                    fluxSink.next(-1L);
-                            })))
+                        // 发送Token到chunk server
+                        sendToken(serverInfoMap.get(serverId), tokenInfo)
+                                .addListener(future -> {
+                                    // 发送成功发射ServerId，不成功发射-1
+                                    if (future.isSuccess())
+                                        fluxSink.next(serverId);
+                                    else
+                                        fluxSink.next(-1L);
+                                })))
                 .flatMap(serverId -> sendFileInfo(serverInfoMap.get(serverId), fileInfoAtomic.get()))
                 .flatMap(sendResult -> {
                     if (!sendResult) {
@@ -406,26 +405,44 @@ public class MasterManager extends ServerManager {
         return connectManager.sendDataAsyncReply(serverInfoMap.get(serverId), fileChunkCopy,
                 DFSCommand.CT_FILE_CHUNK_COPY, timeout, timeUnit);
     }
-    public Mono<DirectInfo> findDirectInfoAsync(String path){
-        return Mono.create(monoSink->
+
+    public Mono<DirectInfo> findDirectInfoAsync(String path) {
+        return Mono.create(monoSink ->
                 CompletableFuture
-                        .supplyAsync(()->fileInfoManager.findDirectInfo(path))
-                        .whenCompleteAsync((result,t)->{
-                            if (result==null)
-                                monoSink.error(new DirectNotFoundException(String.format("Direct %s not found.",path)));
+                        .supplyAsync(() -> fileInfoManager.findDirectInfo(path))
+                        .whenCompleteAsync((result, t) -> {
+                            if (result == null)
+                                monoSink.error(new DirectNotFoundException(String.format("Direct %s not found.", path)));
                             else
                                 monoSink.success(result);
                         }));
     }
-    public Mono<FileInfo> findFileInfoAsync(String path,String fileName){
-        return Mono.create(monoSink->
+
+    public Mono<FileInfo> findFileInfoAsync(String path, String fileName) {
+        return Mono.create(monoSink ->
                 CompletableFuture
-                        .supplyAsync(()->fileInfoManager.findFileInfo(path,fileName))
-                        .whenCompleteAsync((result,t)->{
-                            if (result==null)
-                                monoSink.error(new FileNotFoundException(String.format("Direct %s not found.",path)));
+                        .supplyAsync(() -> fileInfoManager.findFileInfo(path, fileName))
+                        .whenCompleteAsync((result, t) -> {
+                            if (result == null)
+                                monoSink.error(new FileNotFoundException(String.format("Direct %s not found.", path)));
                             else
                                 monoSink.success(result);
                         }));
+    }
+    public boolean addBackupServerId(long serverId){
+        ServerState serverState=findServerState(serverId);
+        if (serverState!=null && !serverState.isOnline()){
+            recoverStoreServerTask.addBackupServerId(serverId);
+            return true;
+        }
+        return false;
+    }
+    public boolean addRecoverServerId(long oldServerId,long newServerId){
+        ServerState serverState=findServerState(newServerId);
+        if (serverState==null || !serverState.isOnline()){
+            return false;
+        }
+        recoverStoreServerTask.addRecoverServerId(Tuples.of(oldServerId, newServerId));
+        return true;
     }
 }

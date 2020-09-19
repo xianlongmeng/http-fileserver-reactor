@@ -1,27 +1,29 @@
 package com.ly.rhdfs.master.manager.task;
 
-import java.util.Map;
-import java.util.concurrent.*;
-import java.util.concurrent.locks.ReentrantLock;
-
 import com.ly.common.domain.ResultInfo;
 import com.ly.common.domain.file.FileChunkCopy;
 import com.ly.common.domain.file.FileInfo;
 import com.ly.common.domain.log.ServerFileChunkLog;
 import com.ly.common.domain.log.UpdateChunkServer;
-import com.ly.common.domain.server.ServerState;
 import com.ly.rhdfs.log.server.file.ServerFileChunkReader;
 import com.ly.rhdfs.master.manager.MasterManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import reactor.util.function.Tuple2;
+
+import java.util.Map;
+import java.util.concurrent.*;
+import java.util.concurrent.locks.ReentrantLock;
 
 public class RecoverStoreServerTask implements Runnable {
-
     private final BlockingQueue<Long> waitBackupServerId = new LinkedBlockingDeque<>();
-    private final BlockingQueue<Long> waitRecoverServerId = new LinkedBlockingDeque<>();
+    private final BlockingQueue<Tuple2<Long, Long>> waitRecoverServerId = new LinkedBlockingDeque<>();
     private final BlockingQueue<ServerFileChunkLog> failedChunkQueue = new LinkedBlockingDeque<>();
     private final Map<String, ReentrantLock> lockMap = new ConcurrentHashMap<>();
     private final MasterManager masterManager;
     private final ThreadPoolExecutor executorService = new ThreadPoolExecutor(8, 8, 60L, TimeUnit.SECONDS,
             new SynchronousQueue<>());
+    private Logger logger = LoggerFactory.getLogger(getClass());
     private int longWaitTime = 300;
     private int shortWaitTime = 30;
     private long curServerId = -1;
@@ -51,8 +53,17 @@ public class RecoverStoreServerTask implements Runnable {
     public void addBackupServerId(long serverId) {
         waitBackupServerId.add(serverId);
     }
-    public void addRecoverServerId(long serverId) {
-        waitRecoverServerId.add(serverId);
+
+    public void addRecoverServerId(Tuple2<Long,Long> serverIds) {
+        waitRecoverServerId.add(serverIds);
+    }
+
+    public void removeBackupServerId(long serverId) {
+        waitBackupServerId.remove(serverId);
+    }
+
+    public void removeRecoverServerId(Tuple2<Long,Long> serverIds) {
+        waitRecoverServerId.remove(serverIds);
     }
 
     @Override
@@ -75,18 +86,18 @@ public class RecoverStoreServerTask implements Runnable {
                             masterManager.getServerConfig().getServerFileLogPath(), curServerId);
                     if (serverFileChunkReader.openFile()) {
                         for (int i = 0; i < executorService.getCorePoolSize(); i++) {
-                            executorService.submit(new RecoverStoreServerFileTask(serverFileChunkReader,RecoverStoreServerFileTask.RSSF_TYPE_BACKUP));
+                            executorService.submit(new RecoverStoreServerFileTask(serverFileChunkReader, RecoverStoreServerFileTask.RSSF_TYPE_BACKUP));
                         }
                     }
-                }else{
-                    sid = waitRecoverServerId.poll();
-                    if (sid != null) {
-                        curServerId = sid;
+                } else {
+                    Tuple2<Long, Long> recoverServerId = waitRecoverServerId.poll();
+                    if (recoverServerId != null) {
+                        curServerId = recoverServerId.getT1();
                         ServerFileChunkReader serverFileChunkReader = new ServerFileChunkReader(
                                 masterManager.getServerConfig().getServerFileLogPath(), curServerId);
                         if (serverFileChunkReader.openFile()) {
                             for (int i = 0; i < executorService.getCorePoolSize(); i++) {
-                                executorService.submit(new RecoverStoreServerFileTask(serverFileChunkReader,RecoverStoreServerFileTask.RSSF_TYPE_RECOVER));
+                                executorService.submit(new RecoverStoreServerFileTask(serverFileChunkReader, RecoverStoreServerFileTask.RSSF_TYPE_RECOVER));
                             }
                         }
                     }
@@ -98,15 +109,26 @@ public class RecoverStoreServerTask implements Runnable {
 
     private class RecoverStoreServerFileTask implements Runnable {
 
-        public static final int RSSF_TYPE_BACKUP=1;
-        public static final int RSSF_TYPE_RECOVER=2;
+        public static final int RSSF_TYPE_BACKUP = 1;
+        public static final int RSSF_TYPE_RECOVER = 2;
         private ServerFileChunkReader serverFileChunkReader;
         private int type;
+        private long recoverServerId;
 
-        public RecoverStoreServerFileTask(ServerFileChunkReader serverFileChunkReader,int type) {
-            this.serverFileChunkReader = serverFileChunkReader;
-            this.type=type;
+        public RecoverStoreServerFileTask(ServerFileChunkReader serverFileChunkReader) {
+            this(serverFileChunkReader, RSSF_TYPE_BACKUP);
         }
+
+        public RecoverStoreServerFileTask(ServerFileChunkReader serverFileChunkReader, int type) {
+            this(serverFileChunkReader, type, -1);
+        }
+
+        public RecoverStoreServerFileTask(ServerFileChunkReader serverFileChunkReader, int type, long recoverServerId) {
+            this.serverFileChunkReader = serverFileChunkReader;
+            this.type = type;
+            this.recoverServerId = recoverServerId;
+        }
+
 
         @Override
         public void run() {
@@ -122,13 +144,15 @@ public class RecoverStoreServerTask implements Runnable {
                 if (serverFileChunkLog == null)
                     break;
                 UpdateChunkServer updateChunkServer;
-                if (type==RSSF_TYPE_BACKUP) {
-                    updateChunkServer=masterManager.getFileServerRunManager()
+                if (type == RSSF_TYPE_BACKUP) {
+                    updateChunkServer = masterManager.getFileServerRunManager()
                             .assignUpdateFileChunkServer(serverFileChunkReader.getServerId(), serverFileChunkLog);
-                }else {
-                    updateChunkServer=masterManager.getFileServerRunManager().takeUpdateFileChunkServer(serverFileChunkReader.getServerId(), serverFileChunkLog);
+                } else if (type == RSSF_TYPE_RECOVER && recoverServerId != -1) {
+                    updateChunkServer = masterManager.getFileServerRunManager().takeUpdateFileChunkServer(serverFileChunkReader.getServerId(), recoverServerId, serverFileChunkLog);
+                } else {
+                    break;
                 }
-                if (updateChunkServer==null){
+                if (updateChunkServer == null) {
                     continue;
                 }
                 FileChunkCopy fileChunkCopy = new FileChunkCopy(serverFileChunkLog.getPath(),
@@ -164,7 +188,7 @@ public class RecoverStoreServerTask implements Runnable {
                     try {
                         serverFileChunkLog.wait(100);
                     } catch (InterruptedException e) {
-                        e.printStackTrace();
+                        logger.error(e.getLocalizedMessage(),e);
                     }
                 }
                 masterManager.getFileServerRunManager().clearUpdateChunkServer(updateChunkServer);
