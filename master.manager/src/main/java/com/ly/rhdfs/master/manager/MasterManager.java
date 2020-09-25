@@ -5,6 +5,7 @@ import com.ly.common.domain.file.DirectInfo;
 import com.ly.common.domain.file.FileChunkCopy;
 import com.ly.common.domain.file.FileInfo;
 import com.ly.common.domain.log.OperationLog;
+import com.ly.common.domain.server.ServerAddressInfo;
 import com.ly.common.domain.server.ServerInfoConfiguration;
 import com.ly.common.domain.server.ServerRunState;
 import com.ly.common.domain.server.ServerState;
@@ -304,7 +305,8 @@ public class MasterManager extends ServerManager {
         if (tokenInfo == null || size <= 0)
             return Mono.error(new NullPointerException());
         AtomicReference<FileInfo> fileInfoAtomic = new AtomicReference<>();
-        AtomicReference<Set<Long>> serverIds = new AtomicReference<>();
+        AtomicReference<Set<ServerAddressInfo>> serverAddressSet = new AtomicReference<>();
+        // 收集发送成功的ServerId
         return Mono
                 .defer(() -> {
                     // 分配Chunk存储服务器
@@ -313,34 +315,28 @@ public class MasterManager extends ServerManager {
                 })
                 .flux().flatMap(fileInfo -> {
                     // 整理涉及的chunk服务器列表
-                    serverIds.set(fileServerRunManager.tidyServerId(fileInfo));
-                    return Flux.fromIterable(serverIds.get());
+                    serverAddressSet.set(fileServerRunManager.tidyServerId(fileInfo));
+                    return Flux.fromIterable(serverAddressSet.get());
                 })
-                .flatMap(serverId -> Mono.create((Consumer<MonoSink<Long>>) monoSink ->
+                .flatMap(serverAddressInfo -> Mono.create((Consumer<MonoSink<ServerAddressInfo>>) monoSink ->
                         // 发送Token到chunk server
-                        sendToken(serverInfoMap.get(serverId), tokenInfo).addListener(future -> {
+                        sendToken(serverInfoMap.get(serverAddressInfo.getServerId()), tokenInfo).addListener(future -> {
                             // 发送成功发射ServerId，不成功发射-1
                             if (future.isSuccess())
-                                monoSink.success(serverId);
-                            else
-                                monoSink.success(-1L);
+                                monoSink.success(serverAddressInfo);
                         })))
-                .collect((Supplier<TreeSet<Long>>) TreeSet::new, (treeSet, serverId) -> {
-                    // 收集发送成功的ServerId
-                    if (serverId > 0)
-                        treeSet.add(serverId);
-                })
+                .collect((Supplier<TreeSet<ServerAddressInfo>>) TreeSet::new, TreeSet::add)
                 .flatMap(treeSet -> {
-                    if (treeSet.size() < serverIds.get().size() && !fileServerRunManager.resetInvalidServerId(fileInfoAtomic.get(), treeSet)) {
+                    if (treeSet.size() < serverAddressSet.get().size() && !fileServerRunManager.resetInvalidServerId(fileInfoAtomic.get(), treeSet)) {
                         // 发送成功的服务器数量不足保存份数，触发异常
                         fileServerRunManager.clearUploadFile(tokenInfo, true);
                         return Mono.error(new ServerAssignException("Server count is not enough!"));
                     }
                     // 成功，发射FileInfo信息
-                    return Mono.just(serverIds.get());
+                    return Mono.just(serverAddressSet.get());
                 })
                 .flux().flatMap(Flux::fromIterable)
-                .flatMap(serverId -> sendFileInfo(serverInfoMap.get(serverId), fileInfoAtomic.get()))
+                .flatMap(serverAddressInfo -> sendFileInfo(serverInfoMap.get(serverAddressInfo.getServerId()), fileInfoAtomic.get()))
                 .flatMap(sendResult -> {
                     if (!sendResult) {
                         fileServerRunManager.clearUploadFile(tokenInfo, true);
@@ -364,13 +360,13 @@ public class MasterManager extends ServerManager {
                 .flux()
                 // 整理涉及的chunk服务器列表
                 .flatMap(fileInfo -> Flux.fromIterable(fileInfo.getFileChunkList().get(chunk).getChunkServerIdList()))
-                .flatMap(serverId -> Flux.create((Consumer<FluxSink<Long>>) fluxSink ->
+                .flatMap(serverAddressInfo -> Flux.create((Consumer<FluxSink<Long>>) fluxSink ->
                         // 发送Token到chunk server
-                        sendToken(serverInfoMap.get(serverId), tokenInfo)
+                        sendToken(serverInfoMap.get(serverAddressInfo.getServerId()), tokenInfo)
                                 .addListener(future -> {
                                     // 发送成功发射ServerId，不成功发射-1
                                     if (future.isSuccess())
-                                        fluxSink.next(serverId);
+                                        fluxSink.next(serverAddressInfo.getServerId());
                                     else
                                         fluxSink.next(-1L);
                                 })))
@@ -392,9 +388,9 @@ public class MasterManager extends ServerManager {
         return Mono.defer(() -> {
             // 分配Chunk存储服务器
             FileInfo fileInfo = fileServerRunManager.assignDownloadFileServer(tokenInfo);
-            Set<Long> serverIds = fileServerRunManager.tidyServerId(fileInfo);
-            for (long serverId : serverIds) {
-                sendToken(serverInfoMap.get(serverId), tokenInfo);
+            Set<ServerAddressInfo> serverIds = fileServerRunManager.tidyServerId(fileInfo);
+            for (ServerAddressInfo serverAddressInfo : serverIds) {
+                sendToken(serverInfoMap.get(serverAddressInfo.getServerId()), tokenInfo);
             }
             return Mono.just(fileInfo);
         });

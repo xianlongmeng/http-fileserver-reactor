@@ -33,6 +33,7 @@
         <module>token.random</module>
         <module>config</module>
         <module>file-server-dfs.store</module>
+        <module>rhdfs-client</module>
     </modules>
 
     <parent>

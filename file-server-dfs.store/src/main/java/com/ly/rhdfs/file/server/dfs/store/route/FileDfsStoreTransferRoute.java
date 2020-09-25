@@ -24,7 +24,7 @@ public class FileDfsStoreTransferRoute {
     @Bean
     public RouterFunction<ServerResponse> routeDownloadFile(DownloadDfsStoreHandler downloadDfsStoreHandler) {
         return RouterFunctions.route()
-                .path("/dfs/store/download-file",
+                .path("/dfs/store/download-file/{*path}",
                         builder -> builder.route(
                                 RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST)
                                         .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),
@@ -35,7 +35,7 @@ public class FileDfsStoreTransferRoute {
     @Bean
     public RouterFunction<ServerResponse> routeUploadFile(UploadDfsStoreHandler uploadDfsStoreHandler) {
         return RouterFunctions.route()
-                .path("/dfs/store/upload-file",
+                .path("/dfs/store/upload-file/{*path}",
                         builder -> builder.route(
                                 RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST)
                                         .and(RequestPredicates.accept(MediaType.APPLICATION_JSON)),

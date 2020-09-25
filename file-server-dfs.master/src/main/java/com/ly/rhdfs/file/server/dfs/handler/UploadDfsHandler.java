@@ -81,7 +81,7 @@ public class UploadDfsHandler {
                 return masterManager.apportionFileServer(tokenInfo, fileSize);
             }).flatMap(fileInfo -> {
                 Map<String, Object> resultMap = new HashMap<>();
-                resultMap.put("token", tokenInfoAtomicReference.get());
+                resultMap.put("tokenInfo", tokenInfoAtomicReference.get());
                 resultMap.put("fileInfo", fileInfo);
                 return ServerResponse.ok().bodyValue(resultMap);
             }).onErrorResume(t -> ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR).build());

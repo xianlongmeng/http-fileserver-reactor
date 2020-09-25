@@ -6,6 +6,7 @@ import com.ly.common.domain.DFSPartChunk;
 import com.ly.common.domain.ResultInfo;
 import com.ly.common.domain.file.DFSBackupStoreFileChunkInfo;
 import com.ly.common.domain.file.FileChunkCopy;
+import com.ly.common.domain.server.ServerAddressInfo;
 import com.ly.common.domain.server.ServerState;
 import com.ly.common.domain.token.TokenInfo;
 import com.ly.common.service.FileChunkReader;
@@ -174,14 +175,14 @@ public class StoreManager extends ServerManager {
                 .size() <= dfsBackupStoreFileChunkInfo.getDfsPartChunk().getIndex())
             return;
 
-        for (long serverId : dfsBackupStoreFileChunkInfo.getDfsPartChunk().getFileInfo().getFileChunkList()
+        for (ServerAddressInfo serverAddressInfo : dfsBackupStoreFileChunkInfo.getDfsPartChunk().getFileInfo().getFileChunkList()
                 .get(dfsBackupStoreFileChunkInfo.getDfsPartChunk().getIndex()).getChunkServerIdList()) {
-            if (serverId == getLocalServerId())
+            if (serverAddressInfo.getServerId() == getLocalServerId())
                 continue;
             DFSCommandFileTransfer dfsCommandFileTransfer = dfsCommandParse
                     .convertCommandFileTransfer(dfsBackupStoreFileChunkInfo.getDfsPartChunk());
             dfsCommandFileTransfer.setUuid(Generators.timeBasedGenerator().generate());
-            connectManager.sendCommandDataAsyncReply(findServerState(serverId),
+            connectManager.sendCommandDataAsyncReply(findServerState(serverAddressInfo.getServerId()),
                     Flux.just(dfsCommandParse.packageCommandFileTransferHeader(dfsCommandFileTransfer)).mergeWith(
                             dataBufferFlux.map(dataBuffer -> dfsCommandParse.convertDataBuffer2ByteBuf(dataBuffer))),
                     dfsCommandFileTransfer, 300, TimeUnit.SECONDS).whenCompleteAsync((result, t) -> {
@@ -189,7 +190,7 @@ public class StoreManager extends ServerManager {
                     // success,todo:
                     logger.info(
                             "file transfer success,serverId[{}],path[{}],file name[{}],index[{}],start position[{}],length[{}]",
-                            serverId, dfsBackupStoreFileChunkInfo.getDfsPartChunk().getTokenInfo().getPath(),
+                            serverAddressInfo.getServerId(), dfsBackupStoreFileChunkInfo.getDfsPartChunk().getTokenInfo().getPath(),
                             dfsBackupStoreFileChunkInfo.getDfsPartChunk().getTokenInfo().getFileName(),
                             dfsBackupStoreFileChunkInfo.getDfsPartChunk().getIndex(),
                             dfsBackupStoreFileChunkInfo.getDfsPartChunk().getChunk()
@@ -198,7 +199,7 @@ public class StoreManager extends ServerManager {
                 } else {
                     // failed
                     backupStoreTaskScheduledThreadPoolExecutor.schedule(
-                            new TransferBackupTask(this, dfsBackupStoreFileChunkInfo, serverId), backupPeriod,
+                            new TransferBackupTask(this, dfsBackupStoreFileChunkInfo, serverAddressInfo.getServerId()), backupPeriod,
                             TimeUnit.SECONDS);
                 }
             });
@@ -253,7 +254,7 @@ public class StoreManager extends ServerManager {
         }
         long size = file.length();
         int chunkSize = serverConfig.getChunkPieceSize();
-        int chunkCount = (int) ((size + 1) / chunkSize);
+        int chunkCount = (int) ((size + chunkSize - 1) / chunkSize);
         Flux.range(0, chunkCount)
                 .flatMap(chunk -> Flux
                         .create((Consumer<FluxSink<Integer>>) fluxSink -> {

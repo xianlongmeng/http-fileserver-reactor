@@ -6,12 +6,14 @@ import com.ly.common.domain.file.FileInfo;
 import com.ly.common.domain.log.OperationLog;
 import com.ly.common.domain.log.ServerFileChunkLog;
 import com.ly.common.domain.log.UpdateChunkServer;
+import com.ly.common.domain.server.ServerAddressInfo;
 import com.ly.common.domain.server.ServerRunState;
 import com.ly.common.domain.token.TokenClearServer;
 import com.ly.common.domain.token.TokenInfo;
 import com.ly.rhdfs.file.util.DfsFileUtils;
 import com.ly.rhdfs.file.config.FileInfoManager;
 import com.ly.rhdfs.master.manager.MasterManager;
+import org.apache.logging.log4j.core.jmx.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -179,6 +181,11 @@ public class FileServerRunManager {
         return compareServerPrior(ss1, ss2);
     }
 
+    public int compareServerPrior(ServerAddressInfo sa1, ServerAddressInfo sa2) {
+        // 剩余空间>50G:运行负载、已有文件数、序号
+        return compareServerPrior(sa1.getServerId(), sa2.getServerId());
+    }
+
     private int getChunkSize() {
         return masterManager.getServerConfig().getChunkSize();
     }
@@ -225,7 +232,7 @@ public class FileServerRunManager {
                 for (int j = 0; j < FILE_COPIES; j++) {
                     ServerRunState serverRunState = availableOrderlyServerRunStates
                             .get((chunkCount * j + i) % availableOrderlyServerRunStates.size());
-                    chunkInfo.getChunkServerIdList().add(serverRunState.getServerId());
+                    chunkInfo.getChunkServerIdList().add(new ServerAddressInfo(serverRunState.getServerState()));
                     serverRunState.uploadPlus();
                 }
                 fileInfo.getFileChunkList().add(chunkInfo);
@@ -279,20 +286,20 @@ public class FileServerRunManager {
                         index++;
                         serverRunState = availableOrderlyServerRunStates.get(index);
                     }
-                    chunkInfo.getChunkServerIdList().add(serverRunState.getServerId());
+                    chunkInfo.getChunkServerIdList().add(new ServerAddressInfo(serverRunState.getServerState()));
                     serverRunState.uploadPlus();
                 }
             } else {
                 for (int j = 0; j < FILE_COPIES; j++) {
                     ServerRunState serverRunState = availableOrderlyServerRunStates.get(j);
-                    chunkInfo.getChunkServerIdList().add(serverRunState.getServerId());
+                    chunkInfo.getChunkServerIdList().add(new ServerAddressInfo(serverRunState.getServerState()));
                     serverRunState.uploadPlus();
                 }
             }
             if (oldChunkInfo != null && oldChunkInfo.getChunkServerIdList() != null) {
                 // 清除之前分配Server的负载
-                for (long serverId : oldChunkInfo.getChunkServerIdList()) {
-                    ServerRunState oldServerRunState = serverRunStateMap.get(serverId);
+                for (ServerAddressInfo serverAddressInfo : oldChunkInfo.getChunkServerIdList()) {
+                    ServerRunState oldServerRunState = serverRunStateMap.get(serverAddressInfo.getServerId());
                     if (oldServerRunState != null) {
                         oldServerRunState.uploadSub();
                     }
@@ -332,7 +339,7 @@ public class FileServerRunManager {
                 index++;
                 serverRunState = availableOrderlyServerRunStates.get(index);
             }
-            chunkInfo.getChunkServerIdList().add(serverRunState.getServerId());
+            chunkInfo.getChunkServerIdList().add(new ServerAddressInfo(serverRunState.getServerState()));
             serverRunState.uploadPlus();
         } finally {
             lockObj.readLock().unlock();
@@ -379,11 +386,11 @@ public class FileServerRunManager {
         int sourceIndex = updateChunkServer.getSourceIndex();
         if (sourceIndex < 0)
             sourceIndex = 0;
-        List<Long> serverIdList = updateChunkServer.getFileInfo().getFileChunkList().get(updateChunkServer.getChunk())
+        List<ServerAddressInfo> serverList = updateChunkServer.getFileInfo().getFileChunkList().get(updateChunkServer.getChunk())
                 .getChunkServerIdList();
-        for (int i = 0; i < serverIdList.size(); i++) {
-            int index = (sourceIndex + i) % serverIdList.size();
-            long serverId = serverIdList.get(index);
+        for (int i = 0; i < serverList.size(); i++) {
+            int index = (sourceIndex + i) % serverList.size();
+            long serverId = serverList.get(index).getServerId();
             if (serverId != updateChunkServer.getNewServerId() && serverId != updateChunkServer.getSourceServerId()) {
                 ServerRunState oldServerRunState = serverRunStateMap.get(updateChunkServer.getSourceServerId());
                 if (oldServerRunState != null)
@@ -420,17 +427,17 @@ public class FileServerRunManager {
         uploadRunningTask.remove(tokenInfo);
         for (int i = 0; i < fileInfo.getFileChunkList().size(); i++) {
             ChunkInfo chunkInfo = fileInfo.getFileChunkList().get(i);
-            for (long serverId : chunkInfo.getChunkServerIdList()) {
-                ServerRunState serverRunState = serverRunStateMap.get(serverId);
+            for (ServerAddressInfo serverAddressInfo : chunkInfo.getChunkServerIdList()) {
+                ServerRunState serverRunState = serverRunStateMap.get(serverAddressInfo.getServerId());
                 if (serverRunState != null) {
                     serverRunState.uploadSub();
                 }
                 //记录当前服务器chunk增加日志
-                masterManager.getServerFileChunkUtil().writeAddServerFileChunk(serverId,tokenInfo.getPath(),tokenInfo.getFileName(),chunkInfo.getIndex());
+                masterManager.getServerFileChunkUtil().writeAddServerFileChunk(serverAddressInfo.getServerId(),tokenInfo.getPath(),tokenInfo.getFileName(),chunkInfo.getIndex());
             }
         }
-        for (long serverId : tidyServerId(fileInfo)) {
-            clearTokenQueue.add(new TokenClearServer(TokenClearServer.TC_TYPE_TOKEN_CLEAR, tokenInfo, serverId));
+        for (ServerAddressInfo serverAddressInfo : tidyServerId(fileInfo)) {
+            clearTokenQueue.add(new TokenClearServer(TokenClearServer.TC_TYPE_TOKEN_CLEAR, tokenInfo, serverAddressInfo.getServerId()));
         }
         fileInfoManager.submitFileInfo(fileInfo,
                 dfsFileUtils.joinFileTempConfigName(tokenInfo.getPath(), tokenInfo.getFileName()));
@@ -461,13 +468,13 @@ public class FileServerRunManager {
         FileInfo fileInfo = taskInfo.getFileInfo();
         for (int i = 0; i < fileInfo.getFileChunkList().size(); i++) {
             ChunkInfo chunkInfo = fileInfo.getFileChunkList().get(i);
-            for (long serverId : chunkInfo.getChunkServerIdList()) {
-                ServerRunState serverRunState = serverRunStateMap.get(serverId);
+            for (ServerAddressInfo serverAddressInfo : chunkInfo.getChunkServerIdList()) {
+                ServerRunState serverRunState = serverRunStateMap.get(serverAddressInfo.getServerId());
                 if (serverRunState != null) {
                     serverRunState.uploadSub();
                 }
                 // send file delete command
-                serverIdSet.add(serverId);
+                serverIdSet.add(serverAddressInfo.getServerId());
             }
         }
         for (long serverId : serverIdSet) {
@@ -492,9 +499,9 @@ public class FileServerRunManager {
         Set<Long> serverIdSet = new TreeSet<>();
         for (int i = 0; i < fileInfo.getFileChunkList().size(); i++) {
             ChunkInfo chunkInfo = fileInfo.getFileChunkList().get(i);
-            for (long serverId : chunkInfo.getChunkServerIdList()) {
-                masterManager.getServerFileChunkUtil().writeDeleteServerFileChunk(serverId,tokenInfo.getPath(),tokenInfo.getFileName(),chunkInfo.getIndex());
-                serverIdSet.add(serverId);
+            for (ServerAddressInfo serverAddressInfo : chunkInfo.getChunkServerIdList()) {
+                masterManager.getServerFileChunkUtil().writeDeleteServerFileChunk(serverAddressInfo.getServerId(),tokenInfo.getPath(),tokenInfo.getFileName(),chunkInfo.getIndex());
+                serverIdSet.add(serverAddressInfo.getServerId());
             }
         }
         for (long serverId : serverIdSet) {
@@ -536,7 +543,7 @@ public class FileServerRunManager {
                         || chunkInfo.getChunkServerIdList().isEmpty())
                     continue;
                 chunkInfo.getChunkServerIdList().sort(this::compareServerPrior);
-                ServerRunState serverRunState = serverRunStateMap.get(chunkInfo.getChunkServerIdList().get(0));
+                ServerRunState serverRunState = serverRunStateMap.get(chunkInfo.getChunkServerIdList().get(0).getServerId());
                 if (serverRunState != null) {
                     serverRunState.downloadPlus();
                 }
@@ -610,13 +617,13 @@ public class FileServerRunManager {
             if (chunkInfo == null || chunkInfo.getChunkServerIdList() == null
                     || chunkInfo.getChunkServerIdList().isEmpty())
                 continue;
-            ServerRunState serverRunState = serverRunStateMap.get(chunkInfo.getChunkServerIdList().get(0));
+            ServerRunState serverRunState = serverRunStateMap.get(chunkInfo.getChunkServerIdList().get(0).getServerId());
             if (serverRunState != null) {
                 serverRunState.downloadSub();
             }
         }
-        for (long serverId : tidyServerId(fileInfo)) {
-            clearTokenQueue.add(new TokenClearServer(TokenClearServer.TC_TYPE_TOKEN_CLEAR, tokenInfo, serverId));
+        for (ServerAddressInfo serverAddressInfo : tidyServerId(fileInfo)) {
+            clearTokenQueue.add(new TokenClearServer(TokenClearServer.TC_TYPE_TOKEN_CLEAR, tokenInfo, serverAddressInfo.getServerId()));
         }
         downloadRunningTask.remove(tokenInfo);
         // 上传完成后，重置ServerRunState的排序
@@ -640,15 +647,15 @@ public class FileServerRunManager {
         }
         for (int i = 0; i < fileInfo.getFileChunkList().size(); i++) {
             ChunkInfo chunkInfo = fileInfo.getFileChunkList().get(i);
-            for (long serverId : chunkInfo.getChunkServerIdList()) {
-                ServerRunState serverRunState = serverRunStateMap.get(serverId);
+            for (ServerAddressInfo serverAddressInfo : chunkInfo.getChunkServerIdList()) {
+                ServerRunState serverRunState = serverRunStateMap.get(serverAddressInfo.getServerId());
                 if (serverRunState != null) {
                     serverRunState.downloadSub();
                 }
             }
         }
-        for (long serverId : tidyServerId(fileInfo)) {
-            clearTokenQueue.add(new TokenClearServer(TokenClearServer.TC_TYPE_TOKEN_CLEAR, tokenInfo, serverId));
+        for (ServerAddressInfo serverAddressInfo : tidyServerId(fileInfo)) {
+            clearTokenQueue.add(new TokenClearServer(TokenClearServer.TC_TYPE_TOKEN_CLEAR, tokenInfo, serverAddressInfo.getServerId()));
         }
         logger.warn("delete download task,path[{}] file name[{}]", tokenInfo.getPath(), tokenInfo.getFileName());
         uploadRunningTask.remove(tokenInfo);
@@ -657,32 +664,32 @@ public class FileServerRunManager {
             resetAvailableOrderlyServerRunStates();
     }
 
-    public Set<Long> tidyServerId(FileInfo fileInfo) {
-        Set<Long> res = new TreeSet<>();
+    public Set<ServerAddressInfo> tidyServerId(FileInfo fileInfo) {
+        Set<ServerAddressInfo> res = new TreeSet<>();
         if (fileInfo == null)
             return res;
         for (ChunkInfo chunkInfo : fileInfo.getFileChunkList()) {
             if (chunkInfo == null)
                 continue;
-            for (long serverId : chunkInfo.getChunkServerIdList()) {
-                if (!res.contains(serverId))
-                    res.add(serverId);
+            for (ServerAddressInfo serverAddressInfo : chunkInfo.getChunkServerIdList()) {
+                if (!res.contains(serverAddressInfo))
+                    res.add(serverAddressInfo);
             }
         }
         return res;
     }
 
-    public boolean resetInvalidServerId(FileInfo fileInfo, Set<Long> validServerIds) {
+    public boolean resetInvalidServerId(FileInfo fileInfo, Set<ServerAddressInfo> validServerIds) {
         if (fileInfo == null || validServerIds == null || validServerIds.size() < FILE_COPIES)
             return false;
         int validIndex = 0;
-        Long[] vsIds = (Long[]) validServerIds.toArray();
+        ServerAddressInfo[] vsIds = (ServerAddressInfo[]) validServerIds.toArray();
         for (ChunkInfo chunkInfo : fileInfo.getFileChunkList()) {
             if (chunkInfo == null)
                 continue;
             for (int i = 0; i < chunkInfo.getChunkServerIdList().size(); i++) {
-                long serverId = chunkInfo.getChunkServerIdList().get(i);
-                if (!validServerIds.contains(serverId)) {
+                ServerAddressInfo serverAddressInfo = chunkInfo.getChunkServerIdList().get(i);
+                if (!validServerIds.contains(serverAddressInfo)) {
                     chunkInfo.getChunkServerIdList().set(i, vsIds[validIndex]);
                     validIndex = (++validIndex) % vsIds.length;
                 }

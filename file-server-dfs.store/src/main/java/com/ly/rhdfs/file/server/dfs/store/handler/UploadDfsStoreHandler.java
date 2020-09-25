@@ -4,12 +4,14 @@ import java.time.Instant;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 
+import com.ly.common.domain.server.ServerAddressInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.BodyExtractors;
@@ -61,6 +63,7 @@ public class UploadDfsStoreHandler {
         this.storeFile = storeFile;
     }
 
+    @NonNull
     public Mono<ServerResponse> uploadStoreFile(ServerRequest request) {
         // 1/If-Match(412) && If-Unmodified-Since(412)
         String token = request.queryParam(ParamConstants.PARAM_TOKEN_NAME).orElse("");
@@ -83,7 +86,7 @@ public class UploadDfsStoreHandler {
         } else {
             partChunk = new DFSPartChunk(false, tokenInfo,etag);
         }
-        String path = request.queryParam(serverConfig.getPathParamName()).orElse(ParamConstants.PARAM_PATH_NAME);
+        String path = request.pathVariable("path");
         return Mono
                 .fromFuture(CompletableFuture.supplyAsync(() -> Optional.ofNullable(storeManager.getFileInfoManager()
                         .findFileInfo(tokenInfo.getFileName(), tokenInfo.getPath()))))
@@ -97,7 +100,7 @@ public class UploadDfsStoreHandler {
                                 || fileInfo.getFileChunkList().get(partChunk.getIndex()).getChunkServerIdList()
                                         .isEmpty()
                                 || !fileInfo.getFileChunkList().get(partChunk.getIndex()).getChunkServerIdList()
-                                        .contains(serverConfig.getCurrentServerId())) {
+                                        .contains(new ServerAddressInfo(serverConfig.getCurrentServerId()))) {
                             // 验证Chunk信息是否正确
                             return ServerResponse.status(HttpStatus.UNAUTHORIZED).build();
                         } else
@@ -119,7 +122,7 @@ public class UploadDfsStoreHandler {
                                                     ? ((FilePart) resultValueInfo.getSource()).filename()
                                                     : "",
                                             partChunk))
-                                    .flatMap(uploadResultInfo -> ServerResponse.accepted()
+                                    .flatMap(uploadResultInfo -> ServerResponse.status(HttpStatus.PARTIAL_CONTENT)
                                             .contentType(MediaType.APPLICATION_JSON).bodyValue(uploadResultInfo))
                                     .switchIfEmpty(ServerResponse.badRequest().bodyValue("no part data!"));
                     }

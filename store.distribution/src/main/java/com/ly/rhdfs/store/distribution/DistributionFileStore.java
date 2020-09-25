@@ -56,8 +56,8 @@ public class DistributionFileStore extends AbstractFileStore {
         this.storeManager = storeManager;
     }
 
-    public void setETagComputer(ETagComputer eTagComputer){
-        this.eTagComputer=eTagComputer;
+    public void setETagComputer(ETagComputer eTagComputer) {
+        this.eTagComputer = eTagComputer;
     }
 
     @Override
@@ -128,7 +128,7 @@ public class DistributionFileStore extends AbstractFileStore {
                                                 eTagComputer.etagFile(filePath)
                                                         .filter(etag -> etag.equals(dfsPartChunk.getEtag()))
                                                         .flatMap(etag ->
-                                                                Mono.create((Consumer<MonoSink<Boolean>>)  monoSink -> {
+                                                                Mono.create((Consumer<MonoSink<Boolean>>) monoSink -> {
                                                                     FileInfo fileInfo = dfsPartChunk.getFileInfo();
                                                                     if (fileInfo == null || fileInfo.getFileChunkList() == null
                                                                             || fileInfo.getFileChunkList()
@@ -139,10 +139,10 @@ public class DistributionFileStore extends AbstractFileStore {
                                                                     } else {
                                                                         fileInfo.getFileChunkList().get(dfsPartChunk.getIndex())
                                                                                 .setChunkEtag(etag);
-                                                                        fileInfo=fileInfoManager.submitFileInfo(fileInfo);
-                                                                        if (fileInfo==null){
+                                                                        fileInfo = fileInfoManager.submitFileInfo(fileInfo);
+                                                                        if (fileInfo == null) {
                                                                             monoSink.success(false);
-                                                                        }else {
+                                                                        } else {
                                                                             dfsPartChunk.setFileInfo(fileInfo);
                                                                             storeManager.sendFileChunkInfoAsyncReply(
                                                                                     storeManager.getMasterServerId(),
@@ -190,8 +190,8 @@ public class DistributionFileStore extends AbstractFileStore {
                         Flux.create((FluxSink<Long> fluxSink) -> Flux
                                 .fromIterable(dfsPartChunk.getFileInfo().getFileChunkList().get(dfsPartChunk.getIndex())
                                         .getChunkServerIdList())
-                                .parallel(3).runOn(Schedulers.parallel()).subscribe(serverId -> {
-                                    if (serverId == serverConfig.getCurrentServerId()) {
+                                .parallel(3).runOn(Schedulers.parallel()).subscribe(serverAddressInfo -> {
+                                    if (serverAddressInfo.getServerId() == serverConfig.getCurrentServerId()) {
                                         DataBufferUtils
                                                 .write(dataCache, asynchronousFileChannel,
                                                         partChunk.getChunk() * partChunk.getChunkSize())
@@ -203,16 +203,17 @@ public class DistributionFileStore extends AbstractFileStore {
                                                                     partChunk.getChunkCount(), partChunk.getChunk());
                                                             if (count >= partChunk.getChunkCount()) {
                                                                 fileChunkManger.removeFileChunkState(fileFullName);
-                                                                fluxSink.next(serverId);
+                                                                fluxSink.next(serverAddressInfo.getServerId());
                                                             }
                                                         });
                                     } else {
-                                        storeManager.sendBackupStoreFile(fluxSink, serverId, dataCache, dfsPartChunk);
+                                        storeManager.sendBackupStoreFile(fluxSink, serverAddressInfo.getServerId(), dataCache, dfsPartChunk);
                                     }
-                                })).doFinally(signalType -> {
-                            dataCache.subscribe(DataBufferUtils.releaseConsumer());
-                        }).subscribe(null, e -> sink.error(new StoreFileException("part index out range", e)),
-                                () -> sink.success(new ResultValueInfo<>(ResultInfo.S_OK, filePart)));
+                                }))
+                                .doFinally(signalType -> dataCache
+                                        .subscribe(DataBufferUtils.releaseConsumer()))
+                                .subscribe(null, e -> sink.error(new StoreFileException("part index out range", e)),
+                                        () -> sink.success(new ResultValueInfo<>(ResultInfo.S_OK, filePart)));
 
                     }
                 } catch (IOException ex) {

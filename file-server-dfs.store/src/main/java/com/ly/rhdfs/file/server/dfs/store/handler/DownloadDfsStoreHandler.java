@@ -72,7 +72,7 @@ public class DownloadDfsStoreHandler {
 
         // If-Range
         // Range
-        String filePath = request.queryParam(ParamConstants.PARAM_PATH_NAME).orElse("");
+        String filePath = request.pathVariable("path");
         String fn = request.queryParam(ParamConstants.PARAM_FILE_NAME).orElse("");
         int chunk= ConvertUtil.parseInt(request.queryParam(ParamConstants.PARAM_CHUNK).orElse("0"),0);
         if (StringUtils.isEmpty(filePath) || StringUtils.isEmpty(fn)) {
