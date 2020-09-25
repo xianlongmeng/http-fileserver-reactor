@@ -33,6 +33,7 @@ import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -40,7 +41,20 @@ public class RhdfsAsyncClient {
 
     public final DataBufferFactory dataBufferFactory = new DefaultDataBufferFactory();
     public int bufferLength = 1024;
-
+    public boolean uploadFileSync(String localFileName, String baseUrl, String path, String fileName,
+                                  int chunkPieceSize){
+        AtomicBoolean res=new AtomicBoolean();
+        uploadFileAsyncBool(localFileName,baseUrl,path,fileName,chunkPieceSize)
+                .subscribe(res::set);
+        return res.get();
+    }
+    public Mono<Boolean> uploadFileAsyncBool(String localFileName, String baseUrl, String path, String fileName,
+                                      int chunkPieceSize){
+        return uploadFileAsync(localFileName,baseUrl,path,fileName,chunkPieceSize)
+                .onErrorResume(t->Mono.empty())
+                .then(Mono.just(true))
+                .switchIfEmpty(Mono.just(false));
+    }
     public Mono<Void> uploadFileAsync(String localFileName, String baseUrl, String path, String fileName,
                                       int chunkPieceSize) {
         if (StringUtils.isEmpty(fileName) || StringUtils.isEmpty(baseUrl) || StringUtils.isEmpty(localFileName))
@@ -156,7 +170,20 @@ public class RhdfsAsyncClient {
             }
         });
     }
-
+    public boolean downloadFileSync(String localFileName, String baseUrl, String path, String fileName,
+                                               int chunkPieceSize, boolean recover){
+        AtomicBoolean res=new AtomicBoolean();
+        downloadFileAsyncBool(localFileName,baseUrl,path,fileName,chunkPieceSize,recover)
+                .subscribe(res::set);
+        return res.get();
+    }
+    public Mono<Boolean> downloadFileAsyncBool(String localFileName, String baseUrl, String path, String fileName,
+                                               int chunkPieceSize, boolean recover){
+        return downloadFileAsync(localFileName,baseUrl,path,fileName,chunkPieceSize,recover)
+                .onErrorResume(t->Mono.empty())
+                .then(Mono.just(true))
+                .switchIfEmpty(Mono.just(false));
+    }
     public Mono<Void> downloadFileAsync(String localFileName, String baseUrl, String path, String fileName,
                                         int chunkPieceSize, boolean recover) {
         // file exist
