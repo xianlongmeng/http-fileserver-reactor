@@ -29,6 +29,8 @@ public class ServerConfig {
     // 失去太多StoreServer的Master多长时间失去Master资格
     @Value("${store.server.dtm.cancel.master:3600000}")
     private long storeServerDTMCancelMaster;
+    @Value("${backup.master.server.update.timeout:300000}")
+    private long backupMasterServerUpdateTimeout;
     // 失去太多StoreServer的Master多长时间失去Master资格
     @Value("${store.server.disconnected.master.vote:300000}")
     private long storeServerDisconnectedMasterVote;
@@ -144,6 +146,14 @@ public class ServerConfig {
 
     public void setStoreServerDTMCancelMaster(long storeServerDTMCancelMaster) {
         this.storeServerDTMCancelMaster = storeServerDTMCancelMaster;
+    }
+
+    public long getBackupMasterServerUpdateTimeout() {
+        return backupMasterServerUpdateTimeout;
+    }
+
+    public void setBackupMasterServerUpdateTimeout(long backupMasterServerUpdateTimeout) {
+        this.backupMasterServerUpdateTimeout = backupMasterServerUpdateTimeout;
     }
 
     public long getStoreServerDisconnectedMasterVote() {

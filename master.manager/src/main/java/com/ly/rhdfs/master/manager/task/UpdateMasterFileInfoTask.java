@@ -32,15 +32,20 @@ public class UpdateMasterFileInfoTask implements Runnable {
             if (OperationLog.OP_TYPE_ADD_FILE_FINISH.equals(operationLog.getOpType())
                     || OperationLog.OP_TYPE_UPDATE_FILE.equals(operationLog.getOpType())) {
                 if (!masterManager.sendFileInfoSync(serverState,
-                        dfsFileUtils.readFileInfo(operationLog.getPath(), operationLog.getFileName())))
+                        dfsFileUtils.readFileInfo(operationLog.getPath(), operationLog.getFileName()))){
+                    logFileOperate.close();
                     return;
+                }
             } else if (OperationLog.OP_TYPE_DELETE_FILE.equals(operationLog.getOpType())) {
                 if (!masterManager.sendFileDeleteSync(serverState,
-                        new TokenInfo(operationLog.getPath(), operationLog.getFileName())))
+                        new TokenInfo(operationLog.getPath(), operationLog.getFileName()))){
+                    logFileOperate.close();
                     return;
+                }
             }
             operationLog = logFileOperate.readNextOperationLog();
         }
+        logFileOperate.close();
         serverState.setReady(true);
         operationLog = new OperationLog(OperationLog.OP_TYPE_UPDATE_FINISH, "", "");
         masterManager.sendFileOperationLog(serverState, operationLog);

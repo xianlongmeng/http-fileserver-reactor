@@ -8,6 +8,7 @@ import java.time.Instant;
 import java.util.Map;
 import java.util.concurrent.*;
 
+import com.ly.common.domain.file.FileInfo;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -125,9 +126,7 @@ public abstract class ServerManager {
     protected void initCommandEventHandler() {
         commandEventHandler = new CommandEventHandler(this);
         commandEventHandler.setServerAddressCommandEventHandler(new ServerAddressCommandEventHandler(this));
-        commandEventHandler.setFileDeleteCommandEventHandler(new FileDeleteCommandEventHandler(this));
         commandEventHandler.setClearTokenCommandEventHandler(new ClearTokenCommandEventHandler(this));
-        commandEventHandler.setFileInfoCommandEventHandler(new FileInfoCommandEventHandler(this));
         commandEventHandler.setReplyCommandEventHandler(new ReplyCommandEventHandler(this));
         commandEventHandler.setFileChunkInfoCommandEventHandler(new FileChunkInfoCommandEventHandler(this));
     }
@@ -309,6 +308,14 @@ public abstract class ServerManager {
         if (serverState == null)
             return false;
         return connectManager.sendFileInfoCommandSync(serverState, fileInfo);
+    }
+    public boolean sendFileInfoSync(long serverId, FileInfo fileInfo) {
+        return connectManager.sendCommunicationObjectSync(findServerState(serverId), fileInfo,DFSCommand.CT_FILE_INFO);
+    }
+    public boolean sendFileInfoSync(ServerState serverState, FileInfo fileInfo) {
+        if (serverState == null)
+            return false;
+        return connectManager.sendCommunicationObjectSync(serverState, fileInfo,DFSCommand.CT_FILE_INFO);
     }
 
     public void initLastTime() {

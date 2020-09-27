@@ -1,4 +1,4 @@
-package com.ly.rhdfs.manager.handler;
+package com.ly.rhdfs.store.manager.handler;
 
 import com.ly.common.domain.ResultInfo;
 import com.ly.rhdfs.communicate.command.DFSCommand;

@@ -20,6 +20,8 @@ import com.ly.rhdfs.manager.handler.ServerStateCommandEventHandler;
 import com.ly.rhdfs.manager.server.ServerManager;
 import com.ly.rhdfs.store.StoreFile;
 import com.ly.rhdfs.store.manager.handler.FileChunkCopyCommandEventHandler;
+import com.ly.rhdfs.store.manager.handler.FileDeleteCommandEventHandler;
+import com.ly.rhdfs.store.manager.handler.FileInfoCommandEventHandler;
 import com.ly.rhdfs.store.manager.handler.TokenCommandEventHandler;
 import com.ly.rhdfs.store.manager.task.ComputerStateTask;
 import com.ly.rhdfs.store.manager.task.ComputerVoteTask;
@@ -80,6 +82,8 @@ public class StoreManager extends ServerManager {
         commandEventHandler.setTokenCommandEventHandler(new TokenCommandEventHandler(this));
         commandEventHandler.setFileTransferCommandEventHandler(new FileTransferChunkCommandEventHandler(this));
         commandEventHandler.setFileChunkCopyCommandEventHandler(new FileChunkCopyCommandEventHandler(this));
+        commandEventHandler.setFileInfoCommandEventHandler(new FileInfoCommandEventHandler(this));
+        commandEventHandler.setFileDeleteCommandEventHandler(new FileDeleteCommandEventHandler(this));
     }
 
     public void initial() {

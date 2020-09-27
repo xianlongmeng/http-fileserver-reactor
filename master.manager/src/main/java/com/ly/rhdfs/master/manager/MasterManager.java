@@ -1,6 +1,7 @@
 package com.ly.rhdfs.master.manager;
 
 import com.ly.common.constant.ParamConstants;
+import com.ly.common.domain.file.BackupMasterFileInfo;
 import com.ly.common.domain.file.DirectInfo;
 import com.ly.common.domain.file.FileChunkCopy;
 import com.ly.common.domain.file.FileInfo;
@@ -16,6 +17,9 @@ import com.ly.rhdfs.communicate.command.DFSCommand;
 import com.ly.rhdfs.file.util.DfsFileUtils;
 import com.ly.rhdfs.log.server.file.ServerFileChunkUtil;
 import com.ly.rhdfs.manager.server.ServerManager;
+import com.ly.rhdfs.master.manager.handler.MasterFileDeleteCommandEventHandler;
+import com.ly.rhdfs.master.manager.handler.MasterFileInfoCommandEventHandler;
+import com.ly.rhdfs.master.manager.handler.OperateLogCommandMasterEventHandler;
 import com.ly.rhdfs.master.manager.handler.ServerStateCommandMasterEventHandler;
 import com.ly.rhdfs.master.manager.runstate.FileServerRunManager;
 import com.ly.rhdfs.master.manager.runstate.ServerAssignException;
@@ -27,15 +31,11 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.FluxSink;
 import reactor.core.publisher.Mono;
 import reactor.core.publisher.MonoSink;
-import reactor.util.function.Tuple2;
 import reactor.util.function.Tuples;
 
 import java.time.Instant;
 import java.util.*;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
+import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -48,9 +48,10 @@ public class MasterManager extends ServerManager {
     private DfsFileUtils dfsFileUtils;
     private ServerFileChunkUtil serverFileChunkUtil;
     private RecoverStoreServerTask recoverStoreServerTask;
+    private final Map<Long,BlockingDeque<BackupMasterFileInfo>> backupMasterFileInfoBlockingQueue=new ConcurrentHashMap<>();
 
     public MasterManager() {
-        scheduledThreadCount = 8;
+        scheduledThreadCount = 9;
     }
 
     public FileServerRunManager getFileServerRunManager() {
@@ -79,6 +80,9 @@ public class MasterManager extends ServerManager {
     @Override
     protected void initCommandEventHandler() {
         commandEventHandler.setServerStateCommandEventHandler(new ServerStateCommandMasterEventHandler(this));
+        commandEventHandler.setOperationLogCommandEventHandler(new OperateLogCommandMasterEventHandler(this));
+        commandEventHandler.setFileInfoCommandEventHandler(new MasterFileInfoCommandEventHandler(this));
+        commandEventHandler.setFileDeleteCommandEventHandler(new MasterFileDeleteCommandEventHandler(this));
     }
 
     public void initial() {
@@ -106,12 +110,18 @@ public class MasterManager extends ServerManager {
                 TimeUnit.SECONDS);
         recoverStoreServerTask = new RecoverStoreServerTask(this);
         scheduledThreadPoolExecutor.schedule(recoverStoreServerTask, initThreadThirdDelay, TimeUnit.SECONDS);
+        //定时处理FileInfo发送到backup master server
+        scheduledThreadPoolExecutor.schedule(new BackupMasterFileInfoTask(this), initThreadThirdDelay,
+                TimeUnit.SECONDS);
     }
 
     public Map<ServerState, Future> getMasterUpdateFileInfo() {
         return masterUpdateFileInfo;
     }
 
+    public Map<Long,BlockingDeque<BackupMasterFileInfo>> getBackupMasterFileInfoBlockingQueue(){
+        return backupMasterFileInfoBlockingQueue;
+    }
     public boolean isContainUpdateFileInfo(ServerState serverState) {
         return masterUpdateFileInfo.containsKey(serverState);
     }
@@ -170,7 +180,7 @@ public class MasterManager extends ServerManager {
                     && serverState.getType() == ServerState.SIT_MASTER && serverState.getServerId() == masterServerId
                     && (getLocalServerState().getState() == ServerState.SIS_UNKNOWN
                     || (getLocalServerState().getState() & ServerState.SIS_MASTER_LOST_CONTACT) != 0)
-                    && serverState.getWriteLastTime() > getLocalServerState().getWriteLastTime()) {
+                    && serverState.getWriteLastTime() > getLocalServerState().getWriteLastTime() + serverConfig.getBackupMasterServerUpdateTimeout()) {
                 // verify writeLastTime,clear lost contact mark after verify writeLastTime.
                 getLocalServerState().setState(getLocalServerState().getState() & ~ServerState.SIS_MASTER_LOST_CONTACT);
                 getLocalServerState().setReady(false);
@@ -268,6 +278,10 @@ public class MasterManager extends ServerManager {
         if (serverState == null || tokenInfo == null)
             return null;
         return connectManager.sendCommunicationObjectAsync(serverState, tokenInfo, DFSCommand.CT_TOKEN_CLEAR);
+    }
+
+    public boolean sendFileDeleteSync(Long serverId, TokenInfo fileDeleteTokenInfo) {
+        return sendFileDeleteSync(findServerState(serverId), fileDeleteTokenInfo);
     }
 
     public boolean sendFileDeleteSync(ServerState serverState, TokenInfo fileDeleteTokenInfo) {
@@ -425,20 +439,49 @@ public class MasterManager extends ServerManager {
                                 monoSink.success(result);
                         }));
     }
-    public boolean addBackupServerId(long serverId){
-        ServerState serverState=findServerState(serverId);
-        if (serverState!=null && !serverState.isOnline()){
+
+    public boolean addBackupServerId(long serverId) {
+        ServerState serverState = findServerState(serverId);
+        if (serverState != null && !serverState.isOnline()) {
             recoverStoreServerTask.addBackupServerId(serverId);
             return true;
         }
         return false;
     }
-    public boolean addRecoverServerId(long oldServerId,long newServerId){
-        ServerState serverState=findServerState(newServerId);
-        if (serverState==null || !serverState.isOnline()){
+
+    public boolean addRecoverServerId(long oldServerId, long newServerId) {
+        ServerState serverState = findServerState(newServerId);
+        if (serverState == null || !serverState.isOnline()) {
             return false;
         }
         recoverStoreServerTask.addRecoverServerId(Tuples.of(oldServerId, newServerId));
         return true;
+    }
+    public void addFileInfo2BackupMaster(int type,FileInfo fileInfo){
+        if (fileInfo==null || masterServerConfig.getMasterServerMap()==null || masterServerConfig.getMasterServerMap().isEmpty())
+            return;
+        for (Long serverId:masterServerConfig.getMasterServerMap().keySet()){
+            addFileInfo2BackupMaster(serverId,type,fileInfo);
+        }
+    }
+    public void addFileInfo2BackupMaster(long serverId,int type,FileInfo fileInfo){
+        ServerState serverState=findServerState(serverId);
+        if (serverState==null || !serverState.isReady())
+            return;
+        BlockingDeque<BackupMasterFileInfo> backupMasterFileInfos=backupMasterFileInfoBlockingQueue.computeIfAbsent(serverId,key->new LinkedBlockingDeque<>());
+        backupMasterFileInfos.addLast(new BackupMasterFileInfo(type,fileInfo));
+    }
+    public void submitFileFinish(FileInfo fileInfo){
+        fileInfoManager.submitFileInfo(fileInfo,
+                dfsFileUtils.joinFileTempConfigName(fileInfo.getPath(), fileInfo.getFileName()));
+        long writeLogDateTime = Instant.now().toEpochMilli();
+        getLogFileOperate().writeOperateLog(new OperationLog(writeLogDateTime,
+                OperationLog.OP_TYPE_ADD_FILE_FINISH, fileInfo.getPath(), fileInfo.getFileName()));
+        getLocalServerState().setWriteLastTime(writeLogDateTime);
+        addFileInfo2BackupMaster(BackupMasterFileInfo.TYPE_ADD,fileInfo);
+    }
+    public void deleteFileInfo(FileInfo fileInfo){
+        dfsFileUtils.fileDelete(fileInfo.getPath(), fileInfo.getFileName());
+        addFileInfo2BackupMaster(BackupMasterFileInfo.TYPE_DELETE,fileInfo);
     }
 }

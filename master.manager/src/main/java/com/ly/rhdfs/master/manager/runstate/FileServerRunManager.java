@@ -439,12 +439,7 @@ public class FileServerRunManager {
         for (ServerAddressInfo serverAddressInfo : tidyServerId(fileInfo)) {
             clearTokenQueue.add(new TokenClearServer(TokenClearServer.TC_TYPE_TOKEN_CLEAR, tokenInfo, serverAddressInfo.getServerId()));
         }
-        fileInfoManager.submitFileInfo(fileInfo,
-                dfsFileUtils.joinFileTempConfigName(tokenInfo.getPath(), tokenInfo.getFileName()));
-        long writeLogDateTime = Instant.now().toEpochMilli();
-        masterManager.getLogFileOperate().writeOperateLog(new OperationLog(writeLogDateTime,
-                OperationLog.OP_TYPE_ADD_FILE_FINISH, tokenInfo.getPath(), tokenInfo.getFileName()));
-        masterManager.getLocalServerState().setWriteLastTime(writeLogDateTime);
+        masterManager.submitFileFinish(fileInfo);
         // 上传完成后，重置ServerRunState的排序
         resetAvailableOrderlyServerRunStates();
     }
@@ -481,7 +476,8 @@ public class FileServerRunManager {
             clearTokenQueue.add(new TokenClearServer(TokenClearServer.TC_TYPE_FILE_DELETE, tokenInfo, serverId));
         }
         // 删除当前配置文件
-        dfsFileUtils.fileDelete(tokenInfo.getPath(), tokenInfo.getFileName());
+
+        masterManager.deleteFileInfo(fileInfo);
         logger.warn("delete upload file,path[{}] file name[{}]", tokenInfo.getPath(), tokenInfo.getFileName());
         uploadRunningTask.remove(tokenInfo);
         // 上传完成后，重置ServerRunState的排序
