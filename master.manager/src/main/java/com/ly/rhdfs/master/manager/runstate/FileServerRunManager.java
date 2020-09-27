@@ -334,7 +334,7 @@ public class FileServerRunManager {
             int index = 0;
             serverRunState = availableOrderlyServerRunStates.get(index);
             while (serverId == serverRunState.getServerId()
-                    || chunkInfo.getChunkServerIdList().contains(serverRunState.getServerId())
+                    || chunkInfo.getChunkServerIdList().contains(new ServerAddressInfo(serverRunState.getServerId()))
                     || availableOrderlyServerRunStates.size() <= index) {
                 index++;
                 serverRunState = availableOrderlyServerRunStates.get(index);
