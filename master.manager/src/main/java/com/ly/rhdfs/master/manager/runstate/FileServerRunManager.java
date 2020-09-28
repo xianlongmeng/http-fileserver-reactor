@@ -44,7 +44,7 @@ public class FileServerRunManager {
     private final Map<TokenInfo, FileInfo> downloadRunningTask = new ConcurrentHashMap<>();
     // 准备删除的file信息，系统定时扫描此队列，并循环处理，如果server不存在，则丢弃
     private final Queue<TokenClearServer> clearTokenQueue = new ConcurrentLinkedDeque<>();
-    private Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private MasterManager masterManager;
     private List<ServerRunState> availableOrderlyServerRunStates;
     private FileInfoManager fileInfoManager;
@@ -199,7 +199,7 @@ public class FileServerRunManager {
      */
     public FileInfo assignUploadFileServer(TokenInfo tokenInfo, long fileSize) {
         if (tokenInfo == null || tokenInfo.getTokenType() == TokenInfo.TOKEN_READ
-                || StringUtils.isEmpty(tokenInfo.getPath()) || StringUtils.isEmpty(tokenInfo.getFileName())
+                || StringUtils.isEmpty(tokenInfo.getFileName())
                 || fileSize <= 0)
             return null;
         if (uploadRunningTask.containsKey(tokenInfo)) {
@@ -439,7 +439,7 @@ public class FileServerRunManager {
         for (ServerAddressInfo serverAddressInfo : tidyServerId(fileInfo)) {
             clearTokenQueue.add(new TokenClearServer(TokenClearServer.TC_TYPE_TOKEN_CLEAR, tokenInfo, serverAddressInfo.getServerId()));
         }
-        masterManager.submitFileFinish(fileInfo);
+        masterManager.submitFileFinish(tokenInfo,fileInfo);
         // 上传完成后，重置ServerRunState的排序
         resetAvailableOrderlyServerRunStates();
     }
@@ -477,7 +477,7 @@ public class FileServerRunManager {
         }
         // 删除当前配置文件
 
-        masterManager.deleteFileInfo(fileInfo);
+        masterManager.deleteFileInfo(tokenInfo,fileInfo);
         logger.warn("delete upload file,path[{}] file name[{}]", tokenInfo.getPath(), tokenInfo.getFileName());
         uploadRunningTask.remove(tokenInfo);
         // 上传完成后，重置ServerRunState的排序
@@ -504,12 +504,23 @@ public class FileServerRunManager {
             clearTokenQueue.add(new TokenClearServer(TokenClearServer.TC_TYPE_FILE_DELETE, tokenInfo, serverId));
         }
         // 删除当前配置文件
-        boolean res=fileInfoManager.deleteFile(tokenInfo.getPath(),tokenInfo.getFileName());
+        masterManager.deleteFileInfo(tokenInfo,fileInfo);
         logger.warn("delete upload file,path[{}] file name[{}]", tokenInfo.getPath(),tokenInfo.getFileName());
         // 上传完成后，重置ServerRunState的排序
         masterManager.getLogFileOperate().writeOperateLog(new OperationLog(Instant.now().toEpochMilli(),
                 OperationLog.OP_TYPE_DELETE_FILE, tokenInfo.getPath(),tokenInfo.getFileName()));
-        return res;
+        return true;
+    }
+    public void updateTaskInfo(TaskInfo taskInfo){
+        if (taskInfo==null || taskInfo.getTokenInfo()==null || taskInfo.getFileInfo()==null)
+            return;
+        if (taskInfo.getTokenInfo().getTokenType()==TokenInfo.TOKEN_WRITE){
+            dfsFileUtils.JSONWriteFile(dfsFileUtils.joinFileTempConfigName(taskInfo.getTokenInfo().getPath(), taskInfo.getTokenInfo().getFileName()),
+                        taskInfo.getFileInfo());
+            uploadRunningTask.put(taskInfo.getTokenInfo(),taskInfo);
+        }else if (taskInfo.getTokenInfo().getTokenType()==TokenInfo.TOKEN_READ){
+            downloadRunningTask.put(taskInfo.getTokenInfo(),taskInfo.getFileInfo());
+        }
     }
     /**
      * 分配下载文件的服务器信息

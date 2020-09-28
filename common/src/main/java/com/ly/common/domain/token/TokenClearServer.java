@@ -3,9 +3,9 @@ package com.ly.common.domain.token;
 import java.time.Instant;
 
 public class TokenClearServer {
-    public static final int TC_TYPE_FILE_DELETE=1;
+    public static final int TC_TYPE_FILE_DELETE=0;
     public static final int TC_TYPE_TOKEN_CLEAR=1;
-    private int type;
+    private int type=0;
     private TokenInfo tokenInfo;
     private long serverId;
     private long timestamp;

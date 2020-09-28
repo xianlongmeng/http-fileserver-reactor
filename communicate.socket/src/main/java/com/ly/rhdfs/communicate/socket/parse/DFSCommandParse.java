@@ -3,6 +3,7 @@ package com.ly.rhdfs.communicate.socket.parse;
 import com.alibaba.fastjson.JSON;
 import com.alibaba.fastjson.TypeReference;
 import com.ly.common.domain.DFSPartChunk;
+import com.ly.common.domain.TaskInfo;
 import com.ly.common.domain.file.*;
 import com.ly.common.domain.log.OperationLog;
 import com.ly.common.domain.server.ServerInfoConfiguration;
@@ -82,6 +83,8 @@ public class DFSCommandParse {
                 return parseServerAddress(byteBuf, dfsCommand);
             case DFSCommand.CT_TOKEN:
                 return parseToken(byteBuf, dfsCommand);
+            case DFSCommand.CT_TASK_INFO:
+                return parseTask(byteBuf, dfsCommand);
             case DFSCommand.CT_TOKEN_CLEAR:
                 return parseTokenClear(byteBuf, dfsCommand);
             case DFSCommand.CT_DIRECT_FILE_ITEM:
@@ -119,6 +122,8 @@ public class DFSCommandParse {
                 return new DFSCommandServerAddress();
             case DFSCommand.CT_TOKEN:
                 return new DFSCommandToken();
+            case DFSCommand.CT_TASK_INFO:
+                return new DFSCommandTask();
             case DFSCommand.CT_TOKEN_CLEAR:
                 return new DFSCommandTokenClear();
             case DFSCommand.CT_DIRECT_FILE_ITEM:
@@ -345,6 +350,18 @@ public class DFSCommandParse {
         return dfsCommandTokenClear;
     }
 
+    public DFSCommandTask parseTask(ByteBuf byteBuf, DFSCommand dfsCommand) {
+        if (!(dfsCommand instanceof DFSCommandTask)) {
+            return null;
+        }
+        DFSCommandTask dfsCommandTask = (DFSCommandTask) dfsCommand;
+        byte[] bytes = new byte[dfsCommandTask.getLength() - dfsCommandTask.getFixLength()];
+        byteBuf.readBytes(bytes);
+        String taskStr = new String(bytes);
+        TaskInfo taskInfo = JSON.parseObject(taskStr, TaskInfo.class);
+        dfsCommandTask.setTaskInfo(taskInfo);
+        return dfsCommandTask;
+    }
     public DFSCommandDirectFileItems parseDirectFileItems(ByteBuf byteBuf, DFSCommand dfsCommand) {
         if (!(dfsCommand instanceof DFSCommandDirectFileItems)) {
             return null;
@@ -398,6 +415,8 @@ public class DFSCommandParse {
             return packageCommandServerAddress((DFSCommandServerAddress) dfsCommand);
         } else if (dfsCommand instanceof DFSCommandToken) {
             return packageCommandToken((DFSCommandToken) dfsCommand);
+        } else if (dfsCommand instanceof DFSCommandTask) {
+            return packageCommandTask((DFSCommandTask) dfsCommand);
         } else if (dfsCommand instanceof DFSCommandTokenClear) {
             return packageCommandTokenClear((DFSCommandTokenClear) dfsCommand);
         } else if (dfsCommand instanceof DFSCommandFileTransfer) {
@@ -436,6 +455,8 @@ public class DFSCommandParse {
             return convertCommandServerAddress((List<ServerInfoConfiguration>) commandObj);
         } else if (commandType == DFSCommand.CT_TOKEN) {
             return convertCommandToken((TokenInfo) commandObj);
+        } else if (commandType == DFSCommand.CT_TASK_INFO) {
+            return convertCommandTask((TaskInfo) commandObj);
         } else if (commandType == DFSCommand.CT_FILE_TRANSFER) {
             return convertCommandFileTransfer((FileTransferInfo) commandObj);
         } else if (commandType == DFSCommand.CT_FILE_TRANSFER_STATE) {
@@ -473,6 +494,8 @@ public class DFSCommandParse {
             return null;
         } else if (commandObj instanceof TokenInfo) {
             return convertCommandToken((TokenInfo) commandObj);
+        } else if (commandObj instanceof TaskInfo) {
+            return convertCommandTask((TaskInfo) commandObj);
         } else if (commandObj instanceof FileTransferInfo) {
             return convertCommandFileTransfer((FileTransferInfo) commandObj);
         } else if (commandObj instanceof FileTransferState) {
@@ -745,7 +768,26 @@ public class DFSCommandParse {
         byteBuf.writeBytes(bytes);
         return byteBuf;
     }
+    public DFSCommandTask convertCommandTask(TaskInfo taskInfo) {
+        if (taskInfo == null)
+            return null;
+        DFSCommandTask dfsCommandTask = new DFSCommandTask();
+        dfsCommandTask.setServerId(serverConfig.getCurrentServerId());
+        dfsCommandTask.setTaskInfo(taskInfo);
+        dfsCommandTask.setTimestamp(Instant.now().toEpochMilli());
+        return dfsCommandTask;
+    }
 
+    public ByteBuf packageCommandTask(DFSCommandTask dfsCommandTask) {
+        if (dfsCommandTask == null || dfsCommandTask.getTaskInfo() == null)
+            return null;
+        byte[] bytes = JSON.toJSONString(dfsCommandTask.getTaskInfo()).getBytes();
+        dfsCommandTask.setLength(dfsCommandTask.getFixLength() + bytes.length);
+        ByteBuf byteBuf = PooledByteBufAllocator.DEFAULT.buffer(dfsCommandTask.getLength() + 8);
+        packageCommandHeader(byteBuf, dfsCommandTask);
+        byteBuf.writeBytes(bytes);
+        return byteBuf;
+    }
     public DFSCommandTokenClear convertCommandTokenClear(TokenInfo tokenInfo) {
         if (tokenInfo == null)
             return null;

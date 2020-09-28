@@ -1,6 +1,7 @@
 package com.ly.rhdfs.master.manager;
 
 import com.ly.common.constant.ParamConstants;
+import com.ly.common.domain.TaskInfo;
 import com.ly.common.domain.file.BackupMasterFileInfo;
 import com.ly.common.domain.file.DirectInfo;
 import com.ly.common.domain.file.FileChunkCopy;
@@ -44,11 +45,11 @@ import java.util.function.Supplier;
 public class MasterManager extends ServerManager {
 
     private final Map<ServerState, Future> masterUpdateFileInfo = new ConcurrentHashMap<>();
+    private final Map<Long, BlockingDeque<BackupMasterFileInfo>> backupMasterFileInfoBlockingQueue = new ConcurrentHashMap<>();
     private FileServerRunManager fileServerRunManager;
     private DfsFileUtils dfsFileUtils;
     private ServerFileChunkUtil serverFileChunkUtil;
     private RecoverStoreServerTask recoverStoreServerTask;
-    private final Map<Long,BlockingDeque<BackupMasterFileInfo>> backupMasterFileInfoBlockingQueue=new ConcurrentHashMap<>();
 
     public MasterManager() {
         scheduledThreadCount = 9;
@@ -110,7 +111,7 @@ public class MasterManager extends ServerManager {
                 TimeUnit.SECONDS);
         recoverStoreServerTask = new RecoverStoreServerTask(this);
         scheduledThreadPoolExecutor.schedule(recoverStoreServerTask, initThreadThirdDelay, TimeUnit.SECONDS);
-        //定时处理FileInfo发送到backup master server
+        // 定时处理FileInfo发送到backup master server
         scheduledThreadPoolExecutor.schedule(new BackupMasterFileInfoTask(this), initThreadThirdDelay,
                 TimeUnit.SECONDS);
     }
@@ -119,9 +120,10 @@ public class MasterManager extends ServerManager {
         return masterUpdateFileInfo;
     }
 
-    public Map<Long,BlockingDeque<BackupMasterFileInfo>> getBackupMasterFileInfoBlockingQueue(){
+    public Map<Long, BlockingDeque<BackupMasterFileInfo>> getBackupMasterFileInfoBlockingQueue() {
         return backupMasterFileInfoBlockingQueue;
     }
+
     public boolean isContainUpdateFileInfo(ServerState serverState) {
         return masterUpdateFileInfo.containsKey(serverState);
     }
@@ -147,10 +149,18 @@ public class MasterManager extends ServerManager {
     public void clearToken(TokenInfo tokenInfo) {
         if (tokenInfo == null)
             return;
-        if (tokenInfo.getTokenType() == TokenInfo.TOKEN_WRITE) {
-            fileServerRunManager.clearUploadFile(tokenInfo, true);
-        } else if (tokenInfo.getTokenType() == TokenInfo.TOKEN_READ) {
-            fileServerRunManager.clearDownloadFile(tokenInfo, true);
+        if (localServerState.getType() == ServerState.SIT_MASTER) {
+            if (tokenInfo.getTokenType() == TokenInfo.TOKEN_WRITE) {
+                fileServerRunManager.clearUploadFile(tokenInfo, true);
+            } else if (tokenInfo.getTokenType() == TokenInfo.TOKEN_READ) {
+                fileServerRunManager.clearDownloadFile(tokenInfo, true);
+            }
+        } else if (localServerState.getType() == ServerState.SIT_MASTER_BACKUP) {
+            if (tokenInfo.getTokenType() == TokenInfo.TOKEN_WRITE) {
+                fileServerRunManager.getUploadRunningTask().remove(tokenInfo);
+            } else if (tokenInfo.getTokenType() == TokenInfo.TOKEN_READ) {
+                fileServerRunManager.getDownloadRunningTask().remove(tokenInfo);
+            }
         }
     }
 
@@ -180,7 +190,8 @@ public class MasterManager extends ServerManager {
                     && serverState.getType() == ServerState.SIT_MASTER && serverState.getServerId() == masterServerId
                     && (getLocalServerState().getState() == ServerState.SIS_UNKNOWN
                     || (getLocalServerState().getState() & ServerState.SIS_MASTER_LOST_CONTACT) != 0)
-                    && serverState.getWriteLastTime() > getLocalServerState().getWriteLastTime() + serverConfig.getBackupMasterServerUpdateTimeout()) {
+                    && serverState.getWriteLastTime() > getLocalServerState().getWriteLastTime()
+                    + serverConfig.getBackupMasterServerUpdateTimeout()) {
                 // verify writeLastTime,clear lost contact mark after verify writeLastTime.
                 getLocalServerState().setState(getLocalServerState().getState() & ~ServerState.SIS_MASTER_LOST_CONTACT);
                 getLocalServerState().setReady(false);
@@ -315,48 +326,85 @@ public class MasterManager extends ServerManager {
         return Mono.create(monoSink -> channelFuture.addListener(future -> monoSink.success(future.isSuccess())));
     }
 
+    public void sendBackupTaskInfo(TaskInfo taskInfo) {
+        if (taskInfo == null || masterServerConfig.getMasterServerMap() == null
+                || masterServerConfig.getMasterServerMap().isEmpty())
+            return;
+        for (Long serverId : masterServerConfig.getMasterServerMap().keySet()) {
+            ServerState serverState = findServerState(serverId);
+            if (serverState == null || serverState.getType() != ServerState.SIT_MASTER_BACKUP || !serverState.isReady())
+                continue;
+            connectManager.sendCommunicationObjectAsync(serverState, taskInfo, DFSCommand.CT_TASK_INFO)
+                    .addListener(future -> {
+                        if (future.isSuccess()) {
+                            logger.debug("send backup token success.serverId:{} path:{} file name:{}", serverId, taskInfo.getTokenInfo().getPath(), taskInfo.getTokenInfo().getFileName());
+                        }else{
+                            logger.warn("send backup token failed.serverId:{} path:{} file name:{}", serverId, taskInfo.getTokenInfo().getPath(), taskInfo.getTokenInfo().getFileName());
+                        }
+                    });
+        }
+    }
+
+    public void sendBackupClearToken(TokenInfo tokenInfo) {
+        if (tokenInfo == null || masterServerConfig.getMasterServerMap() == null
+                || masterServerConfig.getMasterServerMap().isEmpty())
+            return;
+        for (Long serverId : masterServerConfig.getMasterServerMap().keySet()) {
+            ServerState serverState = findServerState(serverId);
+            if (serverState == null || serverState.getType() != ServerState.SIT_MASTER_BACKUP || !serverState.isReady())
+                continue;
+            connectManager.sendCommunicationObjectAsync(serverState, tokenInfo, DFSCommand.CT_TOKEN_CLEAR)
+                    .addListener(future -> {
+                        if (future.isSuccess()) {
+                            logger.debug("send clear backup token success.serverId:{} path:{} file name:{}", serverId, tokenInfo.getPath(), tokenInfo.getFileName());
+                        }else{
+                            logger.warn("send clear backup token failed.serverId:{} path:{} file name:{}", serverId, tokenInfo.getPath(), tokenInfo.getFileName());
+                        }
+                    });
+        }
+    }
+
     public Mono<FileInfo> apportionFileServer(TokenInfo tokenInfo, long size) {
         if (tokenInfo == null || size <= 0)
             return Mono.error(new NullPointerException());
         AtomicReference<FileInfo> fileInfoAtomic = new AtomicReference<>();
         AtomicReference<Set<ServerAddressInfo>> serverAddressSet = new AtomicReference<>();
         // 收集发送成功的ServerId
-        return Mono
-                .defer(() -> {
-                    // 分配Chunk存储服务器
-                    fileInfoAtomic.set(fileServerRunManager.assignUploadFileServer(tokenInfo, size));
-                    return Mono.just(fileInfoAtomic.get());
-                })
-                .flux().flatMap(fileInfo -> {
-                    // 整理涉及的chunk服务器列表
-                    serverAddressSet.set(fileServerRunManager.tidyServerId(fileInfo));
-                    return Flux.fromIterable(serverAddressSet.get());
-                })
-                .flatMap(serverAddressInfo -> Mono.create((Consumer<MonoSink<ServerAddressInfo>>) monoSink ->
-                        // 发送Token到chunk server
-                        sendToken(serverInfoMap.get(serverAddressInfo.getServerId()), tokenInfo).addListener(future -> {
-                            // 发送成功发射ServerId，不成功发射-1
-                            if (future.isSuccess())
-                                monoSink.success(serverAddressInfo);
-                        })))
-                .collect((Supplier<TreeSet<ServerAddressInfo>>) TreeSet::new, TreeSet::add)
-                .flatMap(treeSet -> {
-                    if (treeSet.size() < serverAddressSet.get().size() && !fileServerRunManager.resetInvalidServerId(fileInfoAtomic.get(), treeSet)) {
+        return Mono.defer(() -> {
+            // 分配Chunk存储服务器
+            fileInfoAtomic.set(fileServerRunManager.assignUploadFileServer(tokenInfo, size));
+            return Mono.just(fileInfoAtomic.get());
+        }).flux().flatMap(fileInfo -> {
+            // 整理涉及的chunk服务器列表
+            serverAddressSet.set(fileServerRunManager.tidyServerId(fileInfo));
+            return Flux.fromIterable(serverAddressSet.get());
+        }).flatMap(serverAddressInfo -> Mono.create((Consumer<MonoSink<ServerAddressInfo>>) monoSink ->
+                // 发送Token到chunk server
+                sendToken(serverInfoMap.get(serverAddressInfo.getServerId()), tokenInfo).addListener(future -> {
+                    // 发送成功发射ServerId，不成功发射-1
+                    if (future.isSuccess())
+                        monoSink.success(serverAddressInfo);
+                })))
+                .collect((Supplier<TreeSet<ServerAddressInfo>>) TreeSet::new, TreeSet::add).flatMap(treeSet -> {
+                    if (treeSet.size() < serverAddressSet.get().size()
+                            && !fileServerRunManager.resetInvalidServerId(fileInfoAtomic.get(), treeSet)) {
                         // 发送成功的服务器数量不足保存份数，触发异常
                         fileServerRunManager.clearUploadFile(tokenInfo, true);
                         return Mono.error(new ServerAssignException("Server count is not enough!"));
                     }
                     // 成功，发射FileInfo信息
                     return Mono.just(serverAddressSet.get());
-                })
-                .flux().flatMap(Flux::fromIterable)
-                .flatMap(serverAddressInfo -> sendFileInfo(serverInfoMap.get(serverAddressInfo.getServerId()), fileInfoAtomic.get()))
+                }).flux().flatMap(Flux::fromIterable)
+                .flatMap(serverAddressInfo -> sendFileInfo(serverInfoMap.get(serverAddressInfo.getServerId()),
+                        fileInfoAtomic.get()))
                 .flatMap(sendResult -> {
-                    if (!sendResult) {
+                    if (sendResult) {
+                        sendBackupTaskInfo(new TaskInfo(tokenInfo, fileInfoAtomic.get()));
+                        return Mono.just(true);
+                    } else {
                         fileServerRunManager.clearUploadFile(tokenInfo, true);
                         return Mono.error(new ServerAssignException("Server count is not enough!"));
                     }
-                    return Mono.just(true);
                 }).then(Mono.just(fileInfoAtomic.get()));
 
     }
@@ -365,34 +413,31 @@ public class MasterManager extends ServerManager {
         if (tokenInfo == null || chunk <= 0)
             return Mono.error(new NullPointerException());
         AtomicReference<FileInfo> fileInfoAtomic = new AtomicReference<>();
-        return Mono
-                .defer(() -> {
-                    // 分配Chunk存储服务器
-                    fileInfoAtomic.set(fileServerRunManager.assignUploadFileServerChunk(tokenInfo, chunk));
-                    return Mono.just(fileInfoAtomic.get());
-                })
-                .flux()
+        return Mono.defer(() -> {
+            // 分配Chunk存储服务器
+            fileInfoAtomic.set(fileServerRunManager.assignUploadFileServerChunk(tokenInfo, chunk));
+            return Mono.just(fileInfoAtomic.get());
+        }).flux()
                 // 整理涉及的chunk服务器列表
                 .flatMap(fileInfo -> Flux.fromIterable(fileInfo.getFileChunkList().get(chunk).getChunkServerIdList()))
                 .flatMap(serverAddressInfo -> Flux.create((Consumer<FluxSink<Long>>) fluxSink ->
                         // 发送Token到chunk server
-                        sendToken(serverInfoMap.get(serverAddressInfo.getServerId()), tokenInfo)
-                                .addListener(future -> {
-                                    // 发送成功发射ServerId，不成功发射-1
-                                    if (future.isSuccess())
-                                        fluxSink.next(serverAddressInfo.getServerId());
-                                    else
-                                        fluxSink.next(-1L);
-                                })))
-                .flatMap(serverId -> sendFileInfo(serverInfoMap.get(serverId), fileInfoAtomic.get()))
+                        sendToken(serverInfoMap.get(serverAddressInfo.getServerId()), tokenInfo).addListener(future -> {
+                            // 发送成功发射ServerId，不成功发射-1
+                            if (future.isSuccess())
+                                fluxSink.next(serverAddressInfo.getServerId());
+                            else
+                                fluxSink.next(-1L);
+                        }))).flatMap(serverId -> sendFileInfo(serverInfoMap.get(serverId), fileInfoAtomic.get()))
                 .flatMap(sendResult -> {
-                    if (!sendResult) {
-                        //fileServerRunManager.clearUploadFile(tokenInfo, true);
+                    if (sendResult) {
+                        sendBackupTaskInfo(new TaskInfo(tokenInfo, fileInfoAtomic.get()));
+                        return Mono.just(true);
+                    } else {
+                        // fileServerRunManager.clearUploadFile(tokenInfo, true);
                         return Mono.error(new ServerAssignException("Server file information send failed!"));
                     }
-                    return Mono.just(true);
-                })
-                .then(Mono.just(fileInfoAtomic.get()));
+                }).then(Mono.just(fileInfoAtomic.get()));
 
     }
 
@@ -406,6 +451,7 @@ public class MasterManager extends ServerManager {
             for (ServerAddressInfo serverAddressInfo : serverIds) {
                 sendToken(serverInfoMap.get(serverAddressInfo.getServerId()), tokenInfo);
             }
+            sendBackupTaskInfo(new TaskInfo(tokenInfo, fileInfo));
             return Mono.just(fileInfo);
         });
     }
@@ -417,27 +463,23 @@ public class MasterManager extends ServerManager {
     }
 
     public Mono<DirectInfo> findDirectInfoAsync(String path) {
-        return Mono.create(monoSink ->
-                CompletableFuture
-                        .supplyAsync(() -> fileInfoManager.findDirectInfo(path))
-                        .whenCompleteAsync((result, t) -> {
-                            if (result == null)
-                                monoSink.error(new DirectNotFoundException(String.format("Direct %s not found.", path)));
-                            else
-                                monoSink.success(result);
-                        }));
+        return Mono.create(monoSink -> CompletableFuture.supplyAsync(() -> fileInfoManager.findDirectInfo(path))
+                .whenCompleteAsync((result, t) -> {
+                    if (result == null)
+                        monoSink.error(new DirectNotFoundException(String.format("Direct %s not found.", path)));
+                    else
+                        monoSink.success(result);
+                }));
     }
 
     public Mono<FileInfo> findFileInfoAsync(String path, String fileName) {
-        return Mono.create(monoSink ->
-                CompletableFuture
-                        .supplyAsync(() -> fileInfoManager.findFileInfo(path, fileName))
-                        .whenCompleteAsync((result, t) -> {
-                            if (result == null)
-                                monoSink.error(new FileNotFoundException(String.format("Direct %s not found.", path)));
-                            else
-                                monoSink.success(result);
-                        }));
+        return Mono.create(monoSink -> CompletableFuture.supplyAsync(() -> fileInfoManager.findFileInfo(path, fileName))
+                .whenCompleteAsync((result, t) -> {
+                    if (result == null)
+                        monoSink.error(new FileNotFoundException(String.format("Direct %s not found.", path)));
+                    else
+                        monoSink.success(result);
+                }));
     }
 
     public boolean addBackupServerId(long serverId) {
@@ -457,31 +499,39 @@ public class MasterManager extends ServerManager {
         recoverStoreServerTask.addRecoverServerId(Tuples.of(oldServerId, newServerId));
         return true;
     }
-    public void addFileInfo2BackupMaster(int type,FileInfo fileInfo){
-        if (fileInfo==null || masterServerConfig.getMasterServerMap()==null || masterServerConfig.getMasterServerMap().isEmpty())
+
+    public void addFileInfo2BackupMaster(int type, FileInfo fileInfo) {
+        if (fileInfo == null || masterServerConfig.getMasterServerMap() == null
+                || masterServerConfig.getMasterServerMap().isEmpty())
             return;
-        for (Long serverId:masterServerConfig.getMasterServerMap().keySet()){
-            addFileInfo2BackupMaster(serverId,type,fileInfo);
+        for (Long serverId : masterServerConfig.getMasterServerMap().keySet()) {
+            addFileInfo2BackupMaster(serverId, type, fileInfo);
         }
     }
-    public void addFileInfo2BackupMaster(long serverId,int type,FileInfo fileInfo){
-        ServerState serverState=findServerState(serverId);
-        if (serverState==null || !serverState.isReady())
+
+    public void addFileInfo2BackupMaster(long serverId, int type, FileInfo fileInfo) {
+        ServerState serverState = findServerState(serverId);
+        if (serverState == null || !serverState.isReady())
             return;
-        BlockingDeque<BackupMasterFileInfo> backupMasterFileInfos=backupMasterFileInfoBlockingQueue.computeIfAbsent(serverId,key->new LinkedBlockingDeque<>());
-        backupMasterFileInfos.addLast(new BackupMasterFileInfo(type,fileInfo));
+        BlockingDeque<BackupMasterFileInfo> backupMasterFileInfos = backupMasterFileInfoBlockingQueue
+                .computeIfAbsent(serverId, key -> new LinkedBlockingDeque<>());
+        backupMasterFileInfos.addLast(new BackupMasterFileInfo(type, fileInfo));
     }
-    public void submitFileFinish(FileInfo fileInfo){
+
+    public void submitFileFinish(TokenInfo tokenInfo, FileInfo fileInfo) {
         fileInfoManager.submitFileInfo(fileInfo,
                 dfsFileUtils.joinFileTempConfigName(fileInfo.getPath(), fileInfo.getFileName()));
         long writeLogDateTime = Instant.now().toEpochMilli();
-        getLogFileOperate().writeOperateLog(new OperationLog(writeLogDateTime,
-                OperationLog.OP_TYPE_ADD_FILE_FINISH, fileInfo.getPath(), fileInfo.getFileName()));
+        getLogFileOperate().writeOperateLog(new OperationLog(writeLogDateTime, OperationLog.OP_TYPE_ADD_FILE_FINISH,
+                fileInfo.getPath(), fileInfo.getFileName()));
         getLocalServerState().setWriteLastTime(writeLogDateTime);
-        addFileInfo2BackupMaster(BackupMasterFileInfo.TYPE_ADD,fileInfo);
+        sendBackupClearToken(tokenInfo);
+        addFileInfo2BackupMaster(BackupMasterFileInfo.TYPE_ADD, fileInfo);
     }
-    public void deleteFileInfo(FileInfo fileInfo){
-        dfsFileUtils.fileDelete(fileInfo.getPath(), fileInfo.getFileName());
-        addFileInfo2BackupMaster(BackupMasterFileInfo.TYPE_DELETE,fileInfo);
+
+    public void deleteFileInfo(TokenInfo tokenInfo, FileInfo fileInfo) {
+        fileInfoManager.deleteFile(fileInfo.getPath(), fileInfo.getFileName());
+        sendBackupClearToken(tokenInfo);
+        addFileInfo2BackupMaster(BackupMasterFileInfo.TYPE_DELETE, fileInfo);
     }
 }

@@ -25,6 +25,7 @@ public class DFSCommand {
     public static final int CT_FILE_OPERATE = 0x200;
     public static final int CT_FILE_CHUNK_COPY = 0x400;
     public static final int CT_FILE_CHUNK_INFO = 0x800;
+    public static final int CT_TASK_INFO = 0x1000;
     public static final int CT_REPLY = 0x8000;
 
     protected int commandType;

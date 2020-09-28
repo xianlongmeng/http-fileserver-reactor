@@ -103,6 +103,7 @@ public class DownloadDfsHandler {
             return ServerResponse.status(HttpStatus.FORBIDDEN).bodyValue("Parameter error!");
         }
         masterManager.getFileServerRunManager().downloadFileFinish(tokenInfo);
+        masterManager.sendBackupClearToken(tokenInfo);
         return ServerResponse.ok().build();
     }
     @NonNull

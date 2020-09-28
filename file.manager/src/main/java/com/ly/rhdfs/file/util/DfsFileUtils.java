@@ -209,9 +209,9 @@ public class DfsFileUtils {
         if (file.exists())
             return true;
         file = new File(joinFileName(fileRootPath,joinFileConfigName(path, fileName)));
-        if (file.exists())
-            return true;
-        file = new File(joinFileName(fileRootPath,joinFileTempConfigName(path, fileName)));
+//        if (file.exists())
+//            return true;
+//        file = new File(joinFileName(fileRootPath,joinFileTempConfigName(path, fileName)));
         return file.exists();
     }
 
