@@ -16,14 +16,12 @@
         <module>server.connect</module>
         <module>master.restore</module>
         <module>extend</module>
-        <module>master.backup</module>
         <module>authentication</module>
         <module>manager</module>
         <module>master.manager</module>
         <module>store.manager</module>
         <module>communicate</module>
         <module>communicate.socket</module>
-        <module>master.file.manager</module>
         <module>file.manager</module>
         <module>message</module>
         <module>message.handler</module>

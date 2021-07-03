@@ -159,7 +159,7 @@ public class DistributionFileStore extends AbstractFileStore {
                                                                 }))
                                                         .switchIfEmpty(Mono.just(false))
                                                         .subscribe(res -> {
-                                                            if (res)
+                                                            if (Boolean.TRUE.equals(res))
                                                                 sink.success(new ResultValueInfo<>(ResultInfo.S_OK,
                                                                         filePart));
                                                             else

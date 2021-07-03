@@ -75,18 +75,19 @@ public class UploadDfsStoreHandler {
                 || tokenInfo.getLastTime() + tokenInfo.getExpirationMills() < Instant.now().toEpochMilli())
             return ServerResponse.status(HttpStatus.UNAUTHORIZED).build();
 
-        DFSPartChunk partChunk;
+        DFSPartChunk partChunkTmp;
         boolean chunked = Boolean.parseBoolean(request.queryParam(ParamConstants.PARAM_CHUNKED).orElse("false"));
         if (chunked) {
             int chunkIndex = ConvertUtil.parseInt(request.queryParam(ParamConstants.PARAM_CHUNK_INDEX).orElse("0"), 0);
             int chunk = ConvertUtil.parseInt(request.queryParam(ParamConstants.PARAM_CHUNK).orElse("0"), 0);
             int chunkSize = ConvertUtil.parseInt(request.queryParam(ParamConstants.PARAM_CHUNK_SIZE).orElse("0"), 0);
             int chunkCount = ConvertUtil.parseInt(request.queryParam(ParamConstants.PARAM_CHUNK_COUNT).orElse("0"), 1);
-            partChunk = new DFSPartChunk(true, chunkIndex, chunk, chunkSize, chunkCount, tokenInfo,etag);
+            partChunkTmp = new DFSPartChunk(true, chunkIndex, chunk, chunkSize, chunkCount, tokenInfo,etag);
         } else {
-            partChunk = new DFSPartChunk(false, tokenInfo,etag);
+            partChunkTmp = new DFSPartChunk(false, tokenInfo,etag);
         }
         String path = request.pathVariable("path");
+        DFSPartChunk partChunk=partChunkTmp;
         return Mono
                 .fromFuture(CompletableFuture.supplyAsync(() -> Optional.ofNullable(storeManager.getFileInfoManager()
                         .findFileInfo(tokenInfo.getFileName(), tokenInfo.getPath()))))
