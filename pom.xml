@@ -32,6 +32,7 @@
         <module>config</module>
         <module>file-server-dfs.store</module>
         <module>rhdfs-client</module>
+        <module>hfs-single</module>
     </modules>
 
     <parent>

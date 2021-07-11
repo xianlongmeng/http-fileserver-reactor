@@ -3,7 +3,7 @@
     <!-- 定义公用的变量，日志存储文件夹，日志文件名，日志的格式，java运行环境格式等 -->
     <Properties>
         <!-- 日志的路径，发布时需要修改为${CATALINA_HOME}/logs，日志会写入tomcat的日志目录下 -->
-        <Property name="LOG_HOME">C:/Rhdfs/logs</Property>
+        <Property name="LOG_HOME">${sys:user.home}/Rhdfs/logs</Property>
         <Property name="LOG_BACKUP_HOME">${LOG_HOME}/backup</Property>
         <Property name="LOG_FILE_NAME">rhdfs</Property>
         <Property name="LOG_FILE_SIZE">20MB</Property>
