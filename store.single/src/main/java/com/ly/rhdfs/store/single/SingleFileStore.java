@@ -14,6 +14,7 @@ import com.ly.rhdfs.config.ServerConfig;
 import com.ly.rhdfs.store.AbstractFileStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpRange;
@@ -42,6 +43,7 @@ public class SingleFileStore extends AbstractFileStore {
     public SingleFileStore() {
     }
 
+    @Autowired
     public void setConfig(SingleStoreConfig config) {
         this.config = config;
     }

@@ -7,7 +7,7 @@ import com.ly.common.domain.ResultValueInfo;
 import com.ly.common.domain.UploadResultInfo;
 import com.ly.common.util.ConvertUtil;
 import com.ly.common.util.ToolUtils;
-import com.ly.rhdfs.config.StoreConfiguration;
+import com.ly.rhdfs.config.ServerConfig;
 import com.ly.rhdfs.store.StoreFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,11 +31,11 @@ public class UploadHandler {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private StoreFile storeFile;
-    private StoreConfiguration storeConfiguration;
 
+    private ServerConfig serverConfig;
     @Autowired
-    public void setStoreConfiguration(StoreConfiguration storeConfiguration) {
-        this.storeConfiguration = storeConfiguration;
+    public void setServerConfig(ServerConfig serverConfig){
+        this.serverConfig=serverConfig;
     }
 
     @Autowired
@@ -51,13 +51,13 @@ public class UploadHandler {
      */
     public Mono<ServerResponse> uploadFileSelf(ServerRequest request) {
 
-        String path = request.queryParam(storeConfiguration.getPathParamName()).orElse("path");
+        String path = request.queryParam(serverConfig.getPathParamName()).orElse("path");
         return request.body(BodyExtractors.toParts()).flatMap(part -> {
             if (part instanceof FilePart) {
                 FilePart filePart = (FilePart) part;
 
                 logger.info("name:{};fileName:{}", filePart.name(), filePart.filename());
-                if (!storeConfiguration.isRewrite() && storeFile.existed(filePart.filename(), path)) {
+                if (!serverConfig.isRewrite() && storeFile.existed(filePart.filename(), path)) {
                     logger.warn("file is existed and can not rewrite.fileName:{}", filePart.filename());
                     return Flux.just(false);
                 }
@@ -111,13 +111,13 @@ public class UploadHandler {
         } else {
             partChunk = new PartChunk(false);
         }
-        String path = request.queryParam(storeConfiguration.getPathParamName()).orElse(ParamConstants.PARAM_PATH_NAME);
+        String path = request.queryParam(serverConfig.getPathParamName()).orElse(ParamConstants.PARAM_PATH_NAME);
         return request.body(BodyExtractors.toParts())
                 .single().onErrorResume(t -> Mono.empty())
                 .flatMap(part -> {
                     if (part instanceof FilePart) {
                         FilePart filePart = (FilePart) part;
-                        if (!storeConfiguration.isRewrite() && storeFile.existed(filePart.filename(), path)) {
+                        if (!serverConfig.isRewrite() && storeFile.existed(filePart.filename(), path)) {
                             logger.warn("file is existed and can not rewrite.fileName:{}", filePart.filename());
                             return Mono.just(
                                     new ResultValueInfo<>(ResultInfo.S_ERROR, "file.exist.100", "file is exist", filePart));

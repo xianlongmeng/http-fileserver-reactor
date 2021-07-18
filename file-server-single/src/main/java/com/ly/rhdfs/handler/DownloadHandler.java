@@ -5,9 +5,7 @@ import com.ly.common.domain.PartRange;
 import com.ly.common.service.FileChunkReader;
 import com.ly.common.util.DateFormatUtils;
 import com.ly.etag.ETagComputer;
-import com.ly.rhdfs.config.StoreConfiguration;
 import com.ly.rhdfs.store.StoreFile;
-import com.ly.rhdfs.store.single.SingleFileStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -27,7 +25,6 @@ import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
-import java.nio.channels.FileChannel;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
