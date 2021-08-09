@@ -9,6 +9,7 @@ import com.ly.common.util.ConvertUtil;
 import com.ly.common.util.ToolUtils;
 import com.ly.rhdfs.config.ServerConfig;
 import com.ly.rhdfs.store.StoreFile;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,20 +52,23 @@ public class UploadHandler {
      */
     public Mono<ServerResponse> uploadFileSelf(ServerRequest request) {
 
-        String path = request.queryParam(serverConfig.getPathParamName()).orElse("path");
+        String path = request.pathVariable("path");
+        if(StringUtils.isEmpty(path))
+            path = request.queryParam(serverConfig.getPathParamName()).orElse("path");
+        String finalPath = path;
         return request.body(BodyExtractors.toParts()).flatMap(part -> {
             if (part instanceof FilePart) {
                 FilePart filePart = (FilePart) part;
 
                 logger.info("name:{};fileName:{}", filePart.name(), filePart.filename());
-                if (!serverConfig.isRewrite() && storeFile.existed(filePart.filename(), path)) {
+                if (!serverConfig.isRewrite() && storeFile.existed(filePart.filename(), finalPath)) {
                     logger.warn("file is existed and can not rewrite.fileName:{}", filePart.filename());
                     return Flux.just(false);
                 }
                 return Flux.create(sink -> {
                     try {
                         AsynchronousFileChannel asynchronousFileChannel = AsynchronousFileChannel.open(
-                                storeFile.takeFilePath(filePart.filename(), path), StandardOpenOption.CREATE,
+                                storeFile.takeFilePath(filePart.filename(), finalPath), StandardOpenOption.CREATE,
                                 StandardOpenOption.WRITE);
                         sink.onDispose(() -> ToolUtils.closeChannel(asynchronousFileChannel));
                         DataBufferUtils.write(filePart.content(), asynchronousFileChannel, 0)
@@ -111,18 +115,21 @@ public class UploadHandler {
         } else {
             partChunk = new PartChunk(false);
         }
-        String path = request.queryParam(serverConfig.getPathParamName()).orElse(ParamConstants.PARAM_PATH_NAME);
+        String path = request.pathVariable("path");
+        if(StringUtils.isEmpty(path))
+            path = request.queryParam(serverConfig.getPathParamName()).orElse(ParamConstants.PARAM_PATH_NAME);
+        String finalPath = path;
         return request.body(BodyExtractors.toParts())
                 .single().onErrorResume(t -> Mono.empty())
                 .flatMap(part -> {
                     if (part instanceof FilePart) {
                         FilePart filePart = (FilePart) part;
-                        if (!serverConfig.isRewrite() && storeFile.existed(filePart.filename(), path)) {
+                        if (!serverConfig.isRewrite() && storeFile.existed(filePart.filename(), finalPath)) {
                             logger.warn("file is existed and can not rewrite.fileName:{}", filePart.filename());
                             return Mono.just(
                                     new ResultValueInfo<>(ResultInfo.S_ERROR, "file.exist.100", "file is exist", filePart));
                         } else {
-                            return storeFile.storeFile(filePart, path, partChunk);
+                            return storeFile.storeFile(filePart, finalPath, partChunk);
                         }
                     } else {
                         return Mono.just(new ResultValueInfo<>(ResultInfo.S_ERROR, "part.100", "not file part!", part));

@@ -61,9 +61,9 @@ public class ServerConfig {
     @Value("${store.file.temp.suffix}")
     private String tmpFileSuffix;
 
-    @Value("${file.config.suffix}")
+    @Value("${file.config.suffix:dfc}")
     private String fileConfigSuffix;
-    @Value("${file.temp.config.suffix}")
+    @Value("${file.temp.config.suffix:dft}")
     private String fileTmpConfigSuffix;
 
     @Value("${store.backup.mode:sync}")

@@ -33,7 +33,7 @@ public class FileTransferRoute {
                 .route()
                 .path("/upload", builder -> builder
                         .route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST), uploadHandler::uploadFile))
-                .path("/uploadFileSelf", builder -> builder
+                .path("/uploadFileSelf/{*path}", builder -> builder
                         .route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST), uploadHandler::uploadFileSelf))
                 .build();
     }
