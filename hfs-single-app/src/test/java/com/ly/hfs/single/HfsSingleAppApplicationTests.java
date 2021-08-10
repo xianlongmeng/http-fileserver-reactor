@@ -1,4 +1,4 @@
-package com.lt.hfs.single;
+package com.ly.hfs.single;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;

@@ -18,12 +18,12 @@ import java.util.List;
 public abstract class AbstractFileStore implements StoreFile {
 
     protected final Logger logger = LoggerFactory.getLogger(getClass());
-    protected final FileChunkManger fileChunkManger = SpringContextUtil.getBean(FileChunkManger.class);
+    protected final FileChunkManger fileChunkManger;
     protected ServerConfig serverConfig;
     protected DfsFileUtils dfsFileUtils;
 
     public AbstractFileStore() {
-       //fileChunkManger = SpringContextUtil.getBean(FileChunkManger.class);
+       fileChunkManger = SpringContextUtil.getBean(FileChunkManger.class);
     }
 
     public void setServerConfig(ServerConfig serverConfig) {

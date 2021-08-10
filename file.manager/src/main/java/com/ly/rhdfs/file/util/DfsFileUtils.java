@@ -152,7 +152,7 @@ public class DfsFileUtils {
     public String joinFileName(String ... paths) {
         if (paths.length==0)
             return "";
-        String path=paths[0];
+        String path="";
         for (String p : paths) {
             if (StringUtils.isEmpty(p))
                 continue;

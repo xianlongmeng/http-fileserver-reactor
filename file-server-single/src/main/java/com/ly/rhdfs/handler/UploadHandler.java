@@ -25,6 +25,7 @@ import reactor.core.publisher.Mono;
 
 import java.io.IOException;
 import java.nio.channels.AsynchronousFileChannel;
+import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 
 @Component
@@ -66,18 +67,21 @@ public class UploadHandler {
                     return Flux.just(false);
                 }
                 return Flux.create(sink -> {
+                    Path filePath=storeFile.takeFilePath(filePart.filename(), finalPath);
                     try {
                         AsynchronousFileChannel asynchronousFileChannel = AsynchronousFileChannel.open(
-                                storeFile.takeFilePath(filePart.filename(), finalPath), StandardOpenOption.CREATE,
+                                filePath, StandardOpenOption.CREATE,
                                 StandardOpenOption.WRITE);
                         sink.onDispose(() -> ToolUtils.closeChannel(asynchronousFileChannel));
                         DataBufferUtils.write(filePart.content(), asynchronousFileChannel, 0)
                                 .subscribe(DataBufferUtils::release, sink::error, sink::complete);
                     } catch (IOException ex) {
+                        logger.error("write file {} is error",filePath,ex);
                         sink.error(ex);
                     }
                 }).materialize().map(signal -> {
-                    logger.info("map isOnError:{}", signal.isOnError());
+                    if (signal.isOnError())
+                        logger.error("map isOnError:{}", signal.isOnError(),signal.getThrowable());
                     return !signal.isOnError();
                 });
             } else {

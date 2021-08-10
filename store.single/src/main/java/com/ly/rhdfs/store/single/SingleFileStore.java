@@ -1,5 +1,20 @@
 package com.ly.rhdfs.store.single;
 
+import com.ly.common.domain.PartChunk;
+import com.ly.common.domain.ResultInfo;
+import com.ly.common.domain.ResultValueInfo;
+import com.ly.common.util.ConvertUtil;
+import com.ly.common.util.ToolUtils;
+import com.ly.rhdfs.store.AbstractFileStore;
+import com.ly.rhdfs.store.single.config.SingleStoreConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.buffer.DataBufferUtils;
+import org.springframework.http.codec.multipart.FilePart;
+import org.springframework.util.StringUtils;
+import reactor.core.publisher.Mono;
+
 import java.io.File;
 import java.io.IOException;
 import java.nio.channels.AsynchronousFileChannel;
@@ -8,32 +23,6 @@ import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
-import java.util.List;
-
-import com.ly.rhdfs.config.ServerConfig;
-import com.ly.rhdfs.store.AbstractFileStore;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.core.io.FileSystemResource;
-import org.springframework.core.io.buffer.DataBufferUtils;
-import org.springframework.http.HttpRange;
-import org.springframework.http.codec.multipart.FilePart;
-import org.springframework.util.StringUtils;
-
-import com.ly.common.domain.FileRanges;
-import com.ly.common.domain.PartChunk;
-import com.ly.common.domain.ResultInfo;
-import com.ly.common.domain.ResultValueInfo;
-import com.ly.common.service.FileChunkManger;
-import com.ly.common.util.ConvertUtil;
-import com.ly.common.util.SpringContextUtil;
-import com.ly.common.util.ToolUtils;
-import com.ly.rhdfs.store.StoreFile;
-import com.ly.rhdfs.store.single.config.SingleStoreConfig;
-
-import reactor.core.publisher.Flux;
-import reactor.core.publisher.Mono;
 
 public class SingleFileStore extends AbstractFileStore {
 
@@ -54,20 +43,21 @@ public class SingleFileStore extends AbstractFileStore {
         if (StringUtils.isEmpty(uploadFilePath)) {
             return null;
         }
-        File file=new File(uploadFilePath);
-        if (file.exists()){
+        File file = new File(uploadFilePath);
+        if (file.exists()) {
             return ConvertUtil.toGMTLocalDateTime(LocalDateTime.ofInstant(Instant.ofEpochMilli(file.lastModified()), ZoneId.systemDefault()));
         }
         return null;
     }
+
     @Override
     public Instant takeFileInstant(String fileId, String path) {
         String uploadFilePath = buildFilePath(fileId, path);
         if (StringUtils.isEmpty(uploadFilePath)) {
             return null;
         }
-        File file=new File(uploadFilePath);
-        if (file.exists()){
+        File file = new File(uploadFilePath);
+        if (file.exists()) {
             return Instant.ofEpochMilli(file.lastModified());
         }
         return null;
@@ -79,8 +69,8 @@ public class SingleFileStore extends AbstractFileStore {
         if (StringUtils.isEmpty(uploadFilePath)) {
             return 0;
         }
-        File file=new File(uploadFilePath);
-        if (file.exists()){
+        File file = new File(uploadFilePath);
+        if (file.exists()) {
             return file.length();
         }
         return 0;

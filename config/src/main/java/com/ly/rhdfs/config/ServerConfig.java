@@ -12,13 +12,13 @@ public class ServerConfig {
 
     @Value("${server.id}")
     private long currentServerId;
-    @Value("${server.port}")
+    @Value("${manager.server.port}")
     private int port;
     @Value("${master.server.config.path}")
     private String configPath;
     @Value("${read.timeout:60}")
     private int readTimeout;
-    @Value("${server.type}")
+    @Value("${manager.server.type}")
     private String serverType = ParamConstants.ST_STORE;
     @Value("${log.path:log}")
     private String logPath;
