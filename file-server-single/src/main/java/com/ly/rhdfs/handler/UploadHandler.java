@@ -23,6 +23,7 @@ import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
+import java.io.File;
 import java.io.IOException;
 import java.nio.channels.AsynchronousFileChannel;
 import java.nio.file.Path;
@@ -56,19 +57,39 @@ public class UploadHandler {
         String path = request.pathVariable("path");
         if(StringUtils.isEmpty(path))
             path = request.queryParam(serverConfig.getPathParamName()).orElse("path");
+        int index=Math.max(path.lastIndexOf("/"),path.lastIndexOf("\\"));
+        String fileName=null;
+        if (index==-1) {
+            fileName=path;
+            path="";
+        }else if (index==path.length()-1){
+            path=path.substring(0,index);
+        }else{
+            fileName=path.substring(index+1);
+            path=path.substring(0,index);
+        }
         String finalPath = path;
+        String finalFileName = fileName;
         return request.body(BodyExtractors.toParts()).flatMap(part -> {
             if (part instanceof FilePart) {
                 FilePart filePart = (FilePart) part;
-
-                logger.info("name:{};fileName:{}", filePart.name(), filePart.filename());
-                if (!serverConfig.isRewrite() && storeFile.existed(filePart.filename(), finalPath)) {
+                String fname=finalFileName;
+                if (StringUtils.isEmpty(finalFileName)){
+                    fname=filePart.filename();
+                }
+                logger.info("name:{};fileName:{}", filePart.name(), fname);
+                if (!serverConfig.isRewrite() && storeFile.existed(fname, finalPath)) {
                     logger.warn("file is existed and can not rewrite.fileName:{}", filePart.filename());
                     return Flux.just(false);
                 }
+                String finalFname = fname;
                 return Flux.create(sink -> {
-                    Path filePath=storeFile.takeFilePath(filePart.filename(), finalPath);
+                    Path filePath=storeFile.takeFilePath(finalFname, finalPath);
                     try {
+                        File file=filePath.toFile();
+                        if (!file.getParentFile().exists()) {
+                            file.getParentFile().mkdirs();
+                        }
                         AsynchronousFileChannel asynchronousFileChannel = AsynchronousFileChannel.open(
                                 filePath, StandardOpenOption.CREATE,
                                 StandardOpenOption.WRITE);
@@ -94,9 +115,9 @@ public class UploadHandler {
         }).count().flatMap(c -> {
             logger.info("count:{}", c);
             if (c <= 0)
-                return ServerResponse.accepted().bodyValue("aa");
+                return ServerResponse.accepted().bodyValue("success");
             else
-                return ServerResponse.badRequest().bodyValue("bb");
+                return ServerResponse.badRequest().bodyValue(c+" files upload failed");
         });
     }
 
