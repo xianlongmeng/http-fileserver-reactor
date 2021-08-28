@@ -23,7 +23,7 @@ public class FileTransferRoute {
     public RouterFunction<ServerResponse> routeDownloadFile(DownloadHandler downloadHandler) {
         return RouterFunctions
                 .route()
-                .path("/download", builder -> builder
+                .path("/download/{*path}", builder -> builder
                         .route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST), downloadHandler::downloadFile))
                 .build();
     }

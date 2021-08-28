@@ -5,6 +5,7 @@ import com.ly.common.domain.PartRange;
 import com.ly.common.service.FileChunkReader;
 import com.ly.common.util.DateFormatUtils;
 import com.ly.etag.ETagComputer;
+import com.ly.rhdfs.config.ServerConfig;
 import com.ly.rhdfs.store.StoreFile;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,7 +36,11 @@ public class DownloadHandler {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private StoreFile storeFile;
     private ETagComputer eTagComputer;
-
+    private ServerConfig serverConfig;
+    @Autowired
+    public void setServerConfig(ServerConfig serverConfig){
+        this.serverConfig=serverConfig;
+    }
     @Autowired
     public void setETagComputer(ETagComputer eTagComputer) {
         this.eTagComputer = eTagComputer;
@@ -47,14 +52,29 @@ public class DownloadHandler {
     }
 
     public Mono<ServerResponse> downloadFile(ServerRequest request) {
+        String path = request.pathVariable("path");
+        if(org.apache.commons.lang3.StringUtils.isEmpty(path))
+            path = request.queryParam(serverConfig.getPathParamName()).orElse(ParamConstants.PARAM_PATH_NAME);
+        int index=Math.max(path.lastIndexOf("/"),path.lastIndexOf("\\"));
+        String fName=null;
+        if (index==-1) {
+            fName=path;
+            path="";
+        }else if (index==path.length()-1){
+            path=path.substring(0,index);
+            request.queryParam(serverConfig.getFileNameParamName()).orElse(ParamConstants.PARAM_FILE_NAME);
+        }else{
+            fName=path.substring(index+1);
+            path=path.substring(0,index);
+        }
         // 1/If-Match(416) && If-Unmodified-Since(412)
         // 2/If-Modified-Since(304)
         // 3/If-None-Match(304)
 
         // If-Range
         // Range
-        String filePath = request.queryParam(ParamConstants.PARAM_PATH_NAME).orElse("");
-        String fileName = request.queryParam(ParamConstants.PARAM_FILE_NAME).orElse("");
+        String filePath = path;
+        String fileName = fName;
         if (StringUtils.isEmpty(fileName)) {
             //文件资源不存在
             return ServerResponse.notFound().build();
