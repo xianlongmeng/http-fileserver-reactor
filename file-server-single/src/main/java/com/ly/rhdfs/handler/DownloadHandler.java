@@ -158,7 +158,7 @@ public class DownloadHandler {
         } else {
             // 验证ifRange的时间模式
             if (ifRangeType == 3) {
-                ifRangeResult.set(storeFile.takeFileUpdateTime(fileName, filePath)
+                ifRangeResult.set(storeFile.takeFileUpdateTime(fileName, filePath).withNano(0)
                         .equals(DateFormatUtils.parseLocalDateTime4GMT(ifRange)));
             }
             return responseMono;
