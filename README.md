@@ -10,3 +10,5 @@ Spring boot，webflux，http
 # 下一步计划
 增强second server master的备份能力  
 待测试更新
+#感谢支持
+https://jb.gg/OpenSource
