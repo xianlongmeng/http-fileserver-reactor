@@ -29,12 +29,12 @@ public class FileInfoManager {
     }
     @Cacheable(value = "file.info", key = "#fileFullName")
     public FileInfo findFileInfo(String fileFullName) {
-        return dfsFileUtils.JSONReadFileInfo(dfsFileUtils.joinFileConfigName(fileFullName));
+        return dfsFileUtils.jsonReadFileInfo(dfsFileUtils.joinFileConfigName(fileFullName));
     }
 
     @Cacheable(value = "file.info", key = "#fileFullName")
     public FileInfo findConfigFileInfo(String fileFullName) {
-        return dfsFileUtils.JSONReadConfigFileInfo(fileFullName);
+        return dfsFileUtils.jsonReadConfigFileInfo(fileFullName);
     }
 
     @CachePut(value = "file.info", key = "#path")
@@ -44,7 +44,7 @@ public class FileInfoManager {
         String path=dfsFileUtils.joinFileConfigName(fileInfo.getPath(),fileInfo.getFileName());
         if ( StringUtils.isEmpty(path))
             return null;
-        dfsFileUtils.JSONWriteFile(path, fileInfo);
+        dfsFileUtils.jsonWriteFile(path, fileInfo);
         clearDirectCache(StringUtils.cleanPath(fileInfo.getPath()));
         return fileInfo;
     }
@@ -58,7 +58,7 @@ public class FileInfoManager {
             return null;
         File file = new File(tmpPath);
         if (!file.exists() || !dfsFileUtils.renameFile(tmpPath, path)) {
-            dfsFileUtils.JSONWriteFile(path, fileInfo);
+            dfsFileUtils.jsonWriteFile(path, fileInfo);
         }
         clearDirectCache(StringUtils.cleanPath(fileInfo.getPath()));
         return fileInfo;

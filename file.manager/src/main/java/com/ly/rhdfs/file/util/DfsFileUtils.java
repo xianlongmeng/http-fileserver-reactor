@@ -113,13 +113,13 @@ public class DfsFileUtils {
         return disk.getFreeSpace();
     }
 
-    public FileInfo JSONReadFileInfo(String fileName) {
+    public FileInfo jsonReadFileInfo(String fileName) {
         if (StringUtils.isEmpty(fileName))
             return null;
-        return JSONReadConfigFileInfo(joinFileName(fileRootPath,fileName));
+        return jsonReadConfigFileInfo(joinFileName(fileRootPath,fileName));
     }
 
-    public FileInfo JSONReadConfigFileInfo(String configFileName) {
+    public FileInfo jsonReadConfigFileInfo(String configFileName) {
         if (StringUtils.isEmpty(configFileName))
             return null;
         try {
@@ -131,12 +131,12 @@ public class DfsFileUtils {
         }
     }
 
-    public boolean JSONWriteFile(String fileName, Object obj) {
+    public boolean jsonWriteFile(String fileName, Object obj) {
         if (StringUtils.isEmpty(fileName) || obj == null)
             return false;
-        return JSONWriteConfigFile(joinFileName(fileRootPath,fileName),obj);
+        return jsonWriteConfigFile(joinFileName(fileRootPath,fileName),obj);
     }
-    public boolean JSONWriteConfigFile(String configFileName, Object obj) {
+    public boolean jsonWriteConfigFile(String configFileName, Object obj) {
         if (StringUtils.isEmpty(configFileName) || obj == null)
             return false;
         try {

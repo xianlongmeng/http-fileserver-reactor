@@ -13,7 +13,6 @@ import com.ly.common.domain.token.TokenInfo;
 import com.ly.rhdfs.file.util.DfsFileUtils;
 import com.ly.rhdfs.file.config.FileInfoManager;
 import com.ly.rhdfs.master.manager.MasterManager;
-import org.apache.logging.log4j.core.jmx.Server;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -236,7 +235,7 @@ public class FileServerRunManager {
                     serverRunState.uploadPlus();
                 }
                 fileInfo.getFileChunkList().add(chunkInfo);
-                dfsFileUtils.JSONWriteFile(
+                dfsFileUtils.jsonWriteFile(
                         dfsFileUtils.joinFileTempConfigName(tokenInfo.getPath(), tokenInfo.getFileName()), fileInfo);
             }
         } finally {
@@ -309,7 +308,7 @@ public class FileServerRunManager {
         } finally {
             lockObj.readLock().unlock();
         }
-        dfsFileUtils.JSONWriteFile(dfsFileUtils.joinFileTempConfigName(tokenInfo.getPath(), tokenInfo.getFileName()),
+        dfsFileUtils.jsonWriteFile(dfsFileUtils.joinFileTempConfigName(tokenInfo.getPath(), tokenInfo.getFileName()),
                 fileInfo);
         masterManager.getLogFileOperate().writeOperateLog(new OperationLog(Instant.now().toEpochMilli(),
                 OperationLog.OP_TYPE_ADD_FILE_INIT_UPDATE, tokenInfo.getPath(), tokenInfo.getFileName()));
@@ -515,7 +514,7 @@ public class FileServerRunManager {
         if (taskInfo==null || taskInfo.getTokenInfo()==null || taskInfo.getFileInfo()==null)
             return;
         if (taskInfo.getTokenInfo().getTokenType()==TokenInfo.TOKEN_WRITE){
-            dfsFileUtils.JSONWriteFile(dfsFileUtils.joinFileTempConfigName(taskInfo.getTokenInfo().getPath(), taskInfo.getTokenInfo().getFileName()),
+            dfsFileUtils.jsonWriteFile(dfsFileUtils.joinFileTempConfigName(taskInfo.getTokenInfo().getPath(), taskInfo.getTokenInfo().getFileName()),
                         taskInfo.getFileInfo());
             uploadRunningTask.put(taskInfo.getTokenInfo(),taskInfo);
         }else if (taskInfo.getTokenInfo().getTokenType()==TokenInfo.TOKEN_READ){
@@ -702,7 +701,7 @@ public class FileServerRunManager {
                 }
             }
         }
-        dfsFileUtils.JSONWriteFile(dfsFileUtils.joinFileTempConfigName(fileInfo.getPath(), fileInfo.getFileName()),
+        dfsFileUtils.jsonWriteFile(dfsFileUtils.joinFileTempConfigName(fileInfo.getPath(), fileInfo.getFileName()),
                 fileInfo);
         masterManager.getLogFileOperate().writeOperateLog(new OperationLog(Instant.now().toEpochMilli(),
                 OperationLog.OP_TYPE_ADD_FILE_INIT_UPDATE, fileInfo.getPath(), fileInfo.getFileName()));
