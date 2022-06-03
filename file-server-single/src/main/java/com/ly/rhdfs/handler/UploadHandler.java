@@ -143,7 +143,19 @@ public class UploadHandler {
         String path = request.pathVariable("path");
         if(StringUtils.isEmpty(path))
             path = request.queryParam(serverConfig.getPathParamName()).orElse(ParamConstants.PARAM_PATH_NAME);
+        int index=Math.max(path.lastIndexOf("/"),path.lastIndexOf("\\"));
+        String fileName=null;
+        if (index==-1) {
+            fileName=path;
+            path="";
+        }else if (index==path.length()-1){
+            path=path.substring(0,index);
+        }else{
+            fileName=path.substring(index+1);
+            path=path.substring(0,index);
+        }
         String finalPath = path;
+        String finalFileName = fileName;
         return request.body(BodyExtractors.toParts())
                 .single().onErrorResume(t -> Mono.empty())
                 .flatMap(part -> {
@@ -154,7 +166,7 @@ public class UploadHandler {
                             return Mono.just(
                                     new ResultValueInfo<>(ResultInfo.S_ERROR, "file.exist.100", "file is exist", filePart));
                         } else {
-                            return storeFile.storeFile(filePart, finalPath, partChunk);
+                            return storeFile.storeFile(filePart, finalPath,finalFileName, partChunk);
                         }
                     } else {
                         return Mono.just(new ResultValueInfo<>(ResultInfo.S_ERROR, "part.100", "not file part!", part));

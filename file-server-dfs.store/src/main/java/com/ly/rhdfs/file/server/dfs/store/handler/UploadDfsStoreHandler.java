@@ -87,6 +87,21 @@ public class UploadDfsStoreHandler {
             partChunkTmp = new DFSPartChunk(false, tokenInfo,etag);
         }
         String path = request.pathVariable("path");
+        if(org.apache.commons.lang3.StringUtils.isEmpty(path))
+            path = request.queryParam(serverConfig.getPathParamName()).orElse(ParamConstants.PARAM_PATH_NAME);
+        int index=Math.max(path.lastIndexOf("/"),path.lastIndexOf("\\"));
+        String fileName=null;
+        if (index==-1) {
+            fileName=path;
+            path="";
+        }else if (index==path.length()-1){
+            path=path.substring(0,index);
+        }else{
+            fileName=path.substring(index+1);
+            path=path.substring(0,index);
+        }
+        String finalPath = path;
+        String finalFileName = fileName;
         DFSPartChunk partChunk=partChunkTmp;
         return Mono
                 .fromFuture(CompletableFuture.supplyAsync(() -> Optional.ofNullable(storeManager.getFileInfoManager()
@@ -110,7 +125,7 @@ public class UploadDfsStoreHandler {
                                         if (part instanceof FilePart) {
                                             partChunk.setFileInfo(optionalFileInfo.get());
                                             partChunk.setContentLength((int) part.headers().getContentLength());
-                                            return storeFile.storeFile((FilePart) part, path, partChunk);
+                                            return storeFile.storeFile((FilePart) part, finalPath,finalFileName, partChunk);
                                         } else {
                                             return Mono.just(new ResultValueInfo<>(ResultInfo.S_ERROR, "part.100",
                                                     "not file part!", part));

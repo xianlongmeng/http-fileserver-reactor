@@ -31,7 +31,7 @@ public class FileTransferRoute {
     public RouterFunction<ServerResponse> routeUploadFile(UploadHandler uploadHandler) {
         return RouterFunctions
                 .route()
-                .path("/upload", builder -> builder
+                .path("/upload/{*path}", builder -> builder
                         .route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST), uploadHandler::uploadFile))
                 .path("/uploadFileSelf/{*path}", builder -> builder
                         .route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST), uploadHandler::uploadFileSelf))

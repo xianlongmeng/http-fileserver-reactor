@@ -77,9 +77,8 @@ public class SingleFileStore extends AbstractFileStore {
     }
 
     @Override
-    public Mono<ResultValueInfo<FilePart>> storeFile(FilePart filePart, String path, PartChunk partChunk) {
+    public Mono<ResultValueInfo<FilePart>> storeFile(FilePart filePart, String path, String fileName, PartChunk partChunk) {
         String name = filePart.name();
-        String fileName = filePart.filename();
         logger.debug("begin store file,name:{}-fileName:{}", name, fileName);
         String fileFullName = takeFilePath(fileName, path).toString();
         File file = new File(fileFullName);
