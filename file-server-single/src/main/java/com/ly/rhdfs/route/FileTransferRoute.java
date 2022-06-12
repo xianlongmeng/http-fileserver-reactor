@@ -35,6 +35,8 @@ public class FileTransferRoute {
                         .route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST), uploadHandler::uploadFile))
                 .path("/uploadFileSelf/{*path}", builder -> builder
                         .route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST), uploadHandler::uploadFileSelf))
+                .path("/uploadFileSelfAsync/{*path}", builder -> builder
+                        .route(RequestPredicates.methods(HttpMethod.GET, HttpMethod.POST), uploadHandler::uploadFileSelfAsync))
                 .build();
     }
 }

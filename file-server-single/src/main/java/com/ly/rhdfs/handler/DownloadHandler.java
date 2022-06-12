@@ -25,6 +25,7 @@ import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import reactor.util.annotation.NonNull;
 
 import java.util.Arrays;
 import java.util.List;
@@ -52,7 +53,8 @@ public class DownloadHandler {
     public void setStoreFile(StoreFile storeFile) {
         this.storeFile = storeFile;
     }
-
+    
+    @NonNull
     public Mono<ServerResponse> downloadFile(ServerRequest request) {
         String path = request.pathVariable("path");
         if (org.apache.commons.lang3.StringUtils.isEmpty(path))
