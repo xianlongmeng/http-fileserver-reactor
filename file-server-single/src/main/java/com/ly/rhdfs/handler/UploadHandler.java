@@ -163,9 +163,9 @@ public class UploadHandler {
                     logger.warn("file is existed and can not rewrite.fileName:{}", filePart.filename());
                     return Flux.just(false);
                 }
-                String finalFname = fname;
+                String finalFName = fname;
                 return Flux.create(sink -> {
-                    Path filePath=storeFile.takeFilePath(finalFname, finalPath);
+                    Path filePath=storeFile.takeFilePath(finalFName, finalPath);
                     try {
                         File file=filePath.toFile();
                         if (!file.getParentFile().exists()) {
