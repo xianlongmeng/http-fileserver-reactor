@@ -137,7 +137,7 @@ public class UploadHandler {
     @NonNull
     public Mono<ServerResponse> uploadFile(ServerRequest request) {
         // 1/If-Match(412) && If-Unmodified-Since(412)
-        
+        //???是否需要FileSize
         PartChunk partChunk;
         boolean chunked = Boolean.parseBoolean(request.queryParam(ParamConstants.PARAM_CHUNKED).orElse("false"));
         if (chunked) {
@@ -183,8 +183,7 @@ public class UploadHandler {
                         resultValueInfo.getErrorCode(),
                         resultValueInfo.getErrorDesc(),
                         resultValueInfo.getSource().name(),
-                        (resultValueInfo.getSource() instanceof FilePart) ? ((FilePart) resultValueInfo.getSource()).filename()
-                                : "",
+                        finalFileName,
                         partChunk))
                 .flatMap(uploadResultInfo -> ServerResponse.accepted().contentType(MediaType.APPLICATION_JSON)
                         .bodyValue(uploadResultInfo))
