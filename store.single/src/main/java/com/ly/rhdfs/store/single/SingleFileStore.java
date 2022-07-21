@@ -109,6 +109,7 @@ public class SingleFileStore extends AbstractFileStore {
                         DataBufferUtils
                                 .write(filePart.content(), asynchronousFileChannel,
                                         partChunk.getChunk() * partChunk.getChunkSize())
+                                .subscribeOn(Schedulers.boundedElastic())
                                 .subscribe(
                                         DataBufferUtils::release,
                                         e -> sink.success(new ResultValueInfo<>(ResultInfo.S_ERROR, "write.file.201",
