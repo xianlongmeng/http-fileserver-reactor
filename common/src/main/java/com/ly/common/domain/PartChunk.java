@@ -2,9 +2,13 @@ package com.ly.common.domain;
 
 public class PartChunk {
 
+    // 是否分片
     private boolean chunked;
+    // 当前片序号
     private int chunk = 0;
+    // 每片的尺寸
     private int chunkSize = 0;
+    //分片数量
     private int chunkCount = 0;
 
     public PartChunk(boolean chunked) {
