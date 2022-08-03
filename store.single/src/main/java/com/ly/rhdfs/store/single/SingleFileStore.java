@@ -3,6 +3,7 @@ package com.ly.rhdfs.store.single;
 import com.ly.common.domain.PartChunk;
 import com.ly.common.domain.ResultInfo;
 import com.ly.common.domain.ResultValueInfo;
+import com.ly.common.domain.SinglePartChunk;
 import com.ly.common.util.ConvertUtil;
 import com.ly.common.util.ToolUtils;
 import com.ly.rhdfs.store.AbstractFileStore;
@@ -78,8 +79,9 @@ public class SingleFileStore extends AbstractFileStore {
     }
     
     @Override
-    public Mono<ResultValueInfo<FilePart>> storeFile(FilePart filePart, String path, String fileName, PartChunk partChunk) {
+    public Mono<ResultValueInfo<FilePart>> storeFile(FilePart filePart, String path, PartChunk partChunk) {
         String name = filePart.name();
+        String fileName=((SinglePartChunk)partChunk).getFileName();
         logger.debug("begin store file,name:{}-fileName:{}", name, fileName);
         String fileFullName = takeFilePath(fileName, path).toString();
         File file = new File(fileFullName);
