@@ -48,7 +48,10 @@ public abstract class AbstractFileStore implements StoreFile {
             return null;
         }
         if (temp) {
-            return uploadFilePath + serverConfig.getTmpFileSuffix();
+            if (serverConfig.getTmpFileSuffix().startsWith("."))
+                return uploadFilePath + serverConfig.getTmpFileSuffix();
+            else
+                return uploadFilePath + "." + serverConfig.getTmpFileSuffix();
         } else {
             return uploadFilePath;
         }
