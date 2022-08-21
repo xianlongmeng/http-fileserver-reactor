@@ -34,9 +34,11 @@ public class FileChunkManger {
                     try (FileInputStream fs = new FileInputStream(file); FileChannel channel = fs.getChannel()) {
                         ByteBuffer byteBuffer = ByteBuffer.allocate((int) channel.size());
                         while ((channel.read(byteBuffer)) > 0) {
-                            // do nothing
+                            // ignored
                         }
-                        return new FileChunkState(byteBuffer.array());
+                        FileChunkState fileChunkState = new FileChunkState(byteBuffer.array());
+                        fileChunkStateMap.put(filePath,fileChunkState);
+                        return fileChunkState;
                     } catch (IOException e) {
                         logger.error("read {} config file chunk is error.", filePath, e);
                     }

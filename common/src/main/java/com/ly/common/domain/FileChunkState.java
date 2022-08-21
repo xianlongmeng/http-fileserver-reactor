@@ -51,7 +51,7 @@ public class FileChunkState {
             return -1;
         }
         int i = index / 8 + 4;
-        int o = index % 8 + 4;
+        int o = index % 8;
         if (i >= states.length) {
             return -1;
         }
@@ -66,7 +66,7 @@ public class FileChunkState {
             return -1;
         }
         int o = index % 8 + 4;
-        int i = index / 8 + 4;
+        int i = index / 8;
         if (i >= states.length) {
             return -1;
         }
@@ -85,7 +85,7 @@ public class FileChunkState {
         } else if (s == 1) {
             return getCount();
         } else {
-            int i = index / 8;
+            int i = index / 8 + 4;
             int o = index % 8;
             states[i] |= 1 << o;
             return incrementCountAndGet();
