@@ -81,7 +81,7 @@ public class SingleFileStore extends AbstractFileStore {
     @Override
     public Mono<ResultValueInfo<FilePart>> storeFile(FilePart filePart, String path, PartChunk partChunk) {
         String name = filePart.name();
-        String fileName=((SinglePartChunk)partChunk).getFileName();
+        String fileName = ((SinglePartChunk) partChunk).getFileName();
         logger.debug("begin store file,name:{}-fileName:{}", name, fileName);
         String fileFullName = takeFilePath(fileName, path).toString();
         File file = new File(fileFullName);
@@ -91,10 +91,13 @@ public class SingleFileStore extends AbstractFileStore {
         return Mono.create(sink -> {
             try {
                 if (!partChunk.isChunked()) {
-                    filePart.transferTo(takeFilePath(fileName, path)).subscribe(
-                            v -> sink.success(new ResultValueInfo<>(ResultInfo.S_OK, filePart)),
-                            e -> sink.success(new ResultValueInfo<>(ResultInfo.S_ERROR, "write.file.201", e.getMessage(),
-                                    filePart)));
+                    filePart
+                            .transferTo(takeFilePath(fileName, path))
+                            .subscribeOn(Schedulers.boundedElastic())
+                            .subscribe(
+                                    v -> sink.success(new ResultValueInfo<>(ResultInfo.S_OK, filePart)),
+                                    e -> sink.success(new ResultValueInfo<>(ResultInfo.S_ERROR, "write.file.201", e.getMessage(),
+                                            filePart)));
                     
                 } else {
                     Path fileTmpPath = takeFilePath(fileName, path, true);
@@ -120,6 +123,7 @@ public class SingleFileStore extends AbstractFileStore {
                                             int count = fileChunkManger.setFileChunkState(fileFullName,
                                                     partChunk.getChunkCount(), partChunk.getChunk());
                                             if (count >= partChunk.getChunkCount()) {
+                                                fileChunkManger.removeFileChunkState(fileFullName);
                                                 File fileTmp = new File(fileTmpPath.toUri());
                                                 if (fileTmp.renameTo(file)) {
                                                     sink.success(new ResultValueInfo<>(ResultInfo.S_OK, filePart));
@@ -131,7 +135,7 @@ public class SingleFileStore extends AbstractFileStore {
                                                                     fileTmp.getAbsolutePath(), fileFullName),
                                                             filePart));
                                                 }
-                                            }else{
+                                            } else {
                                                 sink.success(new ResultValueInfo<>(ResultInfo.S_OK, filePart));
                                             }
                                         });

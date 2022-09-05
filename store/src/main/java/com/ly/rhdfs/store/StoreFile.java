@@ -41,11 +41,11 @@ public interface StoreFile {
 
     long takeFileSize(String fileId, String path);
 
-    default Mono<ResultValueInfo<FilePart>> storeFile(FilePart filePart, String path, String fileName) {
-        return storeFile(filePart, path,fileName, new PartChunk(false));
-    }
+//    default Mono<ResultValueInfo<FilePart>> storeFile(FilePart filePart, String path, String fileName) {
+//        return storeFile(filePart, path,fileName, new PartChunk(false));
+//    }
 
-    Mono<ResultValueInfo<FilePart>> storeFile(FilePart filePart, String path, String fileName, PartChunk partChunk);
+    Mono<ResultValueInfo<FilePart>> storeFile(FilePart filePart, String path, PartChunk partChunk);
 
     Mono<FileRanges> loadFile(String fileId, String path, List<HttpRange> ranges);
 }

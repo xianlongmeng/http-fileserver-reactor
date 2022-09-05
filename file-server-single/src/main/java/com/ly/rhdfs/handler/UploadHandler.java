@@ -1,10 +1,7 @@
 package com.ly.rhdfs.handler;
 
 import com.ly.common.constant.ParamConstants;
-import com.ly.common.domain.PartChunk;
-import com.ly.common.domain.ResultInfo;
-import com.ly.common.domain.ResultValueInfo;
-import com.ly.common.domain.UploadResultInfo;
+import com.ly.common.domain.*;
 import com.ly.common.util.ConvertUtil;
 import com.ly.common.util.ToolUtils;
 import com.ly.rhdfs.config.ServerConfig;
@@ -138,15 +135,15 @@ public class UploadHandler {
     public Mono<ServerResponse> uploadFile(ServerRequest request) {
         // 1/If-Match(412) && If-Unmodified-Since(412)
         //???是否需要FileSize
-        PartChunk partChunk;
+        SinglePartChunk partChunk;
         boolean chunked = Boolean.parseBoolean(request.queryParam(ParamConstants.PARAM_CHUNKED).orElse("false"));
         if (chunked) {
             int chunk = ConvertUtil.parseInt(request.queryParam(ParamConstants.PARAM_CHUNK).orElse("0"), 0);
             int chunkSize = ConvertUtil.parseInt(request.queryParam(ParamConstants.PARAM_CHUNK_SIZE).orElse("0"), 0);
             int chunkCount = ConvertUtil.parseInt(request.queryParam(ParamConstants.PARAM_CHUNK_COUNT).orElse("0"), 1);
-            partChunk = new PartChunk(true, chunk, chunkSize, chunkCount);
+            partChunk = new SinglePartChunk(true, chunk, chunkSize, chunkCount);
         } else {
-            partChunk = new PartChunk(false);
+            partChunk = new SinglePartChunk(false);
         }
         String path = request.pathVariable("path");
         if (StringUtils.isEmpty(path))
@@ -163,7 +160,8 @@ public class UploadHandler {
             path = path.substring(0, index);
         }
         String finalPath = path;
-        String finalFileName = fileName;
+        partChunk.setFileName(fileName);
+        partChunk.setPath(path);
         return request.body(BodyExtractors.toParts())
                 .single().onErrorResume(t -> Mono.empty())
                 .flatMap(part -> {
@@ -174,7 +172,7 @@ public class UploadHandler {
                             return Mono.just(
                                     new ResultValueInfo<>(ResultInfo.S_ERROR, "file.exist.100", "file is exist", filePart));
                         } else {
-                            return storeFile.storeFile(filePart, finalPath, finalFileName, partChunk);
+                            return storeFile.storeFile(filePart, finalPath, partChunk);
                         }
                     } else {
                         return Mono.just(new ResultValueInfo<>(ResultInfo.S_ERROR, "part.100", "not file part!", part));
@@ -183,7 +181,7 @@ public class UploadHandler {
                         resultValueInfo.getErrorCode(),
                         resultValueInfo.getErrorDesc(),
                         resultValueInfo.getSource().name(),
-                        finalFileName,
+                        partChunk.getFileName(),
                         partChunk))
                 .flatMap(uploadResultInfo -> ServerResponse.accepted().contentType(MediaType.APPLICATION_JSON)
                         .bodyValue(uploadResultInfo))
