@@ -1,7 +1,10 @@
 package com.ly.rhdfs.handler;
 
 import com.ly.common.constant.ParamConstants;
-import com.ly.common.domain.*;
+import com.ly.common.domain.ResultInfo;
+import com.ly.common.domain.ResultValueInfo;
+import com.ly.common.domain.SinglePartChunk;
+import com.ly.common.domain.UploadResultInfo;
 import com.ly.common.util.ConvertUtil;
 import com.ly.common.util.ToolUtils;
 import com.ly.rhdfs.config.ServerConfig;
@@ -21,9 +24,7 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.util.annotation.NonNull;
-import reactor.util.annotation.NonNullApi;
 
-import javax.validation.constraints.NotNull;
 import java.io.File;
 import java.io.IOException;
 import java.nio.channels.AsynchronousFileChannel;
@@ -32,22 +33,22 @@ import java.nio.file.StandardOpenOption;
 
 @Component
 public class UploadHandler {
-    
+
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private StoreFile storeFile;
-    
+
     private ServerConfig serverConfig;
-    
+
     @Autowired
     public void setServerConfig(ServerConfig serverConfig) {
         this.serverConfig = serverConfig;
     }
-    
+
     @Autowired
     void setStoreFile(StoreFile storeFile) {
         this.storeFile = storeFile;
     }
-    
+
     /**
      * 上传文件不分片
      *
@@ -56,7 +57,7 @@ public class UploadHandler {
      */
     @NonNull
     public Mono<ServerResponse> uploadFileSelf(ServerRequest request) {
-        
+
         String path = request.pathVariable("path");
         if (StringUtils.isEmpty(path))
             path = request.queryParam(serverConfig.getPathParamName()).orElse("path");
@@ -124,7 +125,7 @@ public class UploadHandler {
                 return ServerResponse.badRequest().bodyValue(c + " files upload failed");
         });
     }
-    
+
     /**
      * 上传文件，分片，检查
      *

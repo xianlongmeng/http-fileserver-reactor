@@ -125,7 +125,7 @@ public class UploadDfsStoreHandler {
                                         if (part instanceof FilePart) {
                                             partChunk.setFileInfo(optionalFileInfo.get());
                                             partChunk.setContentLength((int) part.headers().getContentLength());
-                                            return storeFile.storeFile((FilePart) part, finalPath,finalFileName, partChunk);
+                                            return storeFile.storeFile((FilePart) part, finalPath, partChunk);
                                         } else {
                                             return Mono.just(new ResultValueInfo<>(ResultInfo.S_ERROR, "part.100",
                                                     "not file part!", part));

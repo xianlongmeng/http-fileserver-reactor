@@ -20,7 +20,6 @@ import org.springframework.web.reactive.function.server.ServerRequest;
 import org.springframework.web.reactive.function.server.ServerResponse;
 import reactor.core.publisher.Mono;
 
-import javax.validation.constraints.NotNull;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -61,6 +60,7 @@ public class UploadDfsHandler {
     private void setHandlerUtil(HandlerUtil handlerUtil) {
         this.handlerUtil = handlerUtil;
     }
+
     @NonNull
     public Mono<ServerResponse> uploadFileMasterRequest(ServerRequest request) {
         return authenticationVerify.verifyAuthentication(request).flatMap(resultInfo -> {
@@ -88,6 +88,7 @@ public class UploadDfsHandler {
         });
 
     }
+
     @NonNull
     public Mono<ServerResponse> uploadFileServerChunkMasterRequest(ServerRequest request) {
         // 主Server错误，切换分配Server，验证备Server，设置一个为主Server，重新选择一个备Server
@@ -122,6 +123,7 @@ public class UploadDfsHandler {
                             .onErrorResume(t -> ServerResponse.status(HttpStatus.INTERNAL_SERVER_ERROR).build());
                 });
     }
+
     @NonNull
     public Mono<ServerResponse> uploadFileServerFinish(ServerRequest request) {
         TokenInfo tokenInfo = handlerUtil.queryRequestTokenParam(request);
@@ -145,7 +147,7 @@ public class UploadDfsHandler {
     }
 
     @NonNull
-    public Mono<ServerResponse> deleteFileMasterRequest(@NotNull ServerRequest request) {
+    public Mono<ServerResponse> deleteFileMasterRequest(@NonNull ServerRequest request) {
         TokenInfo tokenInfo = handlerUtil.queryRequestTokenParam(request);
         if (tokenInfo == null) {
             return ServerResponse.status(HttpStatus.FORBIDDEN).bodyValue("Parameter error!");
