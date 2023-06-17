@@ -1,0 +1,21 @@
+{
+  "masterServerMap":{
+    "1": {
+      "serverId": 1,
+      "address": "localhost",
+      "port": 13677,
+      "updateLastTime": 1,
+      "master": true
+    }
+  },
+  "storeServerMap": {
+    "101": {
+      "serverId": 1,
+      "address": "localhost",
+      "port": 13677,
+      "updateLastTime": 1,
+      "master": false
+    }
+  },
+  "updateLastTime": ""
+}
