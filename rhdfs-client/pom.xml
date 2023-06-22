@@ -5,7 +5,7 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.ly.rhdfs.client</groupId>
-    <artifactId>rhdfs-cient</artifactId>
+    <artifactId>rhdfs-client</artifactId>
     <version>1.0-SNAPSHOT</version>
 
     <dependencies>
