@@ -1,27 +1,25 @@
 package com.ly.rhdfs.manager.connect;
 
-import java.util.Map;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.TimeUnit;
-
-import com.ly.rhdfs.communicate.command.DFSCommandReply;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
-
 import com.ly.common.domain.server.ServerState;
 import com.ly.rhdfs.communicate.DFSCommunicate;
 import com.ly.rhdfs.communicate.command.DFSCommand;
 import com.ly.rhdfs.communicate.command.DFSCommandFileTransfer;
+import com.ly.rhdfs.communicate.command.DFSCommandReply;
 import com.ly.rhdfs.communicate.handler.EventHandler;
-
 import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
 import reactor.netty.Connection;
+
+import java.util.Map;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 
 @Component
 public class ConnectManager {
@@ -47,7 +45,7 @@ public class ConnectManager {
     }
 
     public synchronized boolean putServerConnection(ServerState serverState, Connection connection,
-            Connection oldConnection) {
+                                                    Connection oldConnection) {
         if (serverState == null || connection == null)
             return false;
         Connection curConnection = serverConnectionMap.get(serverState);
@@ -74,7 +72,10 @@ public class ConnectManager {
             return;
         Connection connection = dfsCommunicate.connectServer(serverState, eventHandler);
         if (connection != null && !putServerConnection(serverState, connection)) {
+            logger.warn("connect server {}:{}:{} is failed.", serverState.getServerId(), serverState.getAddress(), serverState.getPort());
             connection.dispose();
+        } else {
+            logger.info("connect server {}:{}:{} is success.", serverState.getServerId(), serverState.getAddress(), serverState.getPort());
         }
     }
 
@@ -116,19 +117,23 @@ public class ConnectManager {
     public CompletableFuture<Integer> sendCommandAsyncReply(ServerState serverState, DFSCommand dfsCommand, long timeout, TimeUnit timeUnit) {
         return dfsCommunicate.sendCommandAsyncReply(findConnection(serverState), dfsCommand, timeout, timeUnit);
     }
-    public CompletableFuture<Integer> sendDataAsyncReply(ServerState serverState, Object/* command */ msg, int commandType, long timeout, TimeUnit timeUnit){
-        return dfsCommunicate.sendDataAsyncReply(findConnection(serverState),msg,commandType,timeout,timeUnit);
+
+    public CompletableFuture<Integer> sendDataAsyncReply(ServerState serverState, Object/* command */ msg, int commandType, long timeout, TimeUnit timeUnit) {
+        return dfsCommunicate.sendDataAsyncReply(findConnection(serverState), msg, commandType, timeout, timeUnit);
     }
+
     public CompletableFuture<Integer> sendCommandDataAsyncReply(ServerState serverState, Flux<ByteBuf> byteBufFlux,
-            DFSCommandFileTransfer dfsCommandFileTransfer, long timeout, TimeUnit timeUnit) {
+                                                                DFSCommandFileTransfer dfsCommandFileTransfer, long timeout, TimeUnit timeUnit) {
         return dfsCommunicate.sendCommandDataAsyncReply(findConnection(serverState), byteBufFlux,
                 dfsCommandFileTransfer, timeout, timeUnit);
     }
-    public boolean sendCommandReply(ServerState serverState,DFSCommand dfsCommand,byte replyResult,int errorCode){
-        if (dfsCommand==null)
+
+    public boolean sendCommandReply(ServerState serverState, DFSCommand dfsCommand, byte replyResult, int errorCode) {
+        if (dfsCommand == null)
             return false;
-        return dfsCommunicate.sendCommandReply(findConnection(serverState),dfsCommand,replyResult,errorCode);
+        return dfsCommunicate.sendCommandReply(findConnection(serverState), dfsCommand, replyResult, errorCode);
     }
+
     public void receiveReply(DFSCommandReply dfsCommandReply) {
         dfsCommunicate.receiveReply(dfsCommandReply);
     }

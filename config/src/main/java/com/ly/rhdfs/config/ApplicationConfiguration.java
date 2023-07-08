@@ -66,9 +66,9 @@ public class ApplicationConfiguration {
     public DfsFileUtils dfsFileUtils(){
         DfsFileUtils dfsFileUtils=new DfsFileUtils();
         dfsFileUtils.setFileRootPath(serverConfig.getFileRootPath());
-        if (StringUtils.isEmpty(serverConfig.getFileConfigSuffix()))
+        if (!StringUtils.hasLength(serverConfig.getFileConfigSuffix()))
             dfsFileUtils.setFileConfigSuffix(serverConfig.getFileConfigSuffix());
-        if (StringUtils.isEmpty(serverConfig.getFileTmpConfigSuffix()))
+        if (!StringUtils.hasLength(serverConfig.getFileTmpConfigSuffix()))
             dfsFileUtils.setFileTmpConfigSuffix(serverConfig.getFileTmpConfigSuffix());
         return dfsFileUtils;
     }
