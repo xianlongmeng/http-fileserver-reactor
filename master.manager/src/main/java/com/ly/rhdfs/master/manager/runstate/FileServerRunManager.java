@@ -27,7 +27,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 import java.util.stream.Collectors;
 
-@Component
 public class FileServerRunManager {
 
     // config file initial
@@ -198,7 +197,7 @@ public class FileServerRunManager {
      */
     public FileInfo assignUploadFileServer(TokenInfo tokenInfo, long fileSize) {
         if (tokenInfo == null || tokenInfo.getTokenType() == TokenInfo.TOKEN_READ
-                || StringUtils.isEmpty(tokenInfo.getFileName())
+                || !StringUtils.hasLength(tokenInfo.getFileName())
                 || fileSize <= 0)
             return null;
         if (uploadRunningTask.containsKey(tokenInfo)) {
@@ -258,7 +257,7 @@ public class FileServerRunManager {
      */
     public FileInfo assignUploadFileServerChunk(TokenInfo tokenInfo, int chunk) {
         if (tokenInfo == null || tokenInfo.getTokenType() == TokenInfo.TOKEN_READ
-                || StringUtils.isEmpty(tokenInfo.getPath()) || StringUtils.isEmpty(tokenInfo.getFileName()))
+                || !StringUtils.hasLength(tokenInfo.getPath()) || !StringUtils.hasLength(tokenInfo.getFileName()))
             return null;
         lockObj.readLock().lock();
         if (availableOrderlyServerRunStates.size() < FILE_COPIES)

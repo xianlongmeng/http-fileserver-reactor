@@ -15,6 +15,8 @@ public class FileInfo {
     private int chunkSize;
     // 分块数量
     private int chunkCount;
+    // 分块信息，可以是整个FileInfo，可以是一个分块的分片
+    private List<ChunkInfo> fileChunkList;
 
     public String getPath() {
         return path;
@@ -31,9 +33,6 @@ public class FileInfo {
     public void setFileName(String fileName) {
         this.fileName = fileName;
     }
-
-    // 分块信息，可以是整个FileInfo，可以是一个分块的分片
-    private List<ChunkInfo> fileChunkList;
 
     public long getCreateTime() {
         return createTime;
