@@ -18,9 +18,12 @@ import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import io.netty.handler.codec.LengthFieldBasedFrameDecoder;
 import io.netty.handler.timeout.IdleStateHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
 import reactor.netty.Connection;
 import reactor.netty.DisposableServer;
@@ -37,10 +40,11 @@ import java.util.concurrent.atomic.AtomicReference;
 @Component
 public class DFSCommunicateSocket implements DFSCommunicate {
 
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private static final int readerIdle = 60;
     private static final int writerIdle = 100;
     private final Map<UUID, CompletableFuture<Integer>> uuidCompletableFutureMap = new ConcurrentHashMap<>();
-    private DisposableServer localServer;
+//    private DisposableServer localServer;
     private DFSCommandParse dfsCommandParse;
     private ServerConfig serverConfig;
 
@@ -50,9 +54,10 @@ public class DFSCommunicateSocket implements DFSCommunicate {
     }
 
     @Autowired
-    private void setServerConfig(ServerConfig serverConfig){
-        this.serverConfig=serverConfig;
+    private void setServerConfig(ServerConfig serverConfig) {
+        this.serverConfig = serverConfig;
     }
+
     public CompletableFuture<Integer> findFuture(UUID uuid) {
         if (uuid == null)
             return null;
@@ -116,27 +121,32 @@ public class DFSCommunicateSocket implements DFSCommunicate {
     }
 
     @Override
-    public Connection connectServer(ServerState serverState, EventHandler eventHandler) {
-        AtomicReference<Connection> curConnection = new AtomicReference<>();
-        TcpClient.create().handle((inbound, outbound) -> inbound.receive().then()).doOnConnected(connection -> {
-            curConnection.set(connection);
-            // 处理连接失败，以及重新连接
-            connection.addHandlerFirst(new IdleStateHandler(readerIdle, writerIdle, 0));
-            connection.addHandlerLast(new HeartBeatHandler(serverState))
-                    // decode
-                    .addHandlerLast(new LengthFieldBasedFrameDecoder(serverConfig.getFrameDatagramMaxSize(), 4, 4))
-                    .addHandlerLast(new DFSCommandDecoder())
-                    // heart,connect init
-                    .addHandlerLast(new DFSCommandHandler(eventHandler));
-            // command
-            // serverConnectionMap.put(serverState, connection);
-        }).connectNow();
-        return curConnection.get();
+    public Mono<? extends Connection> connectServer(ServerState serverState, EventHandler eventHandler) {
+        //AtomicReference<Connection> curConnection = new AtomicReference<>();
+        return TcpClient.create()
+                .host(serverState.getAddress())
+                .port(serverState.getPort())
+                .handle((inbound, outbound) -> inbound.receive().then()).doOnConnected(connection -> {
+                   // curConnection.set(connection);
+                    // 处理连接失败，以及重新连接
+                    connection.addHandlerFirst(new IdleStateHandler(readerIdle, writerIdle, 0));
+                    connection.addHandlerLast(new HeartBeatHandler(serverState))
+                            // decode
+                            .addHandlerLast(new LengthFieldBasedFrameDecoder(serverConfig.getFrameDatagramMaxSize(), 4, 4))
+                            .addHandlerLast(new DFSCommandDecoder())
+                            // heart,connect init
+                            .addHandlerLast(new DFSCommandHandler(eventHandler));
+                    // command
+                    // serverConnectionMap.put(serverState, connection);
+                }).doOnDisconnected(con -> {
+                    // 连接中断
+                    logger.error("Server connect failed,serverId:{},address:{},port:{}.",serverState.getServerId(),serverState.getAddress(),serverState.getPort());
+                }).connect();
     }
 
     @Override
-    public Channel serverBind(int port, EventHandler eventHandler) {
-        localServer = TcpServer.create().port(port).handle((inbound, outbound) -> inbound.receive().then())
+    public Mono<? extends DisposableServer> serverBind(int port, EventHandler eventHandler) {
+        return TcpServer.create().port(port).handle((inbound, outbound) -> inbound.receive().then())
                 .doOnConnection(connection -> {
                     // heart,connect init
                     connection.addHandlerFirst(new IdleStateHandler(readerIdle, writerIdle, 0))
@@ -146,8 +156,7 @@ public class DFSCommunicateSocket implements DFSCommunicate {
                             .addHandlerLast(new DFSCommandDecoder())
                             // command
                             .addHandlerLast(new DFSCommandHandler(connection, eventHandler));
-                }).bindNow();
-        return localServer.channel();
+                }).bind();
     }
 
     @Override

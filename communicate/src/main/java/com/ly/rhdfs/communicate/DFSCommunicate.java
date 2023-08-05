@@ -10,7 +10,9 @@ import io.netty.buffer.ByteBuf;
 import io.netty.channel.Channel;
 import io.netty.channel.ChannelFuture;
 import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
 import reactor.netty.Connection;
+import reactor.netty.DisposableServer;
 
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
@@ -31,9 +33,9 @@ public interface DFSCommunicate {
 
     ChannelFuture sendCommandObjectAsync(Connection connection, Object commandObj, int commandType);
 
-    Connection connectServer(ServerState serverState, EventHandler eventHandler);
+    Mono<? extends Connection> connectServer(ServerState serverState, EventHandler eventHandler);
 
-    Channel serverBind(int port, EventHandler eventHandler);
+    Mono<? extends DisposableServer> serverBind(int port, EventHandler eventHandler);
 
     CompletableFuture<Integer> sendCommandAsyncReply(Connection connection, DFSCommand command, long timeout, TimeUnit timeUnit);
 

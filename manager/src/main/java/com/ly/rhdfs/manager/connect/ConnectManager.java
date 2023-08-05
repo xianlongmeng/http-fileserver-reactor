@@ -64,19 +64,27 @@ public class ConnectManager {
     }
 
     public void startSocketListen(int port, EventHandler eventHandler) {
-        socketListenChannel = dfsCommunicate.serverBind(port, eventHandler);
+        dfsCommunicate.serverBind(port, eventHandler).subscribe(disposableServer -> {
+            socketListenChannel=disposableServer.channel();
+        },throwable -> {
+            logger.error("server bind port {} failed.",port,throwable);
+        });
     }
 
     public void startConnectServer(ServerState serverState, EventHandler eventHandler) {
         if (serverState == null || serverState.isOnline())
             return;
-        Connection connection = dfsCommunicate.connectServer(serverState, eventHandler);
-        if (connection != null && !putServerConnection(serverState, connection)) {
-            logger.warn("connect server {}:{}:{} is failed.", serverState.getServerId(), serverState.getAddress(), serverState.getPort());
-            connection.dispose();
-        } else {
-            logger.info("connect server {}:{}:{} is success.", serverState.getServerId(), serverState.getAddress(), serverState.getPort());
-        }
+        dfsCommunicate.connectServer(serverState, eventHandler).subscribe(connection->{
+            if (!putServerConnection(serverState,connection)){
+                logger.warn("connect server {}:{}:{} is failed.", serverState.getServerId(), serverState.getAddress(), serverState.getPort());
+                connection.dispose();
+            }else {
+                logger.info("connect server {}:{}:{} is success.", serverState.getServerId(), serverState.getAddress(), serverState.getPort());
+            }
+        },throwable -> {
+            logger.error("connect server {}:{}:{} is failed.", serverState.getServerId(), serverState.getAddress(), serverState.getPort(),throwable);
+        });
+
     }
 
     public void closeServer(ServerState serverState) {
