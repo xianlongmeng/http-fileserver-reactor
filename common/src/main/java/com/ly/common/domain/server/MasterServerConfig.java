@@ -7,9 +7,9 @@ import com.alibaba.fastjson.annotation.JSONField;
 
 public class MasterServerConfig {
 
-    private final Map<Long, ServerInfoConfiguration> masterServerMap = new ConcurrentHashMap<>();
+    private Map<Long, ServerInfoConfiguration> masterServerMap = new ConcurrentHashMap<>();
     // 变化更新，master负责发送变化的情况
-    private final Map<Long, ServerInfoConfiguration> storeServerMap = new ConcurrentHashMap<>();
+    private Map<Long, ServerInfoConfiguration> storeServerMap = new ConcurrentHashMap<>();
 
     private long updateLastTime;
 
@@ -21,8 +21,16 @@ public class MasterServerConfig {
         return masterServerMap;
     }
 
+    public void setMasterServerMap(Map<Long, ServerInfoConfiguration> masterServerMap) {
+        this.masterServerMap = masterServerMap;
+    }
+
     public Map<Long, ServerInfoConfiguration> getStoreServerMap() {
         return storeServerMap;
+    }
+
+    public void setStoreServerMap(Map<Long, ServerInfoConfiguration> storeServerMap) {
+        this.storeServerMap = storeServerMap;
     }
 
     public void putServerInfoConfiguration(ServerInfoConfiguration serverInfoConfiguration) {

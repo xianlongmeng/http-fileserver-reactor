@@ -48,18 +48,15 @@ public class FileServerRunManager {
     private FileInfoManager fileInfoManager;
     private DfsFileUtils dfsFileUtils;
 
-    @Autowired
     public void setMasterManager(MasterManager masterManager) {
         this.masterManager = masterManager;
     }
 
-    @Autowired
-    private void setFileInfoManager(FileInfoManager fileInfoManager) {
+    public void setFileInfoManager(FileInfoManager fileInfoManager) {
         this.fileInfoManager = fileInfoManager;
     }
 
-    @Autowired
-    private void setDfsFileUtils(DfsFileUtils dfsFileUtils) {
+    public void setDfsFileUtils(DfsFileUtils dfsFileUtils) {
         this.dfsFileUtils = dfsFileUtils;
     }
 

@@ -15,6 +15,7 @@ import com.ly.common.domain.token.TokenInfo;
 import com.ly.common.exception.DirectNotFoundException;
 import com.ly.common.exception.FileNotFoundException;
 import com.ly.rhdfs.communicate.command.DFSCommand;
+import com.ly.rhdfs.file.config.FileInfoManager;
 import com.ly.rhdfs.file.util.DfsFileUtils;
 import com.ly.rhdfs.log.server.file.ServerFileChunkUtil;
 import com.ly.rhdfs.manager.server.ServerManager;
@@ -46,10 +47,17 @@ public class MasterManager extends ServerManager {
 
     private final Map<ServerState, Future> masterUpdateFileInfo = new ConcurrentHashMap<>();
     private final Map<Long, BlockingDeque<BackupMasterFileInfo>> backupMasterFileInfoBlockingQueue = new ConcurrentHashMap<>();
-    private FileServerRunManager fileServerRunManager;
+    private final FileServerRunManager fileServerRunManager=new FileServerRunManager();
     private DfsFileUtils dfsFileUtils;
     private ServerFileChunkUtil serverFileChunkUtil;
     private RecoverStoreServerTask recoverStoreServerTask;
+
+    private List<ServerRunState> availableOrderlyServerRunStates;
+    private FileInfoManager fileInfoManager;
+    @Autowired
+    private void setFileInfoManager(FileInfoManager fileInfoManager) {
+        this.fileInfoManager = fileInfoManager;
+    }
 
     public MasterManager() {
         scheduledThreadCount = 9;
@@ -57,11 +65,6 @@ public class MasterManager extends ServerManager {
 
     public FileServerRunManager getFileServerRunManager() {
         return fileServerRunManager;
-    }
-
-    @Autowired
-    private void setFileServerRunManager(FileServerRunManager fileServerRunManager) {
-        this.fileServerRunManager = fileServerRunManager;
     }
 
     @Autowired
@@ -80,6 +83,7 @@ public class MasterManager extends ServerManager {
 
     @Override
     protected void initCommandEventHandler() {
+        super.initCommandEventHandler();
         commandEventHandler.setServerStateCommandEventHandler(new ServerStateCommandMasterEventHandler(this));
         commandEventHandler.setOperationLogCommandEventHandler(new OperateLogCommandMasterEventHandler(this));
         commandEventHandler.setFileInfoCommandEventHandler(new MasterFileInfoCommandEventHandler(this));
@@ -87,6 +91,10 @@ public class MasterManager extends ServerManager {
     }
 
     public void initial() {
+        fileServerRunManager.setMasterManager(this);
+        fileServerRunManager.setFileInfoManager(fileInfoManager);
+        fileServerRunManager.setDfsFileUtils(dfsFileUtils);
+
         super.initial();
         if (!ParamConstants.ST_MASTER.equals(serverConfig.getServerType()))
             return;
