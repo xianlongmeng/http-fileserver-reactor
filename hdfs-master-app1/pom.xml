@@ -9,7 +9,7 @@
         <relativePath/> <!-- lookup parent from repository -->
     </parent>
     <groupId>com.ly</groupId>
-    <artifactId>hdfs-master-app</artifactId>
+    <artifactId>hdfs-master-app1</artifactId>
     <version>0.0.1-SNAPSHOT</version>
     <name>hdfs-master-app</name>
     <description>Demo project for Spring Boot</description>
@@ -30,11 +30,6 @@
         <dependency>
             <groupId>com.ly.rhdfs</groupId>
             <artifactId>file-server-dfs.master</artifactId>
-            <version>1.0-SNAPSHOT</version>
-        </dependency>
-        <dependency>
-            <groupId>com.ly.rhdfs</groupId>
-            <artifactId>communicate.socket</artifactId>
             <version>1.0-SNAPSHOT</version>
         </dependency>
         <dependency>
