@@ -179,8 +179,7 @@ public class RhdfsClient {
             // param
             ServerAddressInfo serverAddressInfo = fileChunkPieceTransfer.getServerAddressInfo();
 
-            String requestUrl = String.format("http://%s:%d/dfs/upload-file/", serverAddressInfo.getAddress(),
-                    serverAddressInfo.getPort());
+            String requestUrl = String.format("%s/dfs/upload-file/", serverAddressInfo.getHostUri());
             String path = fileChunkPieceTransfer.getFileInfo().getPath();
             String serverFileName = fileChunkPieceTransfer.getFileInfo().getFileName();
             if (!StringUtils.isEmpty(path)) {
@@ -189,7 +188,7 @@ public class RhdfsClient {
                 requestUrl += path;
             }
             requestUrl = ToolUtils.clearEndSlash(requestUrl);
-            requestUrl += "?fileName=" + URLEncoder.encode(serverFileName, "utf-8");
+            requestUrl += "?fileName=" + URLEncoder.encode(serverFileName, StandardCharsets.UTF_8);
             requestUrl += "&chunkIndex=" + fileChunkPieceTransfer.getChunk();
             requestUrl += "&chunk=" + fileChunkPieceTransfer.getChunkPiece();
             requestUrl += "&chunkSize=" + chunkPieceSize;
@@ -294,8 +293,7 @@ public class RhdfsClient {
         // param
         ServerAddressInfo serverAddressInfo = fileChunkPieceTransfer.getServerAddressInfo();
 
-        String requestUrl = String.format("http://%s:%d/dfs/download-file/", serverAddressInfo.getAddress(),
-                serverAddressInfo.getPort());
+        String requestUrl = String.format("%s/dfs/download-file/", serverAddressInfo.getHostUri());
         String path = fileChunkPieceTransfer.getFileInfo().getPath();
         String serverFileName = fileChunkPieceTransfer.getFileInfo().getFileName();
         if (!StringUtils.isEmpty(path)) {

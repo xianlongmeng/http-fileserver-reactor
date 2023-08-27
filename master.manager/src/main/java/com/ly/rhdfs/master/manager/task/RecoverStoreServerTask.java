@@ -5,6 +5,7 @@ import com.ly.common.domain.file.FileChunkCopy;
 import com.ly.common.domain.file.FileInfo;
 import com.ly.common.domain.log.ServerFileChunkLog;
 import com.ly.common.domain.log.UpdateChunkServer;
+import com.ly.common.domain.server.ServerAddressInfo;
 import com.ly.rhdfs.log.server.file.ServerFileChunkReader;
 import com.ly.rhdfs.master.manager.MasterManager;
 import org.slf4j.Logger;
@@ -172,9 +173,9 @@ public class RecoverStoreServerTask implements Runnable {
                         FileInfo fileInfo = masterManager.getFileInfoManager().findFileInfo(fileName);
                         if (fileInfo != null) {
                             fileInfo.getFileChunkList().get(finalServerFileChunkLog.getChunk()).getChunkServerIdList()
-                                    .remove(updateChunkServer.getOldServerId());
+                                    .remove(new ServerAddressInfo(updateChunkServer.getOldServerId()));
                             fileInfo.getFileChunkList().get(finalServerFileChunkLog.getChunk()).getChunkServerIdList()
-                                    .add(updateChunkServer.getNewServerId());
+                                    .add(new ServerAddressInfo(updateChunkServer.getNewServerId()));
                             masterManager.getFileInfoManager().submitFileInfo(fileInfo);
                         }
                         unlock(fileName);

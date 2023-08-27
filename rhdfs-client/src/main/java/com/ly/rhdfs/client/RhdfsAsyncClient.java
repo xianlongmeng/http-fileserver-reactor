@@ -152,8 +152,7 @@ public class RhdfsAsyncClient {
                     public void completed(Integer result, ByteBuffer attachment) {
                         String etag = DigestUtils.md5Hex(byteBuffer.array());
                         WebClient
-                                .create(String.format("http://%s:%d", serverAddressInfo.getAddress(),
-                                        serverAddressInfo.getPort()))
+                                .create(serverAddressInfo.getHostUri())
                                 .post()
                                 .uri(UriComponentsBuilder.fromUriString("/dfs/upload-file/{path}")
                                         .queryParam("fileName", fileChunkPieceTransfer.getFileInfo().getFileName())
@@ -297,8 +296,7 @@ public class RhdfsAsyncClient {
                     fileChunkPieceTransfer.setServerAddressInfo(serverAddressInfoList.get(index));
                     ServerAddressInfo serverAddressInfo = fileChunkPieceTransfer.getServerAddressInfo();
                     WebClient
-                            .create(String.format("http://%s:%d", serverAddressInfo.getAddress(),
-                                    serverAddressInfo.getPort()))
+                            .create(serverAddressInfo.getHostUri())
                             .post()
                             .uri(UriComponentsBuilder.fromUriString("/dfs/upload-file/{path}")
                                     .queryParam("fileName", fileChunkPieceTransfer.getFileInfo().getFileName())
