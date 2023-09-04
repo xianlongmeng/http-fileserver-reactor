@@ -33,7 +33,7 @@ public class TokenRandomFactory implements TokenFactory {
 
     @Override
     public Mono<TokenInfo> createToken(String path, String fileName, int type, Map<String, String> paramMap) {
-        if (StringUtils.isEmpty(path) || StringUtils.isEmpty(fileName))
+        if (!StringUtils.hasLength(path) || !StringUtils.hasLength(fileName))
             return null;
         TokenInfo tokenInfo = new TokenInfo();
         tokenInfo.setPath(path);

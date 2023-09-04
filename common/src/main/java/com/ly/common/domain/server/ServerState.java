@@ -19,6 +19,7 @@ public class ServerState {
     private long serverId;
     private String address;
     private int port;
+    private String hostUrl;
     private int type = SIT_UNKNOWN;
     private long spaceSize;
     // new、running、reconnect
@@ -29,15 +30,16 @@ public class ServerState {
     // address & port updated last time,可以取所有server中的最大值
     private long updateAddressLastTime;
     // master是否准备就绪，true：可以成为master，等待投票
-    private boolean ready=false;
+    private boolean ready = false;
     // 是否投票给我
     private long votedServerId;
     // 最后收到心跳时间，对于备用Master为准备就绪可以成为Master的时间
-    private long lastTime=-1;
+    private long lastTime = -1;
 
     public void copyFrom(ServerState serverState) {
         address = serverState.address;
         port = serverState.port;
+        hostUrl = serverState.getHostUrl();
         type = serverState.type;
         spaceSize = serverState.spaceSize;
         state = serverState.state;
@@ -71,6 +73,14 @@ public class ServerState {
 
     public void setPort(int port) {
         this.port = port;
+    }
+
+    public String getHostUrl() {
+        return hostUrl;
+    }
+
+    public void setHostUrl(String hostUrl) {
+        this.hostUrl = hostUrl;
     }
 
     public int getType() {

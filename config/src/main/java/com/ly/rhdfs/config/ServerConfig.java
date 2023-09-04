@@ -51,10 +51,10 @@ public class ServerConfig {
     private String fileNameParamName;
     @Value("${param.name.file.size:file_size}")
     private String fileSizeParamName;
-    @Value("${param.name.token}")
+    @Value("${param.name.token:token}")
     private String tokenParamName = ParamConstants.PARAM_TOKEN_NAME;
 
-    @Value("${param.name.chunk}")
+    @Value("${param.name.chunk:chunk}")
     private String chunkParamName = ParamConstants.PARAM_CHUNK;
     @Value("${store.file.rewrite:false}")
     private boolean rewrite;

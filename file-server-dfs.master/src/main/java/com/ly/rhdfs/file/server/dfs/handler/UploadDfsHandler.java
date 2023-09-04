@@ -72,7 +72,7 @@ public class UploadDfsHandler {
             String fileName = request.queryParam(serverConfig.getFileNameParamName()).orElse("");
             long fileSize = ConvertUtil.parseLong(request.queryParam(serverConfig.getFileSizeParamName()).orElse("0"),
                     0);
-            if (StringUtils.isEmpty(fileName) || fileSize <= 0) {
+            if (!StringUtils.hasLength(fileName) || fileSize <= 0) {
                 return ServerResponse.status(HttpStatus.FORBIDDEN).bodyValue("Parameter error!");
             }
             AtomicReference<TokenInfo> tokenInfoAtomicReference = new AtomicReference<>();

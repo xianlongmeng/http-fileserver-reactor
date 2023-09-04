@@ -5,13 +5,18 @@ public class ServerInfoConfiguration {
     private long serverId;
     private String address;
     private int port;
+    private String hostUrl;
     private long updateLastTime;
     // 是否为master，还是store
     private boolean master = true;
 
+    public ServerInfoConfiguration(){
+
+    }
     public ServerInfoConfiguration(ServerState serverState) {
         setAddress(serverState.getAddress());
         setPort(serverState.getPort());
+        setHostUrl(serverState.getHostUrl());
         setServerId(serverState.getServerId());
         setMaster(serverState.getType() != ServerState.SIT_STORE);
         setUpdateLastTime(serverState.getUpdateAddressLastTime());
@@ -20,6 +25,7 @@ public class ServerInfoConfiguration {
     public void setServerState(ServerState serverState) {
         setAddress(serverState.getAddress());
         setPort(serverState.getPort());
+        setHostUrl(serverState.getHostUrl());
         setUpdateLastTime(serverState.getUpdateAddressLastTime());
     }
 
@@ -61,5 +67,13 @@ public class ServerInfoConfiguration {
 
     public void setMaster(boolean master) {
         this.master = master;
+    }
+
+    public String getHostUrl() {
+        return hostUrl;
+    }
+
+    public void setHostUrl(String hostUrl) {
+        this.hostUrl = hostUrl;
     }
 }

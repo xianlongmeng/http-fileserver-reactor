@@ -87,7 +87,6 @@ public class StoreManager extends ServerManager {
     }
 
     public void initial() {
-        commandEventHandler = new CommandEventHandler(this);
         super.initial();
         if (!ParamConstants.ST_STORE.equals(serverConfig.getServerType()))
             return;

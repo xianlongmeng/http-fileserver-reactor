@@ -1,10 +1,14 @@
 package com.ly.common.domain.server;
 
+import org.springframework.lang.NonNull;
+
 public class ServerAddressInfo implements Comparable{
 
     private long serverId;
     private String address;
     private int port;
+
+    private String hostUri;
 
     public ServerAddressInfo(long serverId) {
         setServerId(serverId);
@@ -12,12 +16,14 @@ public class ServerAddressInfo implements Comparable{
     public ServerAddressInfo(ServerState serverState) {
         setAddress(serverState.getAddress());
         setPort(serverState.getPort());
+        setHostUri(serverState.getHostUrl());
         setServerId(serverState.getServerId());
     }
 
     public void setServerState(ServerState serverState) {
         setAddress(serverState.getAddress());
         setPort(serverState.getPort());
+        setHostUri(serverState.getHostUrl());
     }
 
     public long getServerId() {
@@ -44,10 +50,20 @@ public class ServerAddressInfo implements Comparable{
         this.port = port;
     }
 
+    public String getHostUri() {
+        return hostUri;
+    }
+
+    public void setHostUri(String hostUri) {
+        this.hostUri = hostUri;
+    }
+
     @Override
-    public int compareTo(Object o) {
+    public int compareTo(@NonNull Object o) {
         if (o instanceof ServerAddressInfo)
             return Long.compare(serverId,((ServerAddressInfo) o).serverId);
+        else if (o instanceof Long)
+            return Long.compare(serverId,(Long) o);
         else
             return 1;
     }
@@ -56,6 +72,8 @@ public class ServerAddressInfo implements Comparable{
     public boolean equals(Object obj) {
         if (obj instanceof ServerAddressInfo)
             return serverId==((ServerAddressInfo) obj).serverId;
+        if (obj instanceof Long)
+            return serverId==(Long) obj;
         return false;
     }
 }

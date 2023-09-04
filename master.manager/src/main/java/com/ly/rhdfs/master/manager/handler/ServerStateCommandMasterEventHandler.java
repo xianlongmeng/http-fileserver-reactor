@@ -16,17 +16,16 @@ import com.ly.rhdfs.manager.server.ServerManager;
 
 public class ServerStateCommandMasterEventHandler implements EventHandler {
     private final Logger logger= LoggerFactory.getLogger(getClass());
-    private MasterManager masterManager;
+    private final MasterManager masterManager;
     public ServerStateCommandMasterEventHandler(MasterManager masterManager){
         this.masterManager=masterManager;
     }
     @Override
     public int actorCommand(DFSCommand dfsCommand) {
-        if (!(dfsCommand instanceof DFSCommandState)){
+        if (!(dfsCommand instanceof DFSCommandState dfsCommandState)){
             logger.error("Illegal command,not a server state command.");
             return ResultInfo.S_ERROR;
         }
-        DFSCommandState dfsCommandState=(DFSCommandState)dfsCommand;
         dfsCommandState.getServerState().setLastTime(Instant.now().toEpochMilli());
         // 更新状态
         masterManager.putServerState(dfsCommandState.getServerState());

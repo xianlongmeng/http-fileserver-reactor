@@ -38,7 +38,6 @@ import com.ly.rhdfs.manager.handler.*;
 
 import reactor.netty.Connection;
 
-@Component
 public abstract class ServerManager {
 
     protected final int initThreadDelay = 10;
@@ -218,14 +217,13 @@ public abstract class ServerManager {
     }
 
     public void loadMasterServer(String configPath) {
-        if (StringUtils.isEmpty(configPath)) {
+        if (!StringUtils.hasLength(configPath)) {
             return;
         }
         try {
             File configFile = ResourceUtils.getFile(configPath);
             String configContent = Files.readString(configFile.toPath());
-            masterServerConfig = JSON.parseObject(configContent, new TypeReference<>() {
-            });
+            masterServerConfig = JSON.parseObject(configContent, MasterServerConfig.class);
             for (ServerInfoConfiguration serverInfoConfiguration : masterServerConfig.getMasterServerMap().values()) {
                 addServerInfo(serverInfoConfiguration);
             }
@@ -247,6 +245,7 @@ public abstract class ServerManager {
         serverState.setServerId(serverInfoConfiguration.getServerId());
         serverState.setAddress(serverInfoConfiguration.getAddress());
         serverState.setPort(serverInfoConfiguration.getPort());
+        serverState.setHostUrl(serverInfoConfiguration.getHostUrl());
         serverState.setUpdateAddressLastTime(Instant.now().toEpochMilli());
         return serverState;
     }
