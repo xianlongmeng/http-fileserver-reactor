@@ -27,7 +27,6 @@ public class ConnectManager {
     private final Map<ServerState, Connection> serverConnectionMap = new ConcurrentHashMap<>();
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private DFSCommunicate dfsCommunicate;
-    private Channel socketListenChannel;
 
     @Autowired
     public void setDfsCommunicate(DFSCommunicate dfsCommunicate) {
@@ -65,7 +64,6 @@ public class ConnectManager {
 
     public void startSocketListen(int port, EventHandler eventHandler) {
         dfsCommunicate.serverBind(port, eventHandler).subscribe(disposableServer -> {
-            socketListenChannel=disposableServer.channel();
         },throwable -> {
             logger.error("server bind port {} failed.",port,throwable);
         });

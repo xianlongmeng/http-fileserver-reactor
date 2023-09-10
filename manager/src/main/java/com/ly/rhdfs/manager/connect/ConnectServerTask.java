@@ -27,7 +27,7 @@ public class ConnectServerTask implements Runnable {
                 if (masterConfigEntry.getKey() == null || masterConfigEntry.getValue() == null)
                     continue;
                 ServerState serverState = serverManager.findServerState(masterConfigEntry.getKey());
-                if (serverState == null || serverState.isOnline())
+                if (serverState == null || serverState.isOnline() || serverManager.getLocalServerId()==serverState.getServerId())
                     continue;
                 serverManager.connectServer(serverState);
                 flag = true;
