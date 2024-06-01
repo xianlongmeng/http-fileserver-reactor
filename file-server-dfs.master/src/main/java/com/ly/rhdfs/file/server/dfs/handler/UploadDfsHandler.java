@@ -159,7 +159,7 @@ public class UploadDfsHandler {
                         return ServerResponse.status(HttpStatus.UNAUTHORIZED).build();
                     }
                     // param：filename,path,size,--reserved:user,token
-                    if (StringUtils.isEmpty(tokenInfo.getFileName())) {
+                    if (!StringUtils.hasLength(tokenInfo.getFileName())) {
                         return ServerResponse.status(HttpStatus.FORBIDDEN).bodyValue("Parameter error!");
                     }
                     return Mono

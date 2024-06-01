@@ -56,8 +56,7 @@ public class HeartBeatHandler extends ChannelInboundHandlerAdapter {
 
     @Override
     public void userEventTriggered(ChannelHandlerContext ctx, Object evt) throws Exception {
-        if (evt instanceof IdleStateEvent) {
-            IdleStateEvent event = (IdleStateEvent) evt;
+        if (evt instanceof IdleStateEvent event) {
             if (event.state().equals(IdleState.READER_IDLE) || event.state().equals(IdleState.ALL_IDLE)) {
                 // 读超时
                 logger.error("read idle-{}", ctx.channel().remoteAddress());

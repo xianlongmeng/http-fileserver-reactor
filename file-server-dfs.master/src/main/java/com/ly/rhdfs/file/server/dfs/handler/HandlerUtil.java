@@ -18,7 +18,7 @@ public class HandlerUtil {
         String token = request.queryParam(serverConfig.getTokenParamName()).orElse("");
         String path = request.pathVariable("path");
         String fileName = request.queryParam(serverConfig.getFileNameParamName()).orElse("");
-        if (StringUtils.isEmpty(path) || StringUtils.isEmpty(fileName) || StringUtils.isEmpty(token)){
+        if (!StringUtils.hasLength(path) || !StringUtils.hasLength(fileName) || !StringUtils.hasLength(token)){
             return null;
         }
         TokenInfo tokenInfo=new TokenInfo();

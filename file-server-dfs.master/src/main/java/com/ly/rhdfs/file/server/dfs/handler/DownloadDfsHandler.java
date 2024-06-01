@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicReference;
 @ComponentScan({"com.ly.rhdfs.config"})
 public class DownloadDfsHandler {
 
-    private Logger logger = LoggerFactory.getLogger(this.getClass());
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private ETagComputer eTagComputer;
     private MasterManager masterManager;
     private ServerConfig serverConfig;
