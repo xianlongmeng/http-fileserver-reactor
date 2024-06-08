@@ -64,88 +64,53 @@ public class DFSCommandParse {
         dfsCommand.setUuid(new UUID(mostSigBits, leastSigBits));
         dfsCommand.setLength(length);
 
-        switch (commandType) {
-            case DFSCommand.CT_FILE_INFO:
-                return parseFileInfo(byteBuf, dfsCommand);
-            case DFSCommand.CT_FILE_DELETE:
-                return parseFileDelete(byteBuf, dfsCommand);
-            case DFSCommand.CT_FILE_CHUNK_BACKUP:
-                return parseBackupFileChunk(byteBuf, dfsCommand);
-            case DFSCommand.CT_FILE_CHUNK:
-                return parseChunkInfo(byteBuf, dfsCommand);
-            case DFSCommand.CT_FILE_OPERATE:
-                return parseFileOperate(byteBuf, dfsCommand);
-            case DFSCommand.CT_FILE_TRANSFER:
-                return parseFileTransfer(byteBuf, dfsCommand);
-            case DFSCommand.CT_STATE:
-                return parseState(byteBuf, dfsCommand);
-            case DFSCommand.CT_SERVER_ADDRESS:
-                return parseServerAddress(byteBuf, dfsCommand);
-            case DFSCommand.CT_TOKEN:
-                return parseToken(byteBuf, dfsCommand);
-            case DFSCommand.CT_TASK_INFO:
-                return parseTask(byteBuf, dfsCommand);
-            case DFSCommand.CT_TOKEN_CLEAR:
-                return parseTokenClear(byteBuf, dfsCommand);
-            case DFSCommand.CT_DIRECT_FILE_ITEM:
-                return parseDirectFileItems(byteBuf, dfsCommand);
-            case DFSCommand.CT_FILE_TRANSFER_STATE:
-                return parseFileTransferState(byteBuf, dfsCommand);
-            case DFSCommand.CT_REPLY:
-                return parseReply(byteBuf, dfsCommand);
-            case DFSCommand.CT_FILE_CHUNK_COPY:
-                return parseFileChunkCopy(byteBuf, dfsCommand);
-            case DFSCommand.CT_FILE_CHUNK_INFO:
-                return parseFileChunkInfo(byteBuf, dfsCommand);
-            default:
-                return parseExpand(byteBuf, dfsCommand);
-        }
+        return switch (commandType) {
+            case DFSCommand.CT_FILE_INFO -> parseFileInfo(byteBuf, dfsCommand);
+            case DFSCommand.CT_FILE_DELETE -> parseFileDelete(byteBuf, dfsCommand);
+            case DFSCommand.CT_FILE_CHUNK_BACKUP -> parseBackupFileChunk(byteBuf, dfsCommand);
+            case DFSCommand.CT_FILE_CHUNK -> parseChunkInfo(byteBuf, dfsCommand);
+            case DFSCommand.CT_FILE_OPERATE -> parseFileOperate(byteBuf, dfsCommand);
+            case DFSCommand.CT_FILE_TRANSFER -> parseFileTransfer(byteBuf, dfsCommand);
+            case DFSCommand.CT_STATE -> parseState(byteBuf, dfsCommand);
+            case DFSCommand.CT_SERVER_ADDRESS -> parseServerAddress(byteBuf, dfsCommand);
+            case DFSCommand.CT_TOKEN -> parseToken(byteBuf, dfsCommand);
+            case DFSCommand.CT_TASK_INFO -> parseTask(byteBuf, dfsCommand);
+            case DFSCommand.CT_TOKEN_CLEAR -> parseTokenClear(byteBuf, dfsCommand);
+            case DFSCommand.CT_DIRECT_FILE_ITEM -> parseDirectFileItems(byteBuf, dfsCommand);
+            case DFSCommand.CT_FILE_TRANSFER_STATE -> parseFileTransferState(byteBuf, dfsCommand);
+            case DFSCommand.CT_REPLY -> parseReply(byteBuf, dfsCommand);
+            case DFSCommand.CT_FILE_CHUNK_COPY -> parseFileChunkCopy(byteBuf, dfsCommand);
+            case DFSCommand.CT_FILE_CHUNK_INFO -> parseFileChunkInfo(byteBuf, dfsCommand);
+            default -> parseExpand(byteBuf, dfsCommand);
+        };
     }
 
     private DFSCommand newDFSCommand(int commandType) {
-        switch (commandType) {
-            case DFSCommand.CT_FILE_INFO:
-                return new DFSCommandFileInfo();
-            case DFSCommand.CT_FILE_DELETE:
-                return new DFSCommandFileDelete();
-            case DFSCommand.CT_FILE_CHUNK_BACKUP:
-                return new DFSCommandBackupFileChunk();
-            case DFSCommand.CT_FILE_CHUNK:
-                return new DFSCommandChunkInfo();
-            case DFSCommand.CT_FILE_OPERATE:
-                return new DFSCommandFileOperate();
-            case DFSCommand.CT_FILE_TRANSFER:
-                return new DFSCommandFileTransfer();
-            case DFSCommand.CT_STATE:
-                return new DFSCommandState();
-            case DFSCommand.CT_SERVER_ADDRESS:
-                return new DFSCommandServerAddress();
-            case DFSCommand.CT_TOKEN:
-                return new DFSCommandToken();
-            case DFSCommand.CT_TASK_INFO:
-                return new DFSCommandTask();
-            case DFSCommand.CT_TOKEN_CLEAR:
-                return new DFSCommandTokenClear();
-            case DFSCommand.CT_DIRECT_FILE_ITEM:
-                return new DFSCommandDirectFileItems();
-            case DFSCommand.CT_FILE_TRANSFER_STATE:
-                return new DFSCommandFileTransferState();
-            case DFSCommand.CT_REPLY:
-                return new DFSCommandReply();
-            case DFSCommand.CT_FILE_CHUNK_COPY:
-                return new DFSCommandFileChunkCopy();
-            case DFSCommand.CT_FILE_CHUNK_INFO:
-                return new DFSCommandFileChunkInfo();
-            default:
-                return new DFSCommandExpand();
-        }
+        return switch (commandType) {
+            case DFSCommand.CT_FILE_INFO -> new DFSCommandFileInfo();
+            case DFSCommand.CT_FILE_DELETE -> new DFSCommandFileDelete();
+            case DFSCommand.CT_FILE_CHUNK_BACKUP -> new DFSCommandBackupFileChunk();
+            case DFSCommand.CT_FILE_CHUNK -> new DFSCommandChunkInfo();
+            case DFSCommand.CT_FILE_OPERATE -> new DFSCommandFileOperate();
+            case DFSCommand.CT_FILE_TRANSFER -> new DFSCommandFileTransfer();
+            case DFSCommand.CT_STATE -> new DFSCommandState();
+            case DFSCommand.CT_SERVER_ADDRESS -> new DFSCommandServerAddress();
+            case DFSCommand.CT_TOKEN -> new DFSCommandToken();
+            case DFSCommand.CT_TASK_INFO -> new DFSCommandTask();
+            case DFSCommand.CT_TOKEN_CLEAR -> new DFSCommandTokenClear();
+            case DFSCommand.CT_DIRECT_FILE_ITEM -> new DFSCommandDirectFileItems();
+            case DFSCommand.CT_FILE_TRANSFER_STATE -> new DFSCommandFileTransferState();
+            case DFSCommand.CT_REPLY -> new DFSCommandReply();
+            case DFSCommand.CT_FILE_CHUNK_COPY -> new DFSCommandFileChunkCopy();
+            case DFSCommand.CT_FILE_CHUNK_INFO -> new DFSCommandFileChunkInfo();
+            default -> new DFSCommandExpand();
+        };
     }
 
     public DFSCommandFileInfo parseFileInfo(ByteBuf byteBuf, DFSCommand dfsCommand) {
-        if (!(dfsCommand instanceof DFSCommandFileInfo)) {
+        if (!(dfsCommand instanceof DFSCommandFileInfo dfsCommandFileInfo)) {
             return null;
         }
-        DFSCommandFileInfo dfsCommandFileInfo = (DFSCommandFileInfo) dfsCommand;
         byte[] bytes = new byte[dfsCommandFileInfo.getLength() - dfsCommandFileInfo.getFixLength()];
         byteBuf.readBytes(bytes);
         String fileInfoStr = new String(bytes);
@@ -155,10 +120,9 @@ public class DFSCommandParse {
     }
 
     public DFSCommandBackupFileChunk parseBackupFileChunk(ByteBuf byteBuf, DFSCommand dfsCommand) {
-        if (!(dfsCommand instanceof DFSCommandFileInfo)) {
+        if (!(dfsCommand instanceof DFSCommandBackupFileChunk dfsCommandBackupFileChunk)) {
             return null;
         }
-        DFSCommandBackupFileChunk dfsCommandBackupFileChunk = (DFSCommandBackupFileChunk) dfsCommand;
         byte[] bytes = new byte[dfsCommandBackupFileChunk.getLength() - dfsCommandBackupFileChunk.getFixLength()];
         byteBuf.readBytes(bytes);
         String fileInfoStr = new String(bytes);
@@ -168,10 +132,9 @@ public class DFSCommandParse {
     }
 
     public DFSCommandFileDelete parseFileDelete(ByteBuf byteBuf, DFSCommand dfsCommand) {
-        if (!(dfsCommand instanceof DFSCommandFileDelete)) {
+        if (!(dfsCommand instanceof DFSCommandFileDelete dfsCommandFileDelete)) {
             return null;
         }
-        DFSCommandFileDelete dfsCommandFileDelete = (DFSCommandFileDelete) dfsCommand;
         byte[] bytes = new byte[dfsCommandFileDelete.getLength() - dfsCommandFileDelete.getFixLength()];
         byteBuf.readBytes(bytes);
         String fileInfoStr = new String(bytes);
@@ -181,10 +144,9 @@ public class DFSCommandParse {
     }
 
     public DFSCommandChunkInfo parseChunkInfo(ByteBuf byteBuf, DFSCommand dfsCommand) {
-        if (!(dfsCommand instanceof DFSCommandChunkInfo)) {
+        if (!(dfsCommand instanceof DFSCommandChunkInfo dfsCommandChunkInfo)) {
             return null;
         }
-        DFSCommandChunkInfo dfsCommandChunkInfo = (DFSCommandChunkInfo) dfsCommand;
         byte[] bytes = new byte[dfsCommandChunkInfo.getLength() - dfsCommandChunkInfo.getFixLength()];
         byteBuf.readBytes(bytes);
         String chunkInfoStr = new String(bytes);
@@ -194,10 +156,9 @@ public class DFSCommandParse {
     }
 
     public DFSCommandFileChunkInfo parseFileChunkInfo(ByteBuf byteBuf, DFSCommand dfsCommand) {
-        if (!(dfsCommand instanceof DFSCommandFileChunkInfo)) {
+        if (!(dfsCommand instanceof DFSCommandFileChunkInfo dfsCommandFileChunkInfo)) {
             return null;
         }
-        DFSCommandFileChunkInfo dfsCommandFileChunkInfo = (DFSCommandFileChunkInfo) dfsCommand;
         byte[] bytes = new byte[dfsCommandFileChunkInfo.getLength() - dfsCommandFileChunkInfo.getFixLength()];
         byteBuf.readBytes(bytes);
         String fileChunkInfoStr = new String(bytes);
@@ -207,10 +168,9 @@ public class DFSCommandParse {
     }
 
     public DFSCommandFileChunkCopy parseFileChunkCopy(ByteBuf byteBuf, DFSCommand dfsCommand) {
-        if (!(dfsCommand instanceof DFSCommandFileChunkCopy)) {
+        if (!(dfsCommand instanceof DFSCommandFileChunkCopy dfsCommandFileChunkCopy)) {
             return null;
         }
-        DFSCommandFileChunkCopy dfsCommandFileChunkCopy = (DFSCommandFileChunkCopy) dfsCommand;
         byte[] bytes = new byte[dfsCommandFileChunkCopy.getLength() - dfsCommandFileChunkCopy.getFixLength()];
         byteBuf.readBytes(bytes);
         String fileChunkCopyStr = new String(bytes);
@@ -219,10 +179,9 @@ public class DFSCommandParse {
         return dfsCommandFileChunkCopy;
     }
     public DFSCommandFileOperate parseFileOperate(ByteBuf byteBuf, DFSCommand dfsCommand) {
-        if (!(dfsCommand instanceof DFSCommandFileOperate)) {
+        if (!(dfsCommand instanceof DFSCommandFileOperate dfsCommandFileOperate)) {
             return null;
         }
-        DFSCommandFileOperate dfsCommandFileOperate = (DFSCommandFileOperate) dfsCommand;
         byte[] bytes = new byte[dfsCommandFileOperate.getLength() - dfsCommandFileOperate.getFixLength()];
         byteBuf.readBytes(bytes);
         String fileOperateStr = new String(bytes);
@@ -232,10 +191,9 @@ public class DFSCommandParse {
     }
 
     public DFSCommandFileTransfer parseFileTransfer(ByteBuf byteBuf, DFSCommand dfsCommand) {
-        if (!(dfsCommand instanceof DFSCommandFileTransfer)) {
+        if (!(dfsCommand instanceof DFSCommandFileTransfer dfsCommandFileTransfer)) {
             return null;
         }
-        DFSCommandFileTransfer dfsCommandFileTransfer = (DFSCommandFileTransfer) dfsCommand;
         FileTransferInfo fileTransferInfo = new FileTransferInfo();
         dfsCommandFileTransfer.setFileTransferInfo(fileTransferInfo);
         fileTransferInfo.setPathLength(byteBuf.readShort());
@@ -265,10 +223,9 @@ public class DFSCommandParse {
     }
 
     public DFSCommandFileTransferState parseFileTransferState(ByteBuf byteBuf, DFSCommand dfsCommand) {
-        if (!(dfsCommand instanceof DFSCommandFileTransfer)) {
+        if (!(dfsCommand instanceof DFSCommandFileTransferState dfsCommandFileTransferState)) {
             return null;
         }
-        DFSCommandFileTransferState dfsCommandFileTransferState = (DFSCommandFileTransferState) dfsCommand;
         FileTransferState fileTransferState = new FileTransferState();
         dfsCommandFileTransferState.setFileTransferState(fileTransferState);
         fileTransferState.setPathLength(byteBuf.readShort());
@@ -297,10 +254,9 @@ public class DFSCommandParse {
     }
 
     public DFSCommandState parseState(ByteBuf byteBuf, DFSCommand dfsCommand) {
-        if (!(dfsCommand instanceof DFSCommandState)) {
+        if (!(dfsCommand instanceof DFSCommandState dfsCommandState)) {
             return null;
         }
-        DFSCommandState dfsCommandState = (DFSCommandState) dfsCommand;
         byte[] bytes = new byte[dfsCommandState.getLength() - dfsCommandState.getFixLength()];
         byteBuf.readBytes(bytes);
         String serverStateStr = new String(bytes);
@@ -310,10 +266,9 @@ public class DFSCommandParse {
     }
 
     public DFSCommandServerAddress parseServerAddress(ByteBuf byteBuf, DFSCommand dfsCommand) {
-        if (!(dfsCommand instanceof DFSCommandServerAddress)) {
+        if (!(dfsCommand instanceof DFSCommandServerAddress dfsCommandServerAddress)) {
             return null;
         }
-        DFSCommandServerAddress dfsCommandServerAddress = (DFSCommandServerAddress) dfsCommand;
         byte[] bytes = new byte[dfsCommandServerAddress.getLength() - dfsCommandServerAddress.getFixLength()];
         byteBuf.readBytes(bytes);
         String serverStateStr = new String(bytes);
@@ -325,10 +280,9 @@ public class DFSCommandParse {
     }
 
     public DFSCommandToken parseToken(ByteBuf byteBuf, DFSCommand dfsCommand) {
-        if (!(dfsCommand instanceof DFSCommandToken)) {
+        if (!(dfsCommand instanceof DFSCommandToken dfsCommandToken)) {
             return null;
         }
-        DFSCommandToken dfsCommandToken = (DFSCommandToken) dfsCommand;
         byte[] bytes = new byte[dfsCommandToken.getLength() - dfsCommandToken.getFixLength()];
         byteBuf.readBytes(bytes);
         String tokenStr = new String(bytes);
@@ -338,10 +292,9 @@ public class DFSCommandParse {
     }
 
     public DFSCommandTokenClear parseTokenClear(ByteBuf byteBuf, DFSCommand dfsCommand) {
-        if (!(dfsCommand instanceof DFSCommandTokenClear)) {
+        if (!(dfsCommand instanceof DFSCommandTokenClear dfsCommandTokenClear)) {
             return null;
         }
-        DFSCommandTokenClear dfsCommandTokenClear = (DFSCommandTokenClear) dfsCommand;
         byte[] bytes = new byte[dfsCommandTokenClear.getLength() - dfsCommandTokenClear.getFixLength()];
         byteBuf.readBytes(bytes);
         String tokenStr = new String(bytes);
@@ -351,10 +304,9 @@ public class DFSCommandParse {
     }
 
     public DFSCommandTask parseTask(ByteBuf byteBuf, DFSCommand dfsCommand) {
-        if (!(dfsCommand instanceof DFSCommandTask)) {
+        if (!(dfsCommand instanceof DFSCommandTask dfsCommandTask)) {
             return null;
         }
-        DFSCommandTask dfsCommandTask = (DFSCommandTask) dfsCommand;
         byte[] bytes = new byte[dfsCommandTask.getLength() - dfsCommandTask.getFixLength()];
         byteBuf.readBytes(bytes);
         String taskStr = new String(bytes);
@@ -363,10 +315,9 @@ public class DFSCommandParse {
         return dfsCommandTask;
     }
     public DFSCommandDirectFileItems parseDirectFileItems(ByteBuf byteBuf, DFSCommand dfsCommand) {
-        if (!(dfsCommand instanceof DFSCommandDirectFileItems)) {
+        if (!(dfsCommand instanceof DFSCommandDirectFileItems dfsCommandDirectFileItems)) {
             return null;
         }
-        DFSCommandDirectFileItems dfsCommandDirectFileItems = (DFSCommandDirectFileItems) dfsCommand;
         byte[] bytes = new byte[dfsCommandDirectFileItems.getLength() - dfsCommandDirectFileItems.getFixLength()];
         byteBuf.readBytes(bytes);
         String fileItemsStr = new String(bytes);
@@ -376,20 +327,18 @@ public class DFSCommandParse {
     }
 
     public DFSCommandExpand parseExpand(ByteBuf byteBuf, DFSCommand dfsCommand) {
-        if (!(dfsCommand instanceof DFSCommandExpand)) {
+        if (!(dfsCommand instanceof DFSCommandExpand dfsCommandExpand)) {
             return null;
         }
-        DFSCommandExpand dfsCommandExpand = (DFSCommandExpand) dfsCommand;
         dfsCommandExpand.setBytes(byteBuf.slice(byteBuf.readerIndex(),
                 dfsCommandExpand.getLength() - dfsCommandExpand.getFixLength()).array());
         return dfsCommandExpand;
     }
 
     public DFSCommandReply parseReply(ByteBuf byteBuf, DFSCommand dfsCommand) {
-        if (!(dfsCommand instanceof DFSCommandReply)) {
+        if (!(dfsCommand instanceof DFSCommandReply dfsCommandReply)) {
             return null;
         }
-        DFSCommandReply dfsCommandReply = (DFSCommandReply) dfsCommand;
         long mostSigBits = byteBuf.readLong();
         long leastSigBits = byteBuf.readLong();
         dfsCommandReply.setReplyUUID(new UUID(mostSigBits, leastSigBits));
@@ -399,38 +348,38 @@ public class DFSCommandParse {
     }
 
     public ByteBuf packageCommand(DFSCommand dfsCommand) {
-        if (dfsCommand instanceof DFSCommandFileInfo) {
-            return packageCommandFileInfo((DFSCommandFileInfo) dfsCommand);
-        } else if (dfsCommand instanceof DFSCommandFileDelete) {
-            return packageCommandFileDelete((DFSCommandFileDelete) dfsCommand);
-        } else if (dfsCommand instanceof DFSCommandChunkInfo) {
-            return packageCommandChunkInfo((DFSCommandChunkInfo) dfsCommand);
-        } else if (dfsCommand instanceof DFSCommandDirectFileItems) {
-            return packageCommandDirectInfo((DFSCommandDirectFileItems) dfsCommand);
-        } else if (dfsCommand instanceof DFSCommandFileOperate) {
-            return packageCommandFileOperate((DFSCommandFileOperate) dfsCommand);
-        } else if (dfsCommand instanceof DFSCommandState) {
-            return packageCommandState((DFSCommandState) dfsCommand);
-        } else if (dfsCommand instanceof DFSCommandServerAddress) {
-            return packageCommandServerAddress((DFSCommandServerAddress) dfsCommand);
-        } else if (dfsCommand instanceof DFSCommandToken) {
-            return packageCommandToken((DFSCommandToken) dfsCommand);
-        } else if (dfsCommand instanceof DFSCommandTask) {
-            return packageCommandTask((DFSCommandTask) dfsCommand);
-        } else if (dfsCommand instanceof DFSCommandTokenClear) {
-            return packageCommandTokenClear((DFSCommandTokenClear) dfsCommand);
-        } else if (dfsCommand instanceof DFSCommandFileTransfer) {
-            return packageCommandFileTransfer((DFSCommandFileTransfer) dfsCommand);
-        } else if (dfsCommand instanceof DFSCommandFileTransferState) {
-            return packageCommandFileTransferState((DFSCommandFileTransferState) dfsCommand);
-        } else if (dfsCommand instanceof DFSCommandReply) {
-            return packageCommandReply((DFSCommandReply) dfsCommand);
-        } else if (dfsCommand instanceof DFSCommandFileChunkCopy) {
-            return packageCommandFileChunkCopy((DFSCommandFileChunkCopy) dfsCommand);
-        } else if (dfsCommand instanceof DFSCommandBackupFileChunk) {
-            return packageCommandBackupFileChunk((DFSCommandBackupFileChunk) dfsCommand);
-        } else if (dfsCommand instanceof DFSCommandFileChunkInfo) {
-            return packageCommandFileChunkInfo((DFSCommandFileChunkInfo) dfsCommand);
+        if (dfsCommand instanceof DFSCommandFileInfo dfsCommandFileInfo) {
+            return packageCommandFileInfo(dfsCommandFileInfo);
+        } else if (dfsCommand instanceof DFSCommandFileDelete dfsCommandFileDelete) {
+            return packageCommandFileDelete(dfsCommandFileDelete);
+        } else if (dfsCommand instanceof DFSCommandChunkInfo dfsCommandChunkInfo) {
+            return packageCommandChunkInfo(dfsCommandChunkInfo);
+        } else if (dfsCommand instanceof DFSCommandDirectFileItems dfsCommandDirectFileItems) {
+            return packageCommandDirectInfo(dfsCommandDirectFileItems);
+        } else if (dfsCommand instanceof DFSCommandFileOperate dfsCommandFileOperate) {
+            return packageCommandFileOperate(dfsCommandFileOperate);
+        } else if (dfsCommand instanceof DFSCommandState dfsCommandState) {
+            return packageCommandState(dfsCommandState);
+        } else if (dfsCommand instanceof DFSCommandServerAddress dfsCommandServerAddress) {
+            return packageCommandServerAddress(dfsCommandServerAddress);
+        } else if (dfsCommand instanceof DFSCommandToken dfsCommandToken) {
+            return packageCommandToken(dfsCommandToken);
+        } else if (dfsCommand instanceof DFSCommandTask dfsCommandTask) {
+            return packageCommandTask(dfsCommandTask);
+        } else if (dfsCommand instanceof DFSCommandTokenClear dfsCommandTokenClear) {
+            return packageCommandTokenClear(dfsCommandTokenClear);
+        } else if (dfsCommand instanceof DFSCommandFileTransfer dfsCommandFileTransfer) {
+            return packageCommandFileTransfer(dfsCommandFileTransfer);
+        } else if (dfsCommand instanceof DFSCommandFileTransferState dfsCommandFileTransferState) {
+            return packageCommandFileTransferState(dfsCommandFileTransferState);
+        } else if (dfsCommand instanceof DFSCommandReply dfsCommandReply) {
+            return packageCommandReply(dfsCommandReply);
+        } else if (dfsCommand instanceof DFSCommandFileChunkCopy dfsCommandFileChunkCopy) {
+            return packageCommandFileChunkCopy(dfsCommandFileChunkCopy);
+        } else if (dfsCommand instanceof DFSCommandBackupFileChunk dfsCommandBackupFileChunk) {
+            return packageCommandBackupFileChunk(dfsCommandBackupFileChunk);
+        } else if (dfsCommand instanceof DFSCommandFileChunkInfo dfsCommandFileChunkInfo) {
+            return packageCommandFileChunkInfo(dfsCommandFileChunkInfo);
         } else {
             return null;
         }
