@@ -38,12 +38,10 @@ public class DFSCommandHandler extends ChannelDuplexHandler {
 
     @Override
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
-        if (msg instanceof DFSCommand && eventHandler != null) {
-            DFSCommand dfsCommand = (DFSCommand) msg;
+        if (eventHandler != null && msg instanceof DFSCommand dfsCommand) {
             if (!flagHeart) {
                 ChannelHandler channelHandler = ctx.channel().pipeline().get("heart-beat");
-                if (channelHandler instanceof HeartBeatHandler) {
-                    HeartBeatHandler heartBeatHandler = (HeartBeatHandler) channelHandler;
+                if (channelHandler instanceof HeartBeatHandler heartBeatHandler) {
                     if (heartBeatHandler.getServerState() == null) {
                         ServerState serverState = serverManager.findServerState(dfsCommand.getServerId());
                         if (serverState != null) {
