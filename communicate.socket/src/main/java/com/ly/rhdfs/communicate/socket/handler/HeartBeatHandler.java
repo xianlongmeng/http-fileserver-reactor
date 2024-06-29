@@ -88,6 +88,7 @@ public class HeartBeatHandler extends ChannelInboundHandlerAdapter {
     public void channelRead(ChannelHandlerContext ctx, Object msg) throws Exception {
         serverState.setOnline(true);
         serverState.setLastTime(Instant.now().toEpochMilli());
+        logger.info("channelRead heart beat:{}", ctx.channel().remoteAddress());
         super.channelRead(ctx, msg);
     }
 

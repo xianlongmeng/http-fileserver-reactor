@@ -11,7 +11,7 @@
     <groupId>com.ly</groupId>
     <artifactId>hdfs-store-app2</artifactId>
     <version>0.0.1-SNAPSHOT</version>
-    <name>hdfs-store-app</name>
+    <name>hdfs-store-app2</name>
     <description>Demo project for Spring Boot</description>
     <properties>
         <java.version>17</java.version>

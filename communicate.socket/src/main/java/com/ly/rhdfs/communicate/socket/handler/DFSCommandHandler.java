@@ -41,8 +41,7 @@ public class DFSCommandHandler extends ChannelDuplexHandler {
         if (eventHandler != null && msg instanceof DFSCommand dfsCommand) {
             if (!flagHeart) {
                 ChannelHandler channelHandler = ctx.channel().pipeline().get("heart-beat");
-                if (channelHandler instanceof HeartBeatHandler heartBeatHandler) {
-                    if (heartBeatHandler.getServerState() == null) {
+                if (channelHandler instanceof HeartBeatHandler heartBeatHandler && heartBeatHandler.getServerState() == null) {
                         ServerState serverState = serverManager.findServerState(dfsCommand.getServerId());
                         if (serverState != null) {
                             heartBeatHandler.setServerState(serverState);
@@ -52,7 +51,7 @@ public class DFSCommandHandler extends ChannelDuplexHandler {
                             flagHeart = true;
                         }
                     }
-                }
+
             }
             eventHandler.processCommandHandler(dfsCommand);
         } else {

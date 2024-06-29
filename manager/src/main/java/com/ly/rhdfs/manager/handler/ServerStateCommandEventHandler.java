@@ -20,11 +20,10 @@ public class ServerStateCommandEventHandler implements EventHandler {
     }
     @Override
     public int actorCommand(DFSCommand dfsCommand) {
-        if (!(dfsCommand instanceof DFSCommandState)){
+        if (!(dfsCommand instanceof DFSCommandState dfsCommandState)){
             logger.error("Illegal command,not a server state command.");
             return ResultInfo.S_ERROR;
         }
-        DFSCommandState dfsCommandState=(DFSCommandState)dfsCommand;
         dfsCommandState.getServerState().setLastTime(Instant.now().toEpochMilli());
         // 更新状态
         serverManager.putServerState(dfsCommandState.getServerState());
