@@ -255,7 +255,7 @@ public abstract class ServerManager {
     }
 
     public synchronized void saveMasterServerConfig(String configPath) {
-        if (StringUtils.isEmpty(configPath)) {
+        if (!StringUtils.hasLength(configPath)) {
             return;
         }
         try {

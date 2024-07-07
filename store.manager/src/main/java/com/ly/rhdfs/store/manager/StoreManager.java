@@ -70,8 +70,7 @@ public class StoreManager extends ServerManager {
         this.dfsCommandParse = dfsCommandParse;
     }
 
-    @Autowired
-    private void setStoreFile(StoreFile storeFile) {
+    public void setStoreFile(StoreFile storeFile) {
         this.storeFile = storeFile;
     }
 
@@ -86,6 +85,7 @@ public class StoreManager extends ServerManager {
         commandEventHandler.setFileDeleteCommandEventHandler(new FileDeleteCommandEventHandler(this));
     }
 
+    @Override
     public void initial() {
         super.initial();
         if (!ParamConstants.ST_STORE.equals(serverConfig.getServerType()))
