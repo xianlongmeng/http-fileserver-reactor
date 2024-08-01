@@ -11,10 +11,13 @@ import com.ly.rhdfs.store.manager.StoreManager;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.DependsOn;
 
 @Configuration
 @ConditionalOnProperty(prefix = "store", name = "model", havingValue = "distribution")
+@ComponentScan("com.ly.rhdfs")
 public class DistributionStoreConfig {
     private ServerConfig serverConfig;
     private FileInfoManager fileInfoManager;
@@ -55,11 +58,12 @@ public class DistributionStoreConfig {
         storeFile.setDfsFileUtils(dfsFileUtils);
         storeFile.setETagComputer(eTagComputer);
         storeFile.setStoreManager(storeManager);
+        storeManager.setStoreFile(storeFile);
         return storeFile;
     }
 
     @Bean
-    public ETagAccess DistributionEtagAccess() {
+    public ETagAccess distributionEtagAccess() {
         return new ETagAccessDFS();
     }
 }

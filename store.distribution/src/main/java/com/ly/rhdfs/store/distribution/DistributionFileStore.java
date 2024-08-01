@@ -120,10 +120,10 @@ public class DistributionFileStore extends AbstractFileStore {
                                 .subscribe(DataBufferUtils::release, // release memory is exception???
                                         e -> sink.error(new StoreFileException(e.getMessage(), e)), () -> {
                                             // 修改为分块数据的上传信息
-                                            int count = fileChunkManger.setFileChunkState(fileFullName,
+                                            int count = fileChunkManager.setFileChunkState(fileFullName,
                                                     partChunk.getChunkCount(), partChunk.getChunk());
                                             if (count >= partChunk.getChunkCount()) {
-                                                fileChunkManger.removeFileChunkState(fileFullName);
+                                                fileChunkManager.removeFileChunkState(fileFullName);
                                                 //send etag to master server
                                                 eTagComputer.etagFile(filePath)
                                                         .filter(etag -> etag.equals(dfsPartChunk.getEtag()))
@@ -199,10 +199,10 @@ public class DistributionFileStore extends AbstractFileStore {
                                                         e -> fluxSink.error(new StoreFileException(e.getMessage(), e)),
                                                         () -> {
                                                             // 修改为分块数据的上传信息
-                                                            int count = fileChunkManger.setFileChunkState(fileFullName,
+                                                            int count = fileChunkManager.setFileChunkState(fileFullName,
                                                                     partChunk.getChunkCount(), partChunk.getChunk());
                                                             if (count >= partChunk.getChunkCount()) {
-                                                                fileChunkManger.removeFileChunkState(fileFullName);
+                                                                fileChunkManager.removeFileChunkState(fileFullName);
                                                                 fluxSink.next(serverAddressInfo.getServerId());
                                                             }
                                                         });

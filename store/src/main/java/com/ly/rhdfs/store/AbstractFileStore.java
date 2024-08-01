@@ -1,7 +1,7 @@
 package com.ly.rhdfs.store;
 
 import com.ly.common.domain.FileRanges;
-import com.ly.common.service.FileChunkManger;
+import com.ly.common.service.FileChunkManager;
 import com.ly.rhdfs.file.util.DfsFileUtils;
 import com.ly.common.util.SpringContextUtil;
 import com.ly.rhdfs.config.ServerConfig;
@@ -18,12 +18,12 @@ import java.util.List;
 public abstract class AbstractFileStore implements StoreFile {
 
     protected final Logger logger = LoggerFactory.getLogger(getClass());
-    protected final FileChunkManger fileChunkManger;
+    protected final FileChunkManager fileChunkManager;
     protected ServerConfig serverConfig;
     protected DfsFileUtils dfsFileUtils;
 
-    public AbstractFileStore() {
-       fileChunkManger = SpringContextUtil.getBean(FileChunkManger.class);
+    protected AbstractFileStore() {
+       fileChunkManager = SpringContextUtil.getBean(FileChunkManager.class);
     }
 
     public void setServerConfig(ServerConfig serverConfig) {
