@@ -5,7 +5,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 
 @SpringBootApplication
-@ComponentScan("com.ly.rhdfs")
+@ComponentScan({"com.ly.common","com.ly.rhdfs"})
 public class HdfsMasterAppApplication {
 
     public static void main(String[] args) {
