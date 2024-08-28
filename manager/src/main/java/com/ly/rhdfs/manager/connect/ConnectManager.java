@@ -64,9 +64,7 @@ public class ConnectManager {
 
     public void startSocketListen(int port, EventHandler eventHandler) {
         dfsCommunicate.serverBind(port, eventHandler).subscribe(disposableServer -> {
-        },throwable -> {
-            logger.error("server bind port {} failed.",port,throwable);
-        });
+        },throwable -> logger.error("server bind port {} failed.",port,throwable));
     }
 
     public void startConnectServer(ServerState serverState, EventHandler eventHandler) {
@@ -79,9 +77,7 @@ public class ConnectManager {
             }else {
                 logger.info("connect server {}:{}:{} is success.", serverState.getServerId(), serverState.getAddress(), serverState.getPort());
             }
-        },throwable -> {
-            logger.error("connect server {}:{}:{} is failed.", serverState.getServerId(), serverState.getAddress(), serverState.getPort(),throwable);
-        });
+        },throwable -> logger.error("connect server {}:{}:{} is failed.", serverState.getServerId(), serverState.getAddress(), serverState.getPort(),throwable));
 
     }
 

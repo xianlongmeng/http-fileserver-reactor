@@ -147,7 +147,7 @@ public class DFSCommunicateSocket implements DFSCommunicate {
     @Override
     public Mono<? extends DisposableServer> serverBind(int port, EventHandler eventHandler) {
         return TcpServer.create().port(port).handle((inbound, outbound) -> inbound.receive().then())
-                .doOnConnection(connection -> {
+                .doOnConnection(connection ->
                     // heart,connect init
                     connection.addHandlerFirst(new IdleStateHandler(readerIdle, writerIdle, 0))
                             .addHandlerLast("heart-beat", new HeartBeatHandler())
@@ -155,8 +155,8 @@ public class DFSCommunicateSocket implements DFSCommunicate {
                             .addHandlerLast(new LengthFieldBasedFrameDecoder(serverConfig.getFrameDatagramMaxSize(), 4, 4))
                             .addHandlerLast(new DFSCommandDecoder())
                             // command
-                            .addHandlerLast(new DFSCommandHandler(connection, eventHandler));
-                }).bind();
+                            .addHandlerLast(new DFSCommandHandler(connection, eventHandler))
+                ).bind();
     }
 
     @Override
