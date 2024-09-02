@@ -2,7 +2,7 @@ package com.ly.rhdfs.manager.handler;
 
 import com.ly.common.domain.ResultInfo;
 import com.ly.common.domain.file.FileInfo;
-import com.ly.common.service.FileChunkManger;
+import com.ly.common.service.FileChunkManager;
 import com.ly.common.util.SpringContextUtil;
 import com.ly.etag.ETagComputer;
 import com.ly.rhdfs.communicate.command.DFSCommand;
@@ -25,14 +25,14 @@ public class FileTransferChunkCommandEventHandler implements EventHandler {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final ServerManager serverManager;
-    private final FileChunkManger fileChunkManger;
+    private final FileChunkManager fileChunkManager;
     private StoreFile storeFile;
     private ETagComputer eTagComputer;
 
     public FileTransferChunkCommandEventHandler(ServerManager serverManager) {
         this.serverManager = serverManager;
         storeFile = SpringContextUtil.getBean(StoreFile.class);
-        fileChunkManger = SpringContextUtil.getBean(FileChunkManger.class);
+        fileChunkManager = SpringContextUtil.getBean(FileChunkManager.class);
         eTagComputer = SpringContextUtil.getBean(ETagComputer.class);
     }
 
@@ -73,7 +73,7 @@ public class FileTransferChunkCommandEventHandler implements EventHandler {
                                                 dfsCommandFileTransfer.getFileTransferInfo().getChunkIndex(),
                                                 dfsCommandFileTransfer.getFileTransferInfo().getStartPos(),
                                                 dfsCommandFileTransfer.getFileTransferInfo().getSize());
-                                        int count = fileChunkManger.setFileChunkState(fileFullName,
+                                        int count = fileChunkManager.setFileChunkState(fileFullName,
                                                 dfsCommandFileTransfer.getFileTransferInfo().getChunkPieceCount(),
                                                 dfsCommandFileTransfer.getFileTransferInfo().getChunkPieceIndex());
                                         if (count == dfsCommandFileTransfer.getFileTransferInfo().getChunkPieceCount()) {

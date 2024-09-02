@@ -20,7 +20,7 @@ import com.ly.common.constant.ParamConstants;
 import com.ly.common.domain.FileChunkState;
 
 @Component
-public class FileChunkManger {
+public class FileChunkManager {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
