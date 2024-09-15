@@ -90,6 +90,7 @@ public class MasterManager extends ServerManager {
         commandEventHandler.setFileDeleteCommandEventHandler(new MasterFileDeleteCommandEventHandler(this));
     }
 
+    @Override
     public void initial() {
         fileServerRunManager.setMasterManager(this);
         fileServerRunManager.setFileInfoManager(fileInfoManager);
