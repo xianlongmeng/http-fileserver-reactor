@@ -60,20 +60,20 @@ public class ServerAddressInfo implements Comparable{
 
     @Override
     public int compareTo(@NonNull Object o) {
-        if (o instanceof ServerAddressInfo)
-            return Long.compare(serverId,((ServerAddressInfo) o).serverId);
-        else if (o instanceof Long)
-            return Long.compare(serverId,(Long) o);
+        if (o instanceof ServerAddressInfo oSai)
+            return Long.compare(serverId,oSai.serverId);
+        else if (o instanceof Long ol)
+            return Long.compare(serverId,ol);
         else
             return 1;
     }
 
     @Override
     public boolean equals(Object obj) {
-        if (obj instanceof ServerAddressInfo)
-            return serverId==((ServerAddressInfo) obj).serverId;
-        if (obj instanceof Long)
-            return serverId==(Long) obj;
+        if (obj instanceof ServerAddressInfo sai)
+            return serverId==sai.serverId;
+        if (obj instanceof Long l)
+            return serverId==l;
         return false;
     }
 }
