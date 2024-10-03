@@ -71,7 +71,7 @@ public class FileChunkState {
             return -1;
         }
         if (((states[i] >>> o) & 1) > 0) {
-            states[i] &= ~(1 << o);
+            states[i] &= (byte) ~(1 << o);
             return count.addAndGet(-1);
         } else {
             return getCount();
@@ -87,7 +87,7 @@ public class FileChunkState {
         } else {
             int i = index / 8 + 4;
             int o = index % 8;
-            states[i] |= 1 << o;
+            states[i] |= (byte) (1 << o);
             return incrementCountAndGet();
         }
     }
