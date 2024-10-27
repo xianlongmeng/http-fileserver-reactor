@@ -422,18 +422,17 @@ public class DFSCommandParse {
     }
 
     private DFSCommand convertCommandObject(Object commandObj) {
-        if (commandObj instanceof FileInfo) {
-            return convertCommandFileInfo((FileInfo) commandObj);
-        } else if (commandObj instanceof ChunkInfo) {
-            return convertCommandChunkInfo((ChunkInfo) commandObj);
-        } else if (commandObj instanceof DirectInfo) {
-            return convertCommandDirectInfo((DirectInfo) commandObj);
-        } else if (commandObj instanceof OperationLog) {
-            return convertCommandFileOperate((OperationLog) commandObj);
-        } else if (commandObj instanceof ServerState) {
-            return convertCommandState((ServerState) commandObj);
-        } else if (commandObj instanceof List) {
-            List<?> objList = (List<?>) commandObj;
+        if (commandObj instanceof FileInfo fileInfo) {
+            return convertCommandFileInfo(fileInfo);
+        } else if (commandObj instanceof ChunkInfo chunkInfo) {
+            return convertCommandChunkInfo(chunkInfo);
+        } else if (commandObj instanceof DirectInfo directInfo) {
+            return convertCommandDirectInfo(directInfo);
+        } else if (commandObj instanceof OperationLog operationLog) {
+            return convertCommandFileOperate(operationLog);
+        } else if (commandObj instanceof ServerState serverState) {
+            return convertCommandState(serverState);
+        } else if (commandObj instanceof List<?> objList) {
             if (!objList.isEmpty()) {
                 Object obj1 = objList.get(1);
                 if (obj1 instanceof ServerInfoConfiguration) {
@@ -441,20 +440,20 @@ public class DFSCommandParse {
                 }
             }
             return null;
-        } else if (commandObj instanceof TokenInfo) {
-            return convertCommandToken((TokenInfo) commandObj);
-        } else if (commandObj instanceof TaskInfo) {
-            return convertCommandTask((TaskInfo) commandObj);
-        } else if (commandObj instanceof FileTransferInfo) {
-            return convertCommandFileTransfer((FileTransferInfo) commandObj);
-        } else if (commandObj instanceof FileTransferState) {
-            return convertCommandFileTransferState((FileTransferState) commandObj);
-        } else if (commandObj instanceof byte[]) {
-            return convertCommandExpand((byte[]) commandObj);
-        } else if (commandObj instanceof FileChunkCopy) {
-            return convertCommandFileChunkCopy((FileChunkCopy) commandObj);
-        } else if (commandObj instanceof FileChunkInfo) {
-            return convertCommandFileChunkInfo((FileChunkInfo) commandObj);
+        } else if (commandObj instanceof TokenInfo tokenInfo) {
+            return convertCommandToken(tokenInfo);
+        } else if (commandObj instanceof TaskInfo taskInfo) {
+            return convertCommandTask(taskInfo);
+        } else if (commandObj instanceof FileTransferInfo fileTransferInfo) {
+            return convertCommandFileTransfer(fileTransferInfo);
+        } else if (commandObj instanceof FileTransferState fileTransferState) {
+            return convertCommandFileTransferState(fileTransferState);
+        } else if (commandObj instanceof byte[] bytes) {
+            return convertCommandExpand(bytes);
+        } else if (commandObj instanceof FileChunkCopy fileChunkCopy) {
+            return convertCommandFileChunkCopy(fileChunkCopy);
+        } else if (commandObj instanceof FileChunkInfo fileChunkInfo) {
+            return convertCommandFileChunkInfo(fileChunkInfo);
         } else {
             return null;
         }
