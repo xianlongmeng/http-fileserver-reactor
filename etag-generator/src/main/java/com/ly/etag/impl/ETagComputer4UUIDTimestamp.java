@@ -24,7 +24,7 @@ public class ETagComputer4UUIDTimestamp implements ETagComputer {
     public Mono<String> etagFile(String filePath, int chunk) {
         if (eTagAccess != null) {
             String etag = eTagAccess.readEtag(filePath, chunk);
-            if (!StringUtils.isEmpty(etag))
+            if (StringUtils.hasLength(etag))
                 return Mono.just(etag);
         }
         return Mono.just(Generators.timeBasedGenerator().generate().toString()).map(etag -> {

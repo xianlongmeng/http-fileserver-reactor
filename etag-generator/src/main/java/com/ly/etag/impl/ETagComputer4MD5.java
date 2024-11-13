@@ -60,7 +60,7 @@ public class ETagComputer4MD5 implements ETagComputer {
     public Mono<String> etagFile(String filePath, Flux<DataBuffer> dataBufferFlux, int chunk) {
         if (eTagAccess != null) {
             String etag = eTagAccess.readEtag(filePath, chunk);
-            if (!StringUtils.isEmpty(etag))
+            if (StringUtils.hasLength(etag))
                 return Mono.just(etag);
         }
         return dataBufferFlux.collect(() -> {
