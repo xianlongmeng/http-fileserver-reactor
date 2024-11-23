@@ -75,8 +75,7 @@ public class UploadHandler {
         String finalPath = path;
         String finalFileName = fileName;
         return request.body(BodyExtractors.toParts()).flatMap(part -> {
-            if (part instanceof FilePart) {
-                FilePart filePart = (FilePart) part;
+            if (part instanceof FilePart filePart) {
                 String fname = finalFileName;
                 if (StringUtils.isEmpty(finalFileName)) {
                     fname = filePart.filename();
@@ -166,8 +165,7 @@ public class UploadHandler {
         return request.body(BodyExtractors.toParts())
                 .single().onErrorResume(t -> Mono.empty())
                 .flatMap(part -> {
-                    if (part instanceof FilePart) {
-                        FilePart filePart = (FilePart) part;
+                    if (part instanceof FilePart filePart) {
                         if (!serverConfig.isRewrite() && storeFile.existed(filePart.filename(), finalPath)) {
                             logger.warn("file is existed and can not rewrite.fileName:{}", filePart.filename());
                             return Mono.just(
