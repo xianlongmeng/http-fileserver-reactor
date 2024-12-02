@@ -120,10 +120,10 @@ public class SingleFileStore extends AbstractFileStore {
                                         e -> sink.success(new ResultValueInfo<>(ResultInfo.S_ERROR, "write.file.201",
                                                 e.getMessage(), filePart)),
                                         () -> {
-                                            int count = fileChunkManger.setFileChunkState(fileFullName,
+                                            int count = fileChunkManager.setFileChunkState(fileFullName,
                                                     partChunk.getChunkCount(), partChunk.getChunk());
                                             if (count >= partChunk.getChunkCount()) {
-                                                fileChunkManger.removeFileChunkState(fileFullName);
+                                                fileChunkManager.removeFileChunkState(fileFullName);
                                                 File fileTmp = new File(fileTmpPath.toUri());
                                                 if (fileTmp.renameTo(file)) {
                                                     sink.success(new ResultValueInfo<>(ResultInfo.S_OK, filePart));
